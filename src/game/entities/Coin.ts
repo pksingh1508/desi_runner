@@ -11,7 +11,6 @@ export class Coin {
   active = false;
   collected = false;
 
-  lane = 1;
   localZ = 0;
   baseY = COIN.baseY;
   bobOffset = 0;
@@ -31,8 +30,8 @@ export class Coin {
     return this.localZ + (this.mesh.parent?.position.z ?? 0);
   }
 
-  place(lane: number, localZ: number, y: number): void {
-    this.lane = lane;
+  /** x is a world-space lateral coordinate (fractional lanes allowed for curves). */
+  place(x: number, localZ: number, y: number): void {
     this.localZ = localZ;
     this.baseY = y;
     this.active = true;
@@ -41,7 +40,7 @@ export class Coin {
     this.phase = Math.random() * Math.PI * 2;
     this.mesh.visible = true;
     this.mesh.scale.setScalar(1);
-    this.mesh.position.set(laneToX(lane), y, localZ);
+    this.mesh.position.set(x, y, localZ);
   }
 
   updateVisual(delta: number): void {
@@ -65,11 +64,6 @@ export class Coin {
     this.mesh.scale.setScalar(next);
     return false;
   }
-}
-
-export function laneToX(lane: number): number {
-  // Lanes are indexed 0..2 mapping to [-2.5, 0, 2.5]; fractional lanes allowed for coins.
-  return -2.5 + lane * 2.5;
 }
 
 /** Shares one geometry/material across every coin instance for a Game session. */
