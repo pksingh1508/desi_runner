@@ -15,12 +15,13 @@ export const PLAYER = {
   depth: 0.7,
   standingHeight: 1.9,
   slideHeight: 0.95,
-  // Apex ≈ v²/(2g) = 2.57m — clears barriers (~0.96m) with a big readable
-  // arc, but stays under blocks (2.7m) so they always require a lane change.
-  gravity: 36,
-  jumpVelocity: 13.6,
+  // Apex ≈ v²/(2g) = 3.45m — the runner visibly towers over barriers (~0.96m)
+  // with a long readable arc; blocks (2.7m) can only be skimmed with near-
+  // perfect timing, and overhead beams still demand a slide.
+  gravity: 38,
+  jumpVelocity: 16.2,
   /** Extra downward velocity when slide is requested mid-air. */
-  fastFallVelocity: 26,
+  fastFallVelocity: 30,
   slideDuration: 0.85,
   /** Seconds a jump press stays buffered before landing. */
   jumpBufferTime: 0.12,
@@ -36,7 +37,7 @@ export const WORLD = {
   recycleBehindZ: 18,
   fogNear: 55,
   fogFar: 235,
-  backgroundColor: 0x05060e,
+  backgroundColor: 0x070b09,
   groundY: 0,
 } as const;
 
@@ -77,7 +78,7 @@ export const CAMERA_CFG = {
   positionDamp: 6.5,
   fovDamp: 2.2,
   /** Fraction of player height the camera follows vertically. */
-  jumpFollow: 0.55,
+  jumpFollow: 0.68,
   /** Fraction of lateral player motion the camera follows. */
   lateralFollow: 0.45,
   shakeDecay: 4.5,
@@ -102,14 +103,17 @@ export const PATTERN = {
 } as const;
 
 export const COLORS = {
-  neonCyan: 0x27e6ff,
-  neonPurple: 0xa64bff,
-  neonPink: 0xff3fa4,
-  warmOrange: 0xff9a3d,
+  /** Bright signal lime — primary accent (Task Unit-style military palette). */
+  signalLime: 0xd9de7a,
+  /** Soft foliage green — secondary accent. */
+  signalGreen: 0x9fca7d,
+  /** Mid military green — tertiary accent. */
+  militaryMid: 0x6f8d42,
+  warnAmber: 0xe0a458,
   coinGold: 0xffd23f,
-  dangerRed: 0xff4560,
-  buildingBody: 0x0a0d1c,
-  roadBody: 0x11131f,
+  dangerRed: 0xef5350,
+  buildingBody: 0x0a0f0c,
+  roadBody: 0x121711,
 } as const;
 
 export const MODEL_URL = "/models/robot_expressive.glb";

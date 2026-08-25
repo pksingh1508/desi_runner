@@ -52,8 +52,8 @@ export function GameHUD({
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between px-4 pt-[max(0.9rem,env(safe-area-inset-top))] sm:px-7 sm:pt-5">
       {/* Score */}
       <div className="hud-panel px-3 py-2 sm:px-4">
-        <div className="font-mono text-[9px] tracking-[0.3em] text-cyan-200/70">SCORE</div>
-        <div className="score-value font-mono text-xl font-bold tabular-nums text-white sm:text-2xl">
+        <div className="font-tech text-[9px] tracking-[0.3em] text-[#d9de7a]/75">SCORE</div>
+        <div className="score-value font-tech text-xl tabular-nums text-[#f4f6d0] sm:text-2xl">
           {score.toLocaleString()}
         </div>
       </div>
@@ -61,12 +61,12 @@ export function GameHUD({
       {/* Distance + tier */}
       <div className="flex flex-col items-center gap-1.5">
         <div className="hud-panel px-4 py-1.5 text-center">
-          <span className="font-mono text-lg font-bold tabular-nums text-purple-200 sm:text-xl">
+          <span className="font-tech text-lg tabular-nums text-[#cfe3ae] sm:text-xl">
             {distance.toLocaleString()}
           </span>
-          <span className="ml-1 font-mono text-[10px] tracking-widest text-white/50">m</span>
+          <span className="font-tech ml-1 text-[10px] tracking-widest text-white/50">m</span>
         </div>
-        <div className="tier-chip font-mono text-[9px] tracking-[0.3em]">
+        <div className="tier-chip font-tech text-[9px] tracking-[0.3em]">
           {tierLabel} · {tierName}
         </div>
       </div>
@@ -75,11 +75,11 @@ export function GameHUD({
       <div className="flex flex-col items-end gap-1.5">
         <div className="hud-panel relative flex items-center gap-2 px-3 py-2 sm:px-4">
           <span className="coin-icon">✦</span>
-          <span className="font-mono text-lg font-bold tabular-nums text-amber-200 sm:text-xl">
+          <span className="font-tech text-lg tabular-nums text-[#e8c96a] sm:text-xl">
             {coins.toLocaleString()}
           </span>
           {popups.map((popup) => (
-            <span key={popup.id} className="coin-popup font-mono text-xs font-bold text-amber-300">
+            <span key={popup.id} className="coin-popup font-tech text-xs font-bold text-[#e8c96a]">
               +25
             </span>
           ))}

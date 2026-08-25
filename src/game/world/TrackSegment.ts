@@ -112,7 +112,7 @@ export class TrackSegment {
   private buildRails(shared: SharedAssets, bag: ResourceBag): void {
     const railGeo = bag.geo(new THREE.BoxGeometry(0.24, 0.42, L));
     const glowGeo = bag.geo(new THREE.BoxGeometry(0.28, 0.05, L));
-    const edgeMat = this.index % 2 === 0 ? shared.edgeCyanMat : shared.edgeMagentaMat;
+    const edgeMat = this.index % 2 === 0 ? shared.edgeLimeMat : shared.edgeGreenMat;
     for (const x of [-(WORLD.roadHalfWidth + 0.35), WORLD.roadHalfWidth + 0.35]) {
       const rail = new THREE.Mesh(railGeo, shared.postMat);
       rail.position.set(x, 0.21, -L / 2);

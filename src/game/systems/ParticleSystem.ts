@@ -113,7 +113,7 @@ export class ParticleSystem {
         x + randRange(-0.3, 0.3), y + 0.06, randRange(-0.2, 0.4),
         randRange(-0.8, 0.8), randRange(0.6, 1.8), randRange(1.5, 3.5),
         randRange(0.25, 0.45), randRange(4, 7),
-        0.55, 0.72, 0.95,
+        0.6, 0.72, 0.5,
         7
       );
     }
@@ -129,7 +129,7 @@ export class ParticleSystem {
         randRange(-6.5, 6.5), randRange(0.3, 5.5), randRange(-85, -45),
         0, 0, worldSpeed * randRange(1.05, 1.35),
         randRange(0.7, 1.1), randRange(6, 11),
-        0.3, 0.62, 1.0,
+        0.45, 0.6, 0.32,
         0
       );
     }

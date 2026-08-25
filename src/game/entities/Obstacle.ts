@@ -95,15 +95,15 @@ export function createObstacleMesh(
   group.castShadow = true;
 
   const darkMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0x161a2c, roughness: 0.6, metalness: 0.35 })
+    new THREE.MeshStandardMaterial({ color: 0x151b16, roughness: 0.6, metalness: 0.35 })
   );
   const dangerGlow = bag.mat(
     new THREE.MeshBasicMaterial({ color: COLORS.dangerRed })
   );
-  const warmGlow = bag.mat(
-    new THREE.MeshBasicMaterial({ color: COLORS.warmOrange })
+  const warnGlow = bag.mat(
+    new THREE.MeshBasicMaterial({ color: COLORS.warnAmber })
   );
-  const purpleGlow = bag.mat(new THREE.MeshBasicMaterial({ color: COLORS.neonPurple }));
+  const stripeGlow = bag.mat(new THREE.MeshBasicMaterial({ color: COLORS.signalLime }));
 
   switch (kind) {
     case "barrier": {
@@ -122,7 +122,7 @@ export function createObstacleMesh(
       legR.position.set(0.85, 0.31, 0);
       legR.castShadow = true;
       const footGeo = bag.geo(new THREE.BoxGeometry(2.16, 0.06, 0.42));
-      const foot = new THREE.Mesh(footGeo, warmGlow);
+      const foot = new THREE.Mesh(footGeo, warnGlow);
       foot.position.y = 0.03;
       group.add(bar, strip, legL, legR, foot);
       break;
@@ -133,7 +133,7 @@ export function createObstacleMesh(
       shell.position.y = 0.62;
       shell.castShadow = true;
       const stripeGeo = bag.geo(new THREE.BoxGeometry(2.02, 0.12, 0.36));
-      const stripe = new THREE.Mesh(stripeGeo, purpleGlow);
+      const stripe = new THREE.Mesh(stripeGeo, stripeGlow);
       stripe.position.y = 0.62;
       const skidGeo = bag.geo(new THREE.BoxGeometry(0.5, 0.34, 0.3));
       const skidL = new THREE.Mesh(skidGeo, darkMat);
@@ -149,12 +149,12 @@ export function createObstacleMesh(
       crate.position.y = 1.35;
       crate.castShadow = true;
       const edgeMat = bag.mat(
-        new THREE.LineBasicMaterial({ color: COLORS.neonPink })
+        new THREE.LineBasicMaterial({ color: COLORS.signalGreen })
       );
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(crateGeo), edgeMat);
       edges.position.y = 1.35;
       const coreGeo = bag.geo(new THREE.BoxGeometry(0.9, 0.9, 0.08));
-      const core = new THREE.Mesh(coreGeo, warmGlow);
+      const core = new THREE.Mesh(coreGeo, warnGlow);
       core.position.set(0, 1.5, -1.06);
       group.add(crate, edges, core);
       break;
@@ -167,7 +167,7 @@ export function createObstacleMesh(
       beam.position.y = 1.88;
       beam.castShadow = true;
       const warnGeo = bag.geo(new THREE.BoxGeometry(width * 0.96, 0.14, 0.58));
-      const warn = new THREE.Mesh(warnGeo, warmGlow);
+      const warn = new THREE.Mesh(warnGeo, warnGlow);
       warn.position.y = 1.52;
       const underGeo = bag.geo(new THREE.BoxGeometry(width * 0.98, 0.06, 0.5));
       const under = new THREE.Mesh(underGeo, dangerGlow);

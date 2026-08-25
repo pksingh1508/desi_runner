@@ -115,6 +115,9 @@ export class Player {
     // Lane interpolation (frame-rate independent damping).
     const targetX = LANES[this.targetLane];
     this.root.position.x = damp(this.root.position.x, targetX, PLAYER.laneDampSpeed, delta);
+    // The visual rig must follow the simulated height exactly — collision,
+    // camera and mesh all share this value so jumps read truthfully.
+    this.root.position.y = this.y;
 
     if (this.dead) {
       this.animation?.update(delta);
@@ -307,16 +310,16 @@ export class Player {
     const group = new THREE.Group();
     group.name = "FallbackBot";
 
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1b2138, roughness: 0.55, metalness: 0.35 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1a221b, roughness: 0.55, metalness: 0.35 });
     const glowMat = new THREE.MeshStandardMaterial({
-      color: 0x0a2030,
-      emissive: 0x27e6ff,
+      color: 0x14210f,
+      emissive: 0xd9de7a,
       emissiveIntensity: 2.2,
       roughness: 0.3,
     });
     const accentMat = new THREE.MeshStandardMaterial({
-      color: 0x241033,
-      emissive: 0xa64bff,
+      color: 0x11240f,
+      emissive: 0x9fca7d,
       emissiveIntensity: 1.4,
       roughness: 0.4,
     });

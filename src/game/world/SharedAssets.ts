@@ -12,8 +12,8 @@ function makeBillboardTexture(
   canvas.height = 128;
   const ctx = canvas.getContext("2d")!;
   const gradient = ctx.createLinearGradient(0, 0, 256, 128);
-  gradient.addColorStop(0, "#0b0f22");
-  gradient.addColorStop(1, "#141033");
+  gradient.addColorStop(0, "#0a120d");
+  gradient.addColorStop(1, "#111a12");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 256, 128);
   ctx.strokeStyle = hue;
@@ -54,8 +54,8 @@ function makeBillboardTexture(
 export class SharedAssets {
   readonly roadMat: THREE.MeshStandardMaterial;
   readonly laneStripMat: THREE.MeshBasicMaterial;
-  readonly edgeCyanMat: THREE.MeshBasicMaterial;
-  readonly edgeMagentaMat: THREE.MeshBasicMaterial;
+  readonly edgeLimeMat: THREE.MeshBasicMaterial;
+  readonly edgeGreenMat: THREE.MeshBasicMaterial;
   readonly dashMat: THREE.MeshBasicMaterial;
   readonly postMat: THREE.MeshStandardMaterial;
   readonly postHeadMat: THREE.MeshBasicMaterial;
@@ -68,46 +68,46 @@ export class SharedAssets {
 
   constructor(private bag: ResourceBag) {
     this.roadMat = bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x11131f, roughness: 0.85, metalness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0x121711, roughness: 0.85, metalness: 0.25 })
     );
     this.laneStripMat = bag.mat(
       new THREE.MeshBasicMaterial({
-        color: 0x27e6ff,
+        color: 0xb7c968,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.38,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
     );
-    this.edgeCyanMat = bag.mat(
-      new THREE.MeshBasicMaterial({ color: 0x27e6ff })
+    this.edgeLimeMat = bag.mat(
+      new THREE.MeshBasicMaterial({ color: 0xd9de7a })
     );
-    this.edgeMagentaMat = bag.mat(
-      new THREE.MeshBasicMaterial({ color: 0xa64bff })
+    this.edgeGreenMat = bag.mat(
+      new THREE.MeshBasicMaterial({ color: 0x6f8d42 })
     );
     this.dashMat = bag.mat(
       new THREE.MeshBasicMaterial({
-        color: 0xbfd9ff,
+        color: 0xdfe8cf,
         transparent: true,
         opacity: 0.1,
         depthWrite: false,
       })
     );
     this.postMat = bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x1a2038, roughness: 0.5, metalness: 0.6 })
+      new THREE.MeshStandardMaterial({ color: 0x1c261e, roughness: 0.5, metalness: 0.6 })
     );
-    this.postHeadMat = bag.mat(new THREE.MeshBasicMaterial({ color: 0x27e6ff }));
+    this.postHeadMat = bag.mat(new THREE.MeshBasicMaterial({ color: 0xd9de7a }));
     this.buildingMat = bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x0a0d1c, roughness: 0.92, metalness: 0.15 })
+      new THREE.MeshStandardMaterial({ color: 0x0a0f0c, roughness: 0.92, metalness: 0.15 })
     );
-    this.bandMats = [0x27e6ff, 0xa64bff, 0xff3fa4].map((color) =>
+    this.bandMats = [0xd9de7a, 0x6f8d42, 0xe0a458].map((color) =>
       bag.mat(new THREE.MeshBasicMaterial({ color }))
     );
     this.billboardMats = (
       [
-        ["#27e6ff", "chevrons"],
-        ["#a64bff", "rings"],
-        ["#ff3fa4", "bars"],
+        ["#d9de7a", "chevrons"],
+        ["#9fca7d", "rings"],
+        ["#e0a458", "bars"],
       ] as const
     ).map(([hue, glyph]) =>
       bag.mat(

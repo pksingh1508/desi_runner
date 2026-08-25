@@ -33,8 +33,8 @@ function line(lane: number, zStart: number, count: number, step = 4): PatternCoi
   return out;
 }
 
-/** Jump arc peaking over an obstacle at zCenter. */
-function arc(lane: number, zCenter: number, peak = 2.15, count = 7, span = 11): PatternCoin[] {
+/** Jump arc peaking over an obstacle at zCenter (default peak ≈ jump apex). */
+function arc(lane: number, zCenter: number, peak = 2.7, count = 7, span = 12): PatternCoin[] {
   const out: PatternCoin[] = [];
   for (let i = 0; i < count; i++) {
     const t = count === 1 ? 0.5 : i / (count - 1);

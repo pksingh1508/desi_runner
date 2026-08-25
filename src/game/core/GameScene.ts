@@ -24,11 +24,11 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
   camera.position.set(0, 4.7, 8.2);
   camera.lookAt(0, 1.5, -7.5);
 
-  const hemi = new THREE.HemisphereLight(0x9fd8ff, 0x140a24, 1.15);
+  const hemi = new THREE.HemisphereLight(0xcfe6bd, 0x0d1a12, 1.15);
   scene.add(hemi);
 
   // Key light: single shadow-casting directional sun over the play area.
-  const sun = new THREE.DirectionalLight(0xbfe8ff, 2.2);
+  const sun = new THREE.DirectionalLight(0xdcefd0, 2.2);
   sun.position.set(7, 16, 6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -42,13 +42,13 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
   scene.add(sun);
   scene.add(sun.target);
 
-  // Subtle magenta rim from behind-left to separate the runner from the road.
-  const rim = new THREE.DirectionalLight(0xa64bff, 0.85);
+  // Soft green rim from behind-left to separate the runner from the road.
+  const rim = new THREE.DirectionalLight(0x86a95e, 0.85);
   rim.position.set(-6, 5, -8);
   scene.add(rim);
 
   // Warm glow that follows the player (position synced by Game each frame).
-  const playerGlow = new THREE.PointLight(COLORS.neonCyan, 14, 12, 1.8);
+  const playerGlow = new THREE.PointLight(COLORS.signalLime, 14, 12, 1.8);
   playerGlow.position.set(0, 3, 1.5);
   scene.add(playerGlow);
 
@@ -82,7 +82,7 @@ function buildStars(scene: THREE.Scene, bag: ResourceBag): void {
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const material = bag.mat(
     new THREE.PointsMaterial({
-      color: 0xbfe3ff,
+      color: 0xdfe8cf,
       size: 1.6,
       sizeAttenuation: false,
       transparent: true,
