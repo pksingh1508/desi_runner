@@ -12,7 +12,7 @@ export class Coin {
   collected = false;
 
   localZ = 0;
-  baseY = COIN.baseY;
+  baseY: number = COIN.baseY;
   bobOffset = 0;
 
   private phase = Math.random() * Math.PI * 2;

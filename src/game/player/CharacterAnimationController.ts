@@ -50,7 +50,8 @@ export class CharacterAnimationController {
       return;
     }
     this.hasClips = true;
-    this.mixer = new THREE.AnimationMixer(root);
+    const mixer = new THREE.AnimationMixer(root);
+    this.mixer = mixer;
 
     const mapping: ClipMapping = {
       idle: findClip(clips, "idle"),
@@ -67,7 +68,7 @@ export class CharacterAnimationController {
       timeScale = 1
     ): void => {
       if (!clip) return;
-      const action = this.mixer.clipAction(clip);
+      const action = mixer.clipAction(clip);
       action.setLoop(loop, loop === THREE.LoopOnce ? 1 : Infinity);
       action.clampWhenFinished = loop === THREE.LoopOnce;
       action.timeScale = timeScale;

@@ -39,7 +39,7 @@ export function GameCanvas() {
     };
   }, [store]);
 
-  const game = () => gameRef.current;
+  const game = () => gameRef.current!;
 
   return (
     <div className="fixed inset-0 h-dvh w-screen overflow-hidden bg-[#05060e] text-white select-none">

@@ -17,8 +17,8 @@ export interface SceneBundle {
  */
 export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(COLORS.backgroundColor);
-  scene.fog = new THREE.Fog(COLORS.backgroundColor, WORLD.fogNear, WORLD.fogFar);
+  scene.background = new THREE.Color(WORLD.backgroundColor);
+  scene.fog = new THREE.Fog(WORLD.backgroundColor, WORLD.fogNear, WORLD.fogFar);
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 600);
   camera.position.set(0, 4.7, 8.2);

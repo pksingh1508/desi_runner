@@ -85,6 +85,7 @@ export class Game {
     bundle.scene.add(this.player.root);
 
     this.input = new InputSystem(this.host, (action) => this.handleAction(action));
+    this.audio.setMuted(this.store.getSnapshot().muted);
     this.player.onLand = (impact) => {
       if (this.particles) this.particles.emitDust(this.player.positionX, 0, Math.round(clamp(impact / 4, 2, 8)));
       this.audio.playLand();
@@ -302,7 +303,7 @@ export class Game {
   private fpsFrames = 0;
 
   private updateAmbient(delta: number, speed: number): void {
-    this.world.update(delta, speed);
+    this.world.update(delta, speed, 0);
     this.particles?.update(delta, speed, 0);
     this.player.update(delta, 0);
     this.syncLights();
@@ -321,7 +322,7 @@ export class Game {
     }
 
     const speed = SPEED.start * SPEED.countdownFactor;
-    this.world.update(delta, speed);
+    this.world.update(delta, speed, 0);
     this.difficulty.overrideSpeed(speed);
     this.player.update(delta, SPEED.countdownFactor);
     this.particles?.update(delta, speed, 0.15);
@@ -341,7 +342,7 @@ export class Game {
     const speed = this.difficulty.update(delta, true);
     const ratio = this.difficulty.ratio;
 
-    this.world.update(delta, speed);
+    this.world.update(delta, speed, this.difficulty.tier.index);
     this.player.update(delta, ratio);
 
     // Gather nearby coins for collection tests (colliders were refreshed in world.update).
@@ -419,7 +420,7 @@ export class Game {
 
   private updateGameOver(delta: number): void {
     this.deathSpeed = Math.max(0, this.deathSpeed - SPEED.deathDeceleration * delta);
-    this.world.update(delta, this.deathSpeed);
+    this.world.update(delta, this.deathSpeed, this.difficulty.tier.index);
     this.animateCollectingCoins(delta);
     this.player.update(delta, 0);
     this.particles?.update(delta, this.deathSpeed, 0);

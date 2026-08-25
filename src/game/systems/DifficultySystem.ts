@@ -12,8 +12,8 @@ export interface DifficultyTier {
  * unlocks progressively nastier track patterns via `patternTier`.
  */
 export class DifficultySystem {
-  private currentDistance = 0;
-  private currentSpeed = SPEED.start;
+  private currentDistance: number = 0;
+  private currentSpeed: number = SPEED.start;
 
   reset(): void {
     this.currentDistance = 0;

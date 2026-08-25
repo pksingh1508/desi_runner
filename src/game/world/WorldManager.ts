@@ -66,10 +66,11 @@ export class WorldManager {
   }
 
   /**
-   * Advance the world. Returns nothing; query via forEach helpers.
+   * Advance the world.
    * @param delta simulation seconds @param speed world speed (u/s)
+   * @param tierIndex difficulty tier used when re-populating recycled segments
    */
-  update(delta: number, speed: number): void {
+  update(delta: number, speed: number, tierIndex: number): void {
     const dz = speed * delta;
     this.time += delta;
 
@@ -98,6 +99,9 @@ export class WorldManager {
         minOrigin = segment.originZ;
         this.releaseSegmentEntities(segment);
         segment.decorate(this.shared);
+        const pattern = pickPattern(tierIndex, this.lastPatternId);
+        this.lastPatternId = pattern.id;
+        this.spawnPattern(segment, pattern);
       }
     }
   }
