@@ -15,8 +15,10 @@ export const PLAYER = {
   depth: 0.7,
   standingHeight: 1.9,
   slideHeight: 0.95,
-  gravity: 38,
-  jumpVelocity: 13.5,
+  // Apex ≈ v²/(2g) = 2.57m — clears barriers (~0.96m) with a big readable
+  // arc, but stays under blocks (2.7m) so they always require a lane change.
+  gravity: 36,
+  jumpVelocity: 13.6,
   /** Extra downward velocity when slide is requested mid-air. */
   fastFallVelocity: 26,
   slideDuration: 0.85,
@@ -75,7 +77,7 @@ export const CAMERA_CFG = {
   positionDamp: 6.5,
   fovDamp: 2.2,
   /** Fraction of player height the camera follows vertically. */
-  jumpFollow: 0.35,
+  jumpFollow: 0.55,
   /** Fraction of lateral player motion the camera follows. */
   lateralFollow: 0.45,
   shakeDecay: 4.5,

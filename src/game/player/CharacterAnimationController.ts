@@ -91,13 +91,11 @@ export class CharacterAnimationController {
 
     this.buildSlideClip();
 
-    // Keep looping actions resident so crossfades never pop (weights do the work).
-    for (const state of ["idle", "run"] as const) {
-      const action = this.actions.get(state);
-      if (action) {
-        action.setEffectiveWeight(state === "idle" ? 1 : 0);
-        action.play();
-      }
+    // Start from Idle; every other state is entered via setState() crossfades.
+    const idle = this.actions.get("idle");
+    if (idle) {
+      idle.setEffectiveWeight(1);
+      idle.play();
     }
   }
 
@@ -145,23 +143,39 @@ export class CharacterAnimationController {
     this.onJumpFinished = callback;
   }
 
-  /** Crossfades into the requested state. No-op when already playing it. */
+  /**
+   * Crossfades into the requested state.
+   *
+   * Weight model (three.js): effectiveWeight = action.weight × fadeInterpolant,
+   * so the BASE weight must be 1 and the fade interpolant does the 0→1 ramp
+   * (fadeIn schedules exactly that). Setting base weight 0 here previously kept
+   * looping actions at zero forever — the "sliding, not running" bug.
+   *
+   * Re-requesting an already-active state is allowed when its action has
+   * stopped (re-triggers a finished/clamped one-shot like Jump).
+   */
   setState(state: PlayerAnimationState): void {
-    if (!this.mixer || state === this.currentState) return;
+    if (!this.mixer) return;
     const next = this.actions.get(state);
     if (!next) return;
 
+    const isLooping = state === "run" || state === "idle";
+    if (state === this.currentState && (isLooping || next.isRunning())) return;
+
     const prev = this.currentState !== null ? this.actions.get(this.currentState) : undefined;
-    const fade = state === "death" ? FADE_DEATH : FADE_FAST;
 
     next.enabled = true;
-    next.reset();
+    next.reset(); // restart clip; also clears any stale fades/warps
     if (state === "run") next.timeScale = this.currentRunTimeScale();
-    next.setEffectiveWeight(state === "run" || state === "idle" ? 0 : 1);
-    next.fadeIn(FADE_FAST);
+    next.setEffectiveWeight(1);
+    next.fadeIn(isLooping ? FADE_FAST : FADE_FAST);
     next.play();
 
-    if (prev && prev !== next) prev.fadeOut(fade);
+    if (prev && prev !== next && prev.isRunning()) {
+      prev.fadeOut(state === "death" ? FADE_DEATH : FADE_FAST);
+    } else if (prev && prev !== next) {
+      prev.stop();
+    }
 
     this.currentState = state;
   }

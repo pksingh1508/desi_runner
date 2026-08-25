@@ -59,7 +59,7 @@ export class CameraRig {
 
     this.lookTarget.set(
       player.positionX * 0.6,
-      CAMERA_CFG.lookOffset.y + player.positionY * 0.3,
+      CAMERA_CFG.lookOffset.y + player.positionY * 0.45,
       CAMERA_CFG.lookOffset.z
     );
     this.camera.lookAt(this.lookTarget);
