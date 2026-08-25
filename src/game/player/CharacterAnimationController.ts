@@ -81,7 +81,6 @@ export class CharacterAnimationController {
       ? THREE.MathUtils.clamp(mapping.jump.duration / EXPECTED_AIRTIME, 0.75, 1.6)
       : 1;
     register("jump", mapping.jump, THREE.LoopOnce, jumpFit);
-    register("slide", undefined, THREE.LoopOnce); // slide comes from the custom keyframe clip below
     register("death", mapping.death ?? mapping.idle, THREE.LoopOnce);
 
     this.jumpAction = this.actions.get("jump") ?? null;
@@ -90,6 +89,15 @@ export class CharacterAnimationController {
     }
 
     this.buildSlideClip();
+
+    // Keep looping actions resident so crossfades never pop (weights do the work).
+    for (const state of ["idle", "run"] as const) {
+      const action = this.actions.get(state);
+      if (action) {
+        action.setEffectiveWeight(state === "idle" ? 1 : 0);
+        action.play();
+      }
+    }
   }
 
   /**
@@ -142,30 +150,17 @@ export class CharacterAnimationController {
     const next = this.actions.get(state);
     if (!next) return;
 
-    next.enabled = true;
-    next.setEffectiveTimeScale(state === "run" ? this.currentRunTimeScale() : next.timeScale);
-    next.setEffectiveWeight(1);
-
-    if (state !== "run" && state !== "idle") {
-      next.reset();
-    } else if (!next.isRunning()) {
-      next.reset().play();
-    } else {
-      next.play();
-    }
-
     const prev = this.currentState !== null ? this.actions.get(this.currentState) : undefined;
     const fade = state === "death" ? FADE_DEATH : FADE_FAST;
-    if (prev && prev !== next) {
-      if (prev.isRunning()) {
-        prev.crossFadeTo(next, fade, true);
-      } else {
-        prev.stop();
-        next.reset().fadeIn(fade).play();
-      }
-    } else if (!prev) {
-      next.reset().play();
-    }
+
+    next.enabled = true;
+    next.reset();
+    if (state === "run") next.timeScale = this.currentRunTimeScale();
+    next.setEffectiveWeight(state === "run" || state === "idle" ? 0 : 1);
+    next.fadeIn(FADE_FAST);
+    next.play();
+
+    if (prev && prev !== next) prev.fadeOut(fade);
 
     this.currentState = state;
   }
