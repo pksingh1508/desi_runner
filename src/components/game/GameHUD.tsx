@@ -35,10 +35,15 @@ export function GameHUD({
 
   useEffect(() => {
     if (popupSeq === 0) return;
-    const popup = { id: popupSeq };
-    setPopups((current) => [...current.slice(-4), popup]);
+    // Dedupe by id: StrictMode double-invokes effects, and rapid pickups can
+    // commit the same seq twice — keys must stay unique.
+    setPopups((current) =>
+      current.some((p) => p.id === popupSeq)
+        ? current
+        : [...current.slice(-4), { id: popupSeq }]
+    );
     const id = window.setTimeout(() => {
-      setPopups((current) => current.filter((p) => p.id !== popup.id));
+      setPopups((current) => current.filter((p) => p.id !== popupSeq));
     }, 750);
     return () => window.clearTimeout(id);
   }, [popupSeq]);

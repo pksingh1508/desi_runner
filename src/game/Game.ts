@@ -44,7 +44,7 @@ export class Game {
   private particles: ParticleSystem | null = null;
   private audio = new AudioSystem();
 
-  private clock = new THREE.Clock();
+  private timer = new THREE.Timer();
   private resizeObserver: ResizeObserver | null = null;
   private countdownLeft = 0;
   private lastCountdownValue = -1;
@@ -102,8 +102,14 @@ export class Game {
 
     window.addEventListener("visibilitychange", this.onVisibilityChange);
 
+    this.connectTimer();
     rendererHandle.renderer.setAnimationLoop(() => this.frame());
     void this.loadCharacter();
+  }
+
+  /** Page Visibility integration: no huge deltas after tab switches. */
+  private connectTimer(): void {
+    if (typeof document !== "undefined") this.timer.connect(document);
   }
 
   private async loadCharacter(): Promise<void> {
@@ -265,7 +271,8 @@ export class Game {
   }
 
   private frame(): void {
-    const delta = clamp(this.clock.getDelta(), 0, 0.05); // tab-switch guard
+    // Timer handles visibility spikes; the clamp is belt-and-braces.
+    const delta = clamp(this.timer.update().getDelta(), 0, 0.05);
     const nowMs = performance.now();
     this.store.flush(nowMs);
     if (!this.sceneBundle || !this.cameraRig) return;
@@ -493,6 +500,7 @@ export class Game {
     for (const id of this.timeouts) window.clearTimeout(id);
     this.timeouts = [];
     window.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.timer.dispose();
     this.resizeObserver?.disconnect();
     this.input?.dispose();
     this.audio.dispose();
