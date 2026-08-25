@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
-import { WORLD } from "@/game/config/gameplay";
 
 export interface RendererHandle {
   renderer: THREE.WebGLRenderer;
@@ -60,8 +59,4 @@ export function createRenderer(host: HTMLElement, bag: ResourceBag): RendererHan
       canvas.parentElement?.removeChild(canvas);
     },
   };
-}
-
-export function applyDefaultClearColor(scene: THREE.Scene): void {
-  scene.background = new THREE.Color(WORLD.backgroundColor);
 }

@@ -55,6 +55,10 @@ export class InputSystem {
     this.pointerId = null;
   };
 
+  private onTouchMove = (event: TouchEvent): void => {
+    event.preventDefault();
+  };
+
   constructor(host: HTMLElement, handler: ActionHandler) {
     this.host = host;
     this.handler = handler;
@@ -63,11 +67,7 @@ export class InputSystem {
     host.addEventListener("pointerup", this.onPointerUp);
     host.addEventListener("pointercancel", this.onPointerCancel);
     // Belt-and-braces against pull-to-refresh / scroll chaining while playing.
-    host.addEventListener(
-      "touchmove",
-      (e) => e.preventDefault(),
-      { passive: false }
-    );
+    host.addEventListener("touchmove", this.onTouchMove, { passive: false });
   }
 
   private mapKey(code: string): GameAction | null {
@@ -100,5 +100,6 @@ export class InputSystem {
     this.host.removeEventListener("pointerdown", this.onPointerDown);
     this.host.removeEventListener("pointerup", this.onPointerUp);
     this.host.removeEventListener("pointercancel", this.onPointerCancel);
+    this.host.removeEventListener("touchmove", this.onTouchMove);
   }
 }

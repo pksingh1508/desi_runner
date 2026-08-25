@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Game } from "@/game/Game";
 import { GameStore } from "@/game/GameStore";
 import { LoadingScreen } from "./LoadingScreen";
@@ -103,11 +103,4 @@ export function GameCanvas() {
       <DebugPanel getDebug={() => game()?.getDebugInfo() ?? null} />
     </div>
   );
-}
-
-/** Tiny helper hook kept local to avoid extra dependency surface. */
-export function useDevFlag(): boolean {
-  const [isDev] = useState(() => process.env.NODE_ENV === "development");
-  useEffect(() => void isDev, [isDev]);
-  return isDev;
 }

@@ -18,7 +18,7 @@ import { SharedAssets } from "./world/SharedAssets";
 import { WorldManager } from "./world/WorldManager";
 import type { Coin } from "./entities/Coin";
 import type { Obstacle } from "./entities/Obstacle";
-import { MODEL_URL, SPEED, WORLD } from "./config/gameplay";
+import { MODEL_URL, SPEED } from "./config/gameplay";
 import { clamp } from "./utils/math";
 import { StorageService } from "./core/StorageService";
 
@@ -65,6 +65,11 @@ export class Game {
   // ------------------------------------------------------------------ setup
 
   init(): void {
+    // Fresh engine instance (mount / hot reload) must own the UI state.
+    this.store.clearRunResult();
+    this.store.setLoading(0, "BOOTING");
+    this.store.setState("loading");
+
     let rendererHandle: RendererHandle;
     try {
       rendererHandle = createRenderer(this.host, this.bag);
