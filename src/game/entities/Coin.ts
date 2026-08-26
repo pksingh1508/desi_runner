@@ -10,6 +10,8 @@ export class Coin {
   readonly mesh: THREE.Mesh;
   active = false;
   collected = false;
+  /** When magnetized, visual bobbing is suspended so attraction stays smooth. */
+  attracted = false;
 
   localZ = 0;
   baseY: number = COIN.baseY;
@@ -36,6 +38,7 @@ export class Coin {
     this.baseY = y;
     this.active = true;
     this.collected = false;
+    this.attracted = false;
     this.age = Math.random() * 10;
     this.phase = Math.random() * Math.PI * 2;
     this.mesh.visible = true;
@@ -46,9 +49,21 @@ export class Coin {
   updateVisual(delta: number): void {
     if (!this.active || this.collected) return;
     this.age += delta;
+    if (this.attracted) return; // magnet owns the position while pulling
     this.mesh.rotation.y += COIN.spinSpeed * delta;
     this.bobOffset = Math.sin(this.age * COIN.bobSpeed + this.phase) * COIN.bobAmplitude;
     this.mesh.position.y = this.baseY + this.bobOffset;
+  }
+
+  /**
+   * Smoothly accelerates toward the target (magnet pull). Frame-rate
+   * independent damping; never teleports.
+   */
+  pullTowards(targetX: number, targetY: number, lambda: number, delta: number): void {
+    const k = 1 - Math.exp(-lambda * delta);
+    this.mesh.position.x += (targetX - this.mesh.position.x) * k;
+    this.mesh.position.y += (targetY - this.mesh.position.y) * k;
+    this.mesh.rotation.y += COIN.spinSpeed * 2.2 * delta;
   }
 
   /** Quick scale-out pop when collected; returns true once shrink finished. */

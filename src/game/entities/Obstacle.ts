@@ -27,6 +27,15 @@ export class Obstacle {
   /** Local placement inside the owning segment (x from lane, z negative). */
   localX = 0;
   localZ = 0;
+  /** Overdrive / Turbo can shatter destructible obstacles instead of killing. */
+  readonly destructible: boolean;
+
+  // Skill-event bookkeeping (reset on acquire).
+  /** Set once the obstacle's skill outcome has been judged after passing. */
+  skillEvaluated = false;
+  nearArmed = false;
+  jumpSkim = false;
+  slideUnder = false;
 
   /** Moving obstacles oscillate around localX. */
   private baseX = 0;
@@ -52,6 +61,26 @@ export class Obstacle {
   constructor(kind: ObstacleKind, mesh: THREE.Group) {
     this.kind = kind;
     this.mesh = mesh;
+    // Reinforced full-width gates cannot be smashed; everything else can.
+    this.destructible = kind !== "overhead3";
+  }
+
+  resetRuntimeFlags(): void {
+    this.skillEvaluated = false;
+    this.nearArmed = false;
+    this.jumpSkim = false;
+    this.slideUnder = false;
+    this.amplitude = 0;
+    this.angularSpeed = 0;
+  }
+
+  /** Top surface world y of the collider — used by perfect-jump skims. */
+  get topY(): number {
+    return this.collider.maxY;
+  }
+
+  get centerX(): number {
+    return this.mesh.position.x;
   }
 
   configureMoving(amplitude: number, speed: number): void {
