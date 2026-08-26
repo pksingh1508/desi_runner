@@ -182,3 +182,36 @@ export function pickPattern(
   }
   return pool[pool.length - 1];
 }
+
+/**
+ * Authored laser-grid chains injected by the RunEventSystem. Never picked by
+ * random generation (kept out of PATTERNS) but validated like every other
+ * template: wide spacing guarantees one valid action per row.
+ */
+export const LASER_PATTERNS: PatternDef[] = [
+  {
+    id: "laser-chain-a",
+    minTier: 0,
+    weight: 0,
+    obstacles: [
+      { kind: "overhead3", lane: 1, z: -10 },
+      { kind: "barrier", lane: 1, z: -24 },
+      { kind: "overhead3", lane: 1, z: -38 },
+    ],
+    coins: [...line(1, -16, 3), ...arc(1, -24)],
+  },
+  {
+    id: "laser-chain-b",
+    minTier: 0,
+    weight: 0,
+    obstacles: [
+      { kind: "barrier", lane: 0, z: -10 },
+      { kind: "overhead3", lane: 1, z: -24 },
+      { kind: "moving", lane: 1, z: -38, moveAmp: 2.2, moveSpeed: 1.9 },
+    ],
+    coins: [...arc(0, -10), ...line(2, -18, 3), ...line(0, -30, 3)],
+  },
+];
+
+/** Number of laser patterns queued per Laser Grid event. */
+export const LASER_PATTERN_COUNT = LASER_PATTERNS.length;
