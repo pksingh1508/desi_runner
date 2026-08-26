@@ -1,9 +1,9 @@
 # Third-Party Assets
 
 NEON RUN deliberately ships almost no third-party assets: the track, skyline,
-billboards, coins, obstacles, particles and all audio are generated
-procedurally at runtime. The single external asset is listed below with full
-provenance.
+billboards, coins, obstacles, pickups, particles, trails and all audio are
+generated procedurally at runtime. The single external asset is listed below
+with full provenance.
 
 ---
 
@@ -36,7 +36,13 @@ None to the file itself. All in-engine adjustments are runtime-only:
 - rotated to face the travel direction
 - driven by our `CharacterAnimationController` (clips used: `Idle`,
   `Running`, `Jump`, `Death`)
+- **V2 cosmetic variants**: character selection applies runtime material
+  tints/emissive shifts (`Player.applyCharacterVariant`). The original
+  material colors are cached in memory and the `.glb` binary is never
+  modified, so the CC0 asset remains unaltered.
 
 The architecture allows replacing this model by pointing `MODEL_URL`
 (`src/game/config/gameplay.ts`) at any GLB with compatible clips — see
-README "Replacing the Character".
+README "Replace the character model". No other third-party assets (models,
+textures, sounds, fonts) were added for V2; all new visuals and audio are
+procedural.

@@ -15,7 +15,8 @@ export interface SkillAwards {
   events: { kind: SkillEventKind; obstacle: Obstacle | null }[];
 }
 
-const NEAR_MISS_LATERAL_MARGIN = 0.85;
+/** Lateral squeeze window past block/mover edges for a near miss. */
+const NEAR_MISS_LATERAL_MARGIN = 1.0;
 /** Vertical skim window above an obstacle's top surface for perfect jumps. */
 const PERFECT_JUMP_SKIM = 1.05;
 /** Jump must be recent enough to read as deliberate timing. */

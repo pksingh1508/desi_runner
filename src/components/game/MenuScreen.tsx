@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import type { AchievementView, MissionView, PlayerStatsData } from "@/types/game";
-import { SaveService } from "@/game/core/SaveService";
 import {
   careerGroups,
   characterOptions,
@@ -391,12 +390,4 @@ function ToggleChip({ label, on, onClick }: { label: string; on: boolean; onClic
       {label}
     </button>
   );
-}
-
-export function useSaveStats(): PlayerStatsData {
-  const [stats, setStats] = useState<PlayerStatsData>(() => SaveService.get().stats);
-  useEffect(() => {
-    setStats(SaveService.get().stats);
-  }, []);
-  return stats;
 }

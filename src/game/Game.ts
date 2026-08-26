@@ -795,7 +795,7 @@ export class Game {
       if (z < -1.6 || z > 1.6) return;
       if (Math.abs(pickup.mesh.position.x - this.player.positionX) > 1.3) return;
       if (Math.abs(pickup.baseY - (this.player.positionY + 1)) > 1.6) return;
-      pickup.playCollection(1 / 60); // instant pop
+      pickup.mesh.visible = false;
       pickup.active = false;
       this.activatePowerUp(pickup.type, pickup.mesh.position.x, pickup.baseY);
     });
@@ -816,13 +816,27 @@ export class Game {
 
   /**
    * Resolves a dangerous hit. Returns true when the run survived
-   * (shield absorbed or obstacle smashed); false means game over.
+   * (obstacle smashed or shield absorbed); false means game over.
    */
   private resolveHit(hitSource: ColliderLike): boolean {
     const isDrone = !isObstacle(hitSource);
     const obstacle = isObstacle(hitSource) ? hitSource : null;
 
-    // 1) Shield absorbs exactly one dangerous collision.
+    // 1) Turbo / Overdrive shatter normal destructibles — never waste the
+    //    shield on something we can simply smash.
+    if (this.overdrive.active || this.powerups.turboProtects) {
+      if (obstacle && obstacle.destructible) {
+        this.smashObstacle(obstacle);
+        return true;
+      }
+      if (isDrone) {
+        this.smashDrone(hitSource as Drone);
+        return true;
+      }
+      // Reinforced gates fall through to shield/death — slide under them.
+    }
+
+    // 2) Shield absorbs exactly one dangerous collision.
     if (this.powerups.consumeShield()) {
       if (obstacle) this.skills.notifyHit(obstacle);
       if (isDrone) this.releaseDrone(hitSource as Drone);
@@ -832,22 +846,6 @@ export class Game {
       this.cameraRig?.addShake(0.38);
       this.hitStopTimer = 0.05;
       return true;
-    }
-
-    // 2) Turbo / Overdrive smash normal destructibles instead of dying.
-    const canSmash =
-      this.overdrive.active ||
-      this.powerups.turboProtects;
-    if (canSmash) {
-      if (obstacle && obstacle.destructible) {
-        this.smashObstacle(obstacle);
-        return true;
-      }
-      if (isDrone) {
-        this.smashDrone(hitSource as Drone);
-        return true;
-      }
-      // Reinforced gates stay lethal — slide under them.
     }
 
     // 3) Death.

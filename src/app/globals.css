@@ -397,10 +397,11 @@ body {
   to { opacity: 0; transform: translateY(-8px); }
 }
 
-.toast-good { color: #d9de7a; text-shadow: 0 0 12px rgba(217, 222, 122, 0.5); }
-.toast-combo { color: #ffb84f; border-color: rgba(255, 184, 79, 0.4); text-shadow: 0 0 12px rgba(255, 184, 79, 0.5); }
-.toast-warn { color: #ff7a6b; border-color: rgba(239, 83, 80, 0.45); text-shadow: 0 0 12px rgba(239, 83, 80, 0.45); }
+.toast-good { --toast-life: 1120ms; color: #d9de7a; text-shadow: 0 0 12px rgba(217, 222, 122, 0.5); }
+.toast-combo { --toast-life: 1320ms; color: #ffb84f; border-color: rgba(255, 184, 79, 0.4); text-shadow: 0 0 12px rgba(255, 184, 79, 0.5); }
+.toast-warn { --toast-life: 1420ms; color: #ff7a6b; border-color: rgba(239, 83, 80, 0.45); text-shadow: 0 0 12px rgba(239, 83, 80, 0.45); }
 .toast-epic {
+  --toast-life: 1920ms;
   color: #e8c96a;
   font-size: 1.05rem;
   border-color: rgba(232, 201, 106, 0.55);

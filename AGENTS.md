@@ -645,6 +645,41 @@ The exact names may change if a better architecture emerges.
 
 ---
 
+# V2 Systems (current architecture)
+
+V2 keeps every gameplay system modular and data-driven. All balance values
+live in `src/game/config/*` — never scatter magic numbers into classes.
+
+```text
+PowerUpSystem        central active-state owner (magnet/shield/2x/turbo)
+ComboSystem          combo count, multiplier tiers, milestones, decay
+SkillSystem          near-miss arming + perfect jump/slide judging (once per obstacle)
+OverdriveSystem      energy meter, activation, damped intensity ramp
+FeedbackSystem       prioritized toast queue + event banner (max 3 visible)
+RunEventSystem       Coin Storm / Drone Attack / Laser Grid + drone pool
+MissionSystem        deterministic daily missions, mid-run progress, rewards at run end
+AchievementSystem    stat-derived unlocks from config/achievements.ts
+ProgressionSystem    XP curve, levels, LEVEL_REWARDS granting
+BiomeManager         live fog/light/material blending across biome schedule
+TrailRenderer        pooled cosmetic trail particles
+PlayerFX             shield bubble / magnet ring / overdrive aura
+SaveService          versioned SaveDataV2 blob + V1 key migration (localStorage)
+```
+
+Ownership rules that keep this sane:
+
+- `Game` is the only orchestrator; systems never import each other.
+- Score multipliers affect run score only — wallets and XP always use raw values.
+- React reads via `GameStore`; meta screens re-read `SaveService` when
+  `metaVersion` bumps (run end / equip).
+- Persistence happens at meaningful moments (run end, equip), never per frame.
+
+To add content without touching unrelated systems see README
+"Extending the Game" (power-up / mission / achievement / biome / event /
+cosmetic recipes).
+
+---
+
 # Development Workflow
 
 For every substantial feature:
