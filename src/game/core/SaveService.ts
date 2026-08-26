@@ -27,7 +27,8 @@ export interface CustomizationData {
 
 export interface MissionsSave {
   date: string;
-  ids: string[];
+  entries: { id: string; templateId: string; target: number }[];
+  /** Live progress keyed by mission id. */
   progress: Record<string, number>;
   completed: string[];
 }
@@ -83,7 +84,7 @@ export function defaultSave(): SaveDataV2 {
     version: 2,
     progression: { level: 1, xp: 0 },
     stats: defaultStats(),
-    missions: { date: "", ids: [], progress: {}, completed: [] },
+    missions: { date: "", entries: [], progress: {}, completed: [] },
     achievements: { completed: [] },
     customization: {
       character: "vector",
@@ -151,7 +152,12 @@ function clampIntoDefaults(raw: unknown): SaveDataV2 {
     stats: { ...base.stats, ...(data.stats ?? {}) },
     missions: {
       date: typeof data.missions?.date === "string" ? data.missions.date : "",
-      ids: Array.isArray(data.missions?.ids) ? data.missions.ids : [],
+      entries: Array.isArray(data.missions?.entries)
+        ? data.missions!.entries.filter(
+            (e): e is MissionsSave["entries"][number] =>
+              !!e && typeof e.id === "string" && typeof e.templateId === "string" && Number.isFinite(e.target)
+          )
+        : [],
       progress: isRecord(data.missions?.progress) ? data.missions!.progress : {},
       completed: Array.isArray(data.missions?.completed) ? data.missions!.completed : [],
     },
