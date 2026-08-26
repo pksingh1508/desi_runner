@@ -462,6 +462,20 @@ export class Game {
     };
   }
 
+  /** Menu-facing views (missions/achievements live in engine systems). */
+  getMissionViews() {
+    this.missions.ensureToday();
+    return this.missions.view();
+  }
+
+  getAchievementViews() {
+    return this.achievements.view();
+  }
+
+  getSettings() {
+    return SaveService.get().settings;
+  }
+
   // ------------------------------------------------------------------- loop
 
   private setState(state: GameState): void {

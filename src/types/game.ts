@@ -167,3 +167,46 @@ export interface EventBannerData {
   id: number;
   text: string;
 }
+
+// -------------------------------------------------------------- meta views
+
+export interface MissionView {
+  title: string;
+  description: string;
+  icon: string;
+  target: number;
+  progress: number;
+  completed: boolean;
+  rewardXp: number;
+  rewardCoins: number;
+}
+
+export interface AchievementView {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  target: number;
+  progress: number;
+  completed: boolean;
+  rewardXp: number;
+  rewardCoins: number;
+}
+
+export interface CharacterOptionView {
+  id: string;
+  name: string;
+  gradient: string;
+  locked: boolean;
+  equipped: boolean;
+  unlockLabel: string;
+}
+
+export interface TrailOptionView {
+  id: string;
+  name: string;
+  colorHex: string;
+  locked: boolean;
+  equipped: boolean;
+  unlockLabel: string;
+}

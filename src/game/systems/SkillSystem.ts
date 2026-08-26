@@ -72,12 +72,6 @@ export class SkillSystem {
       if (!inWindow || obstacle.skillEvaluated) continue;
 
       // Arm vertical skills.
-      if (
-        !player.airborne &&
-        JUMPABLE_KINDS.has(obstacle.kind) === false
-      ) {
-        // grounded — only slide skill possible
-      }
       if (JUMPABLE_KINDS.has(obstacle.kind) && player.airborne) {
         const skimHeight = c.maxY + PERFECT_JUMP_SKIM;
         if (player.y < skimHeight && player.y >= c.maxY - 0.2) {
