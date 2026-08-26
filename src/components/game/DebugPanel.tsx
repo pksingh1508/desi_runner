@@ -37,9 +37,9 @@ export function DebugPanel({ getDebug }: { getDebug: GetDebug }) {
   if (!isDev || !info || !open) return null;
 
   return (
-    <div className="absolute bottom-3 left-3 z-50 rounded border border-cyan-400/20 bg-black/70 p-2.5 font-mono text-[10px] leading-relaxed text-cyan-100/80 backdrop-blur-sm">
+    <div className="absolute bottom-3 left-3 z-50 rounded border border-[#d9de7a]/20 bg-black/70 p-2.5 font-tech text-[10px] leading-relaxed text-[#d9de7a]/80 backdrop-blur-sm">
       <div className="mb-1 flex items-center justify-between gap-6">
-        <span className="tracking-[0.25em] text-cyan-300">DEBUG</span>
+        <span className="tracking-[0.25em] text-[#9fca7d]">DEBUG</span>
         <button
           type="button"
           onClick={() => setOpen(false)}
