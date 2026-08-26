@@ -29,6 +29,12 @@ export class InputSystem {
   private pointerId: number | null = null;
   private startX = 0;
   private startY = 0;
+  /** Double-tap detection for the mobile Overdrive trigger. */
+  private lastTapTime = 0;
+  private lastTapX = 0;
+  private lastTapY = 0;
+  private static readonly DOUBLE_TAP_WINDOW_MS = 320;
+  private static readonly DOUBLE_TAP_RADIUS_PX = 48;
 
   private onPointerDown = (event: PointerEvent): void => {
     if (this.pointerId !== null) return;
@@ -43,7 +49,24 @@ export class InputSystem {
     const dx = event.clientX - this.startX;
     const dy = event.clientY - this.startY;
     const threshold = 26;
-    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return; // tap — buttons handle clicks
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
+      // Tap — check for a double-tap (Overdrive). Swipes never reach here,
+      // so there is no gesture conflict.
+      const now = performance.now();
+      const near =
+        Math.abs(event.clientX - this.lastTapX) < InputSystem.DOUBLE_TAP_RADIUS_PX &&
+        Math.abs(event.clientY - this.lastTapY) < InputSystem.DOUBLE_TAP_RADIUS_PX;
+      if (near && now - this.lastTapTime < InputSystem.DOUBLE_TAP_WINDOW_MS) {
+        this.lastTapTime = 0;
+        this.handler("overdrive");
+      } else {
+        this.lastTapTime = now;
+        this.lastTapX = event.clientX;
+        this.lastTapY = event.clientY;
+      }
+      return;
+    }
+    this.lastTapTime = 0;
     if (Math.abs(dx) > Math.abs(dy)) {
       this.handler(dx > 0 ? "right" : "left");
     } else {
@@ -90,6 +113,8 @@ export class InputSystem {
         return "pause";
       case "Enter":
         return "confirm";
+      case "KeyE":
+        return "overdrive";
       default:
         return null;
     }

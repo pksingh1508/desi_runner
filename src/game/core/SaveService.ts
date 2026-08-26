@@ -119,7 +119,7 @@ function readLegacy(): Partial<SaveDataV2> {
         bestDistance: readLegacyNumber(LEGACY_KEYS.bestDistance),
         totalCoins: readLegacyNumber(LEGACY_KEYS.totalCoins),
       },
-      settings: { muted: window.localStorage.getItem(LEGACY_KEYS.muted) === "1" },
+      settings: { muted: window.localStorage.getItem(LEGACY_KEYS.muted) === "1" } as SettingsData,
     };
   } catch {
     return {};

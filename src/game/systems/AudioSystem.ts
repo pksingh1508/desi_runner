@@ -127,6 +127,123 @@ export class AudioSystem {
     this.chirp("sine", final ? 880 : 440, final ? 880 : 440, final ? 0.4 : 0.12, 0.12);
   }
 
+  // ------------------------------------------------------------- V2 SFX hooks
+
+  /** Rising arpeggio for power-up pickup. */
+  playPowerup(): void {
+    this.chirp("square", 420, 980, 0.18, 0.12);
+    this.chirpAt("sine", 700, 1400, 0.22, 0.08, 0.05);
+  }
+
+  /** Glassy burst + low thump for shield break. */
+  playShieldBreak(): void {
+    this.chirp("sawtooth", 1200, 220, 0.3, 0.14);
+    this.thud(0.28, 70);
+  }
+
+  /** Soft whoosh for near miss. */
+  playNearMiss(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.sfxBus || !this.noiseBuffer) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(2400, t);
+    filter.frequency.exponentialRampToValueAtTime(500, t + 0.16);
+    filter.Q.value = 1.4;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.09, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    src.connect(filter).connect(gain).connect(this.sfxBus);
+    src.start(t);
+    src.stop(t + 0.2);
+  }
+
+  /** Bright tick for perfect actions. */
+  playPerfect(): void {
+    this.chirp("sine", 1320, 1760, 0.1, 0.1);
+  }
+
+  /** Combo milestone: two quick ascending blips; pitch rises with combo tier. */
+  playComboMilestone(tier: number): void {
+    const base = 520 + Math.min(tier, 4) * 90;
+    this.chirp("triangle", base, base * 1.25, 0.09, 0.1);
+    this.chirpAt("triangle", base * 1.5, base * 1.8, 0.11, 0.09, 0.07);
+  }
+
+  /** Overdrive ready: urgent rising pair. */
+  playOverdriveReady(): void {
+    this.chirp("square", 300, 600, 0.16, 0.1);
+    this.chirpAt("square", 450, 900, 0.2, 0.1, 0.12);
+  }
+
+  /** Overdrive activation: big sweep + sub drop. */
+  playOverdriveActivate(): void {
+    this.chirp("sawtooth", 160, 720, 0.45, 0.16);
+    this.thud(0.32, 55);
+  }
+
+  /** Metal smash for destroyed obstacles. */
+  playSmash(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.sfxBus || !this.noiseBuffer) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(3200, t);
+    filter.frequency.exponentialRampToValueAtTime(400, t + 0.22);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.26, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+    src.connect(filter).connect(gain).connect(this.sfxBus);
+    src.start(t);
+    src.stop(t + 0.26);
+    this.thud(0.2, 80);
+  }
+
+  playLevelUp(): void {
+    this.chirp("triangle", 520, 780, 0.14, 0.12);
+    this.chirpAt("triangle", 660, 1040, 0.18, 0.12, 0.1);
+    this.chirpAt("triangle", 880, 1320, 0.24, 0.1, 0.2);
+  }
+
+  playMissionComplete(): void {
+    this.chirp("sine", 700, 1050, 0.13, 0.11);
+    this.chirpAt("sine", 1050, 1400, 0.16, 0.1, 0.09);
+  }
+
+  playUnlock(): void {
+    this.chirp("triangle", 840, 1260, 0.16, 0.1);
+  }
+
+  playBiomeShift(): void {
+    this.chirp("sine", 260, 520, 0.5, 0.06);
+  }
+
+  /** Warning stinger for drone/laser events. */
+  playWarn(): void {
+    this.chirp("square", 220, 180, 0.14, 0.09);
+    this.chirpAt("square", 220, 180, 0.14, 0.09, 0.2);
+  }
+
+  // ------------------------------------------------------------ channel toggles
+
+  setMusicEnabled(enabled: boolean): void {
+    if (this.musicBus && this.ctx) {
+      this.musicBus.gain.setTargetAtTime(enabled ? 0.32 : 0, this.ctx.currentTime, 0.04);
+    }
+  }
+
+  setSfxEnabled(enabled: boolean): void {
+    if (this.sfxBus && this.ctx) {
+      this.sfxBus.gain.setTargetAtTime(enabled ? 0.9 : 0, this.ctx.currentTime, 0.04);
+    }
+  }
+
   // ----------------------------------------------------------------- music
 
   startMusic(): void {
@@ -241,15 +358,27 @@ export class AudioSystem {
     duration: number,
     volume: number
   ): void {
+    this.chirpAt(type, from, to, duration, volume, 0);
+  }
+
+  private chirpAt(
+    type: OscillatorType,
+    from: number,
+    to: number,
+    duration: number,
+    volume: number,
+    delaySeconds: number
+  ): void {
     const ctx = this.ctx;
     if (!ctx || !this.sfxBus) return;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + delaySeconds;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(from, t);
     osc.frequency.exponentialRampToValueAtTime(Math.max(to, 1), t + duration);
-    gain.gain.setValueAtTime(volume, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.001), t + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
     osc.connect(gain).connect(this.sfxBus);
     osc.start(t);

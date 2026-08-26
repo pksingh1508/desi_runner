@@ -1,5 +1,11 @@
-import type { GameState, RunResult } from "@/types/game";
-import { StorageService } from "./core/StorageService";
+import type {
+  EventBannerData,
+  FeedbackItem,
+  GameState,
+  HudPowerUp,
+  RunResult,
+} from "@/types/game";
+import { SaveService } from "./core/SaveService";
 
 export interface HudSnapshot {
   gameState: GameState;
@@ -20,10 +26,25 @@ export interface HudSnapshot {
   runResult: RunResult | null;
   /** Increments each coin pickup so the HUD can spawn a CSS popup. */
   popupSeq: number;
+
+  // ---- V2 ----
+  comboCount: number;
+  comboMult: number;
+  powerups: HudPowerUp[];
+  odEnergy: number; // 0..1
+  odReady: boolean;
+  odActive: boolean;
+  odRemaining: number;
+  feedback: FeedbackItem[];
+  banner: EventBannerData | null;
+  sectorName: string;
+  shieldActive: boolean;
+  /** Bumped whenever persistent meta data changed (run end, equip, unlock). */
+  metaVersion: number;
 }
 
 function initialSnapshot(): HudSnapshot {
-  const stats = StorageService.getBestStats();
+  const stats = SaveService.get().stats;
   return {
     gameState: "loading",
     loadingProgress: 0,
@@ -38,10 +59,22 @@ function initialSnapshot(): HudSnapshot {
     bestScore: stats.bestScore,
     bestDistance: stats.bestDistance,
     totalCoins: stats.totalCoins,
-    muted: StorageService.isMuted(),
+    muted: SaveService.get().settings.muted,
     countdownValue: 3,
     runResult: null,
     popupSeq: 0,
+    comboCount: 0,
+    comboMult: 1,
+    powerups: [],
+    odEnergy: 0,
+    odReady: false,
+    odActive: false,
+    odRemaining: 0,
+    feedback: [],
+    banner: null,
+    sectorName: "NEON CITY",
+    shieldActive: false,
+    metaVersion: 0,
   };
 }
 
@@ -52,7 +85,8 @@ const DIFFICULTY_DEFAULT_NAME = "WARM-UP";
  *
  * The engine writes here; React reads via useSyncExternalStore.
  * High-frequency HUD numbers are flushed at ~10Hz instead of per frame,
- * while state transitions propagate immediately.
+ * while state transitions propagate immediately. V2 combat state (combo,
+ * power-up chips, overdrive meter) rides the same throttled flush.
  */
 export class GameStore {
   private snapshot: HudSnapshot = initialSnapshot();
@@ -125,6 +159,24 @@ export class GameStore {
     this.patch(values, false);
   }
 
+  setCombat(values: {
+    comboCount: number;
+    comboMult: number;
+    powerups: HudPowerUp[];
+    odEnergy: number;
+    odReady: boolean;
+    odActive: boolean;
+    odRemaining: number;
+    shieldActive: boolean;
+    sectorName: string;
+  }): void {
+    this.patch(values, false);
+  }
+
+  setFeedback(feedback: FeedbackItem[], banner: EventBannerData | null): void {
+    this.patch({ feedback, banner }, true);
+  }
+
   setCountdown(value: number): void {
     this.patch({ countdownValue: value }, true);
   }
@@ -138,7 +190,10 @@ export class GameStore {
     bestDistance: number;
     totalCoins: number;
   }): void {
-    this.patch({ runResult: result, ...stats }, true);
+    this.patch(
+      { runResult: result, ...stats, metaVersion: this.snapshot.metaVersion + 1 },
+      true
+    );
   }
 
   clearRunResult(): void {
@@ -146,7 +201,13 @@ export class GameStore {
   }
 
   setMuted(muted: boolean): void {
-    StorageService.setMuted(muted);
+    SaveService.update((save) => {
+      save.settings.muted = muted;
+    });
     this.patch({ muted }, true);
+  }
+
+  bumpMetaVersion(): void {
+    this.patch({ metaVersion: this.snapshot.metaVersion + 1 }, true);
   }
 }

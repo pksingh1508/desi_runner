@@ -22,7 +22,7 @@ const EVENT_DEFS: { kind: EventKind; label: string; weight: number }[] = [
   { kind: "laserGrid", label: "⚠ LASER GRID AHEAD", weight: 0.27 },
 ];
 
-interface Drone {
+export interface Drone {
   group: THREE.Group;
   collider: ObstacleCollider;
   laneX: number;

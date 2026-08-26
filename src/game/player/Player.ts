@@ -34,7 +34,13 @@ export class Player {
   private dead = false;
   private runPhase = 0;
 
+  /** Simulation age (seconds) and jump start age — used by SkillSystem. */
+  private age = 0;
+  private jumpStartAge = -Infinity;
+
   private bounds = new THREE.Box3();
+  /** Original material colors, cached once so character tints are reversible. */
+  private originalColors = new Map<THREE.MeshStandardMaterial, THREE.Color>();
 
   constructor() {
     this.root.name = "PlayerRoot";
@@ -112,6 +118,7 @@ export class Player {
   // --------------------------------------------------------------- sim loop
 
   update(delta: number, speedRatio: number): void {
+    this.age += delta;
     // Lane interpolation (frame-rate independent damping).
     const targetX = LANES[this.targetLane];
     this.root.position.x = damp(this.root.position.x, targetX, PLAYER.laneDampSpeed, delta);
@@ -218,6 +225,11 @@ export class Player {
     return this.runPhase;
   }
 
+  /** Seconds since the current (or most recent) jump launch. */
+  get secondsSinceJumpStart(): number {
+    return this.grounded && this.verticalVelocity <= 0 ? Number.POSITIVE_INFINITY : this.age - this.jumpStartAge;
+  }
+
   die(): void {
     if (this.dead) return;
     this.dead = true;
@@ -243,8 +255,48 @@ export class Player {
     this.slideQueuedFromAir = false;
     this.dead = false;
     this.runPhase = 0;
+    this.age = 0;
+    this.jumpStartAge = -Infinity;
     this.animation?.reset();
     this.refreshBounds();
+  }
+
+  /**
+   * Applies a cosmetic character variant: dark suit materials shift toward
+   * the variant tint, bright/glow panels adopt the accent as a soft emissive.
+   * The base GLB file is never modified; originals are cached so variants can
+   * swap freely at runtime.
+   */
+  applyCharacterVariant(tintHex: string, accentHex: string): void {
+    const tint = new THREE.Color(tintHex);
+    const accent = new THREE.Color(accentHex);
+    const scratch = new THREE.Color();
+    const apply = (obj: THREE.Object3D): void => {
+      obj.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const material = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+        const materials = Array.isArray(material) ? material : [material];
+        for (const mat of materials) {
+          if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+          let original = this.originalColors.get(mat);
+          if (!original) {
+            original = mat.color.clone();
+            this.originalColors.set(mat, original);
+          }
+          if (original.r + original.g + original.b < 0.45) {
+            mat.color.copy(original).lerp(tint, 0.6);
+          } else {
+            scratch.copy(original).lerp(accent, 0.65);
+            mat.color.copy(scratch);
+            mat.emissive.copy(accent).multiplyScalar(0.22);
+          }
+        }
+      });
+    };
+    apply(this.modelHolder);
+    // Fallback bot materials live outside the model holder until a GLB lands.
+    if (this.fallbackBot) apply(this.fallbackBot);
   }
 
   setAnimationController(controller: CharacterAnimationController): void {
@@ -265,6 +317,7 @@ export class Player {
   private launchJump(): void {
     if (this.sliding) this.endSlideVisual();
     this.grounded = false;
+    this.jumpStartAge = this.age;
     this.verticalVelocity = PLAYER.jumpVelocity;
     this.animation?.forceFinishOneShot("slide");
     this.animation?.setState("jump");

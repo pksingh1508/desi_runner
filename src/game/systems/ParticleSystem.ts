@@ -92,6 +92,27 @@ export class ParticleSystem {
     }
   }
 
+  /** Generic colored burst — power-ups, shield breaks, smashes. */
+  emitBurst(
+    x: number, y: number, z: number,
+    r: number, g: number, b: number,
+    count = 14,
+    speedScale = 1
+  ): void {
+    for (let i = 0; i < count && this.alive < CAPACITY; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const pitch = randRange(-0.2, 1.1);
+      const speed = randRange(2.5, 6) * speedScale;
+      this.push(
+        x, y, z,
+        Math.cos(angle) * speed, pitch * speed * 0.7, Math.sin(angle) * speed * 0.55,
+        randRange(0.35, 0.7), randRange(7, 13),
+        r, g, b,
+        12
+      );
+    }
+  }
+
   emitCrash(x: number, y: number, z: number): void {
     for (let i = 0; i < 26 && this.alive < CAPACITY; i++) {
       const angle = Math.random() * Math.PI * 2;

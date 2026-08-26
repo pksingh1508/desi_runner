@@ -5,14 +5,14 @@ import {
   XP_CFG,
   xpRequiredForLevel,
 } from "@/game/config/progression";
-import type { LevelUpInfo, PlayerStatsData, RunTallyData } from "@/types/game";
+import type { LevelUpInfo, PlayerStatsData, RewardKind, RunTallyData, UnlockInfo } from "@/types/game";
 import { clamp } from "@/game/utils/math";
 import { SaveService } from "@/game/core/SaveService";
 
 export interface XpGainResult {
   xpEarned: number;
   levelUps: LevelUpInfo[];
-  unlocks: { kind: string; label: string }[];
+  unlocks: UnlockInfo[];
 }
 
 /**
@@ -89,7 +89,7 @@ export class ProgressionSystem {
       unlocks: levelUps.flatMap((lu) =>
         lu.rewards
           .filter((r) => r.kind !== "coins")
-          .map((r) => ({ kind: r.kind, label: r.label }))
+          .map((r): UnlockInfo => ({ kind: r.kind as RewardKind, label: r.label }))
       ),
     };
   }
