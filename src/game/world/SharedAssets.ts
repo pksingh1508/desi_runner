@@ -50,6 +50,8 @@ function makeBillboardTexture(
 /**
  * Per-session shared geometries/materials/textures used by track segments and
  * decorations. One instance per Game keeps disposal ownership unambiguous.
+ * BiomeManager mutates the colors of these shared materials live during
+ * transitions; billboard texture sets are pre-built per biome.
  */
 export class SharedAssets {
   readonly roadMat: THREE.MeshStandardMaterial;
@@ -61,12 +63,16 @@ export class SharedAssets {
   readonly postHeadMat: THREE.MeshBasicMaterial;
   readonly buildingMat: THREE.MeshStandardMaterial;
   readonly bandMats: THREE.MeshBasicMaterial[];
-  readonly billboardMats: THREE.MeshBasicMaterial[];
+  /** One billboard material set per biome (hue-tinted canvas textures). */
+  readonly billboardSets: THREE.MeshBasicMaterial[][];
 
   /** Unit box with origin at its base — scale to size buildings. */
   readonly unitBoxBase: THREE.BoxGeometry;
 
-  constructor(private bag: ResourceBag) {
+  constructor(
+    private bag: ResourceBag,
+    billboardHueSets: readonly [string, string, string][]
+  ) {
     this.roadMat = bag.mat(
       new THREE.MeshStandardMaterial({ color: 0x121711, roughness: 0.85, metalness: 0.25 })
     );
@@ -103,21 +109,17 @@ export class SharedAssets {
     this.bandMats = [0xd9de7a, 0x6f8d42, 0xe0a458].map((color) =>
       bag.mat(new THREE.MeshBasicMaterial({ color }))
     );
-    this.billboardMats = (
-      [
-        ["#d9de7a", "chevrons"],
-        ["#9fca7d", "rings"],
-        ["#e0a458", "bars"],
-      ] as const
-    ).map(([hue, glyph]) =>
-      bag.mat(
-        new THREE.MeshBasicMaterial({
-          map: makeBillboardTexture(this.bag, hue, glyph),
-          transparent: true,
-          opacity: 0.85,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-        })
+    this.billboardSets = billboardHueSets.map((hues) =>
+      hues.map((hue) =>
+        bag.mat(
+          new THREE.MeshBasicMaterial({
+            map: makeBillboardTexture(this.bag, hue, pickGlyph(hue)),
+            transparent: true,
+            opacity: 0.85,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          })
+        )
       )
     );
     this.unitBoxBase = bag.geo(new THREE.BoxGeometry(1, 1, 1));
@@ -127,4 +129,9 @@ export class SharedAssets {
   get segmentLength(): number {
     return WORLD.segmentLength;
   }
+}
+
+function pickGlyph(seedHue: string): "chevrons" | "rings" | "bars" {
+  const sum = seedHue.charCodeAt(1) + seedHue.charCodeAt(3);
+  return sum % 3 === 0 ? "chevrons" : sum % 3 === 1 ? "rings" : "bars";
 }

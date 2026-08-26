@@ -3,6 +3,7 @@ import type { ResourceBag } from "@/game/utils/dispose";
 import type { SharedAssets } from "./SharedAssets";
 import type { Obstacle } from "@/game/entities/Obstacle";
 import type { Coin } from "@/game/entities/Coin";
+import type { Pickup } from "@/game/entities/Pickup";
 import { WORLD } from "@/game/config/gameplay";
 import { randRange } from "@/game/utils/math";
 
@@ -18,8 +19,9 @@ export class TrackSegment {
   /** Gameplay entities currently parented to this segment (pooled upstream). */
   readonly obstacles: Obstacle[] = [];
   readonly coins: Coin[] = [];
+  readonly pickups: Pickup[] = [];
 
-  private billboards: { mesh: THREE.Mesh; matIndex: number; phase: number }[] = [];
+  private billboards: { mesh: THREE.Mesh; slot: number; phase: number }[] = [];
   private buildings: THREE.Mesh[] = [];
   private time = Math.random() * 100;
   private side = 1;
@@ -56,7 +58,7 @@ export class TrackSegment {
   }
 
   /** Re-randomize skyline + billboard art for a fresh look after recycling. */
-  decorate(shared: SharedAssets): void {
+  decorate(shared: SharedAssets, billboardSetIndex: number): void {
     const half = L / 2;
     let side = this.side;
     for (const building of this.buildings) {
@@ -74,10 +76,10 @@ export class TrackSegment {
     }
     this.side = -this.side;
 
+    const set = shared.billboardSets[billboardSetIndex] ?? shared.billboardSets[0];
     this.billboards.forEach((board, i) => {
-      const next = (board.matIndex + 1 + i) % shared.billboardMats.length;
-      board.matIndex = next;
-      board.mesh.material = shared.billboardMats[next];
+      board.slot = (board.slot + 1 + i) % set.length;
+      board.mesh.material = set[board.slot];
     });
   }
 
@@ -143,7 +145,7 @@ export class TrackSegment {
       this.buildings.push(building);
       this.group.add(building);
     }
-    this.decorate(shared); // initial random layout
+    this.decorate(shared, 0); // initial random layout
   }
 
   private unitBox(shared: SharedAssets): THREE.BufferGeometry {
@@ -158,10 +160,11 @@ export class TrackSegment {
       const sideX = (i === 0 ? 1 : -1) * (WORLD.roadHalfWidth + 2.6);
       const pole = new THREE.Mesh(poleGeo, shared.postMat);
       pole.position.set(sideX, 2.5, z);
-      const board = new THREE.Mesh(planeGeo, shared.billboardMats[i % shared.billboardMats.length]);
+      const set = shared.billboardSets[0];
+      const board = new THREE.Mesh(planeGeo, set[i % set.length]);
       board.position.set(sideX, 5.4, z);
       board.rotation.y = sideX > 0 ? -Math.PI / 5 : Math.PI / 5;
-      this.billboards.push({ mesh: board, matIndex: i % shared.billboardMats.length, phase: Math.random() * TAU_LOCAL });
+      this.billboards.push({ mesh: board, slot: i % set.length, phase: Math.random() * TAU_LOCAL });
       this.group.add(pole, board);
     });
   }

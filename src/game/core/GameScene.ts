@@ -6,7 +6,10 @@ export interface SceneBundle {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   sun: THREE.DirectionalLight;
+  hemi: THREE.HemisphereLight;
+  rim: THREE.DirectionalLight;
   playerGlow: THREE.PointLight;
+  starsMaterial: THREE.PointsMaterial;
   resize(aspect: number): void;
 }
 
@@ -58,13 +61,18 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
     scene,
     camera,
     sun,
+    hemi,
+    rim,
     playerGlow,
+    starsMaterial: starsMaterialRef!,
     resize(aspect: number) {
       camera.aspect = aspect;
       camera.updateProjectionMatrix();
     },
   };
 }
+
+let starsMaterialRef: THREE.PointsMaterial | null = null;
 
 function buildStars(scene: THREE.Scene, bag: ResourceBag): void {
   const count = 420;
@@ -92,6 +100,7 @@ function buildStars(scene: THREE.Scene, bag: ResourceBag): void {
       blending: THREE.AdditiveBlending,
     })
   );
+  starsMaterialRef = material;
   const stars = new THREE.Points(geometry, material);
   stars.frustumCulled = false;
   scene.add(stars);
