@@ -180,3 +180,37 @@ export function biomeSlotsForDistance(distance: number): {
   while (buildScheduleEntry(index + 1).startDistance <= distance) index++;
   return { current: buildScheduleEntry(index), next: buildScheduleEntry(index + 1) };
 }
+
+// Tiny monotonic cache — the hot loop queries this every frame and distance
+// only ever grows during a run, so memoize the last index probed.
+let cachedIndex = -1;
+const scratchPair = {
+  current: { startDistance: 0, biomeIndex: 0 },
+  next: { startDistance: 0, biomeIndex: 0 },
+};
+
+/** Allocation-free variant for the frame loop (reuses a shared result). */
+export function biomeSlotsForDistanceCached(distance: number): typeof scratchPair {
+  if (
+    cachedIndex >= 0 &&
+    buildScheduleEntry(cachedIndex).startDistance <= distance &&
+    buildScheduleEntry(cachedIndex + 1).startDistance > distance
+  ) {
+    // still inside cached slot
+  } else {
+    let index = 0;
+    while (buildScheduleEntry(index + 1).startDistance <= distance) index++;
+    cachedIndex = index;
+  }
+  const cur = buildScheduleEntry(cachedIndex);
+  const nxt = buildScheduleEntry(cachedIndex + 1);
+  scratchPair.current.startDistance = cur.startDistance;
+  scratchPair.current.biomeIndex = cur.biomeIndex;
+  scratchPair.next.startDistance = nxt.startDistance;
+  scratchPair.next.biomeIndex = nxt.biomeIndex;
+  return scratchPair;
+}
+
+export function resetBiomeCache(): void {
+  cachedIndex = -1;
+}

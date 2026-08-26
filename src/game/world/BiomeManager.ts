@@ -4,7 +4,8 @@ import type { SharedAssets } from "./SharedAssets";
 import {
   BIOMES,
   BIOME_BLEND_METERS,
-  biomeSlotsForDistance,
+  biomeSlotsForDistanceCached,
+  resetBiomeCache,
 } from "@/game/config/biomes";
 import { clamp, smoothstep } from "@/game/utils/math";
 
@@ -32,7 +33,7 @@ export class BiomeManager {
   ) {}
 
   update(delta: number, distance: number): void {
-    const { current, next } = biomeSlotsForDistance(distance);
+    const { current, next } = biomeSlotsForDistanceCached(distance);
     const blendStart = next.startDistance - BIOME_BLEND_METERS / 2;
     const blendEnd = next.startDistance + BIOME_BLEND_METERS / 2;
     const t = smoothstep(clamp((distance - blendStart) / (blendEnd - blendStart), 0, 1));
@@ -68,6 +69,7 @@ export class BiomeManager {
     // Distance restarts at zero; snap straight back to the first biome.
     this.transitionedTo.clear();
     this.lastBillboardIndex = -1;
+    resetBiomeCache();
     this.update(0, 0);
   }
 

@@ -92,6 +92,8 @@ export class Game {
 
   // Run bookkeeping
   private runTime = 0;
+  /** Increments every startRun so delayed callbacks can detect stale runs. */
+  private runEpoch = 0;
   private tally: RunTallyData = emptyTally();
   private lastCoinAt = -10;
   private coinStreak = 0;
@@ -294,6 +296,7 @@ export class Game {
   startRun(): void {
     this.audio.unlock();
     this.audio.playClick();
+    this.runEpoch++;
     this.score.reset();
     this.difficulty.reset();
     this.world.reset();
@@ -307,6 +310,7 @@ export class Game {
     this.skills.reset();
     this.events?.reset();
     this.feedback.clear();
+    this.store.setFeedback([], null);
     this.missions.resetRunFlags();
     this.progression.resetRunState();
     this.runTime = 0;
@@ -351,6 +355,7 @@ export class Game {
     this.powerups.reset();
     this.overdrive.reset();
     this.feedback.clear();
+    this.store.setFeedback([], null);
     this.events?.reset();
     this.biomeManager?.reset();
     this.cameraRig?.setFovBoost(0);
@@ -628,8 +633,9 @@ export class Game {
       },
       this.nearColliders
     );
-    if (hit) {
-      if (this.resolveHit(hit)) return; // run continues after shield/smash
+    if (hit && !this.resolveHit(hit)) {
+      // Died — skip the rest of the frame.
+      return;
     }
 
     // ---- coins: magnet pull + collection
@@ -908,7 +914,14 @@ export class Game {
 
     // Flush remaining mission deltas with final absolutes.
     this.flushMissionProgress();
-    this.finalizeRun();
+
+    // Let the death beat land before the summary slides in (V1 timing).
+    const epoch = this.runEpoch;
+    const timeoutId = window.setTimeout(() => {
+      if (this.disposed || this.runEpoch !== epoch) return;
+      this.finalizeRun();
+    }, 900);
+    this.timeouts.push(timeoutId);
   }
 
   // ---------------------------------------------------------- run finalize
