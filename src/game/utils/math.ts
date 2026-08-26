@@ -8,6 +8,12 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/** Smooth 0→1→0-eased step used for biome blending. */
+export function smoothstep(t: number): number {
+  const x = clamp(t, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
 /** Frame-rate independent exponential damping towards a target. */
 export function damp(
   current: number,
