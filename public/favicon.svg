@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-labelledby="title">
+  <title id="title">DESI RUN</title>
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#132016" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#070B09" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D9DE7A"/>
+      <stop offset="100%" stop-color="#9FCA7D"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="32" height="32" rx="8" fill="url(#bgGrad)"/>
+  <rect x="0.85" y="0.85" width="30.3" height="30.3" rx="7.15" fill="none" stroke="url(#rimGrad)" stroke-width="1.35" opacity="0.98"/>
+  <!-- Subtle top highlight -->
+  <path d="M 8 1.1 A 7.2 7.2 0 0 1 24 1.1" fill="none" stroke="white" stroke-width="0.7" opacity="0.09" stroke-linecap="round"/>
+  <!-- Road perspective -->
+  <path d="M 3.8 27.2 L 10.2 19.6 L 21.8 19.6 L 28.2 27.2 Z" fill="#0C1A11" stroke="#1E2F1B" stroke-width="0.6" opacity="1"/>
+  <path d="M 10.2 19.6 L 28.2 27.2" fill="none" stroke="#D9DE7A" stroke-width="0.55" opacity="0.95" stroke-linecap="round"/>
+  <path d="M 21.8 19.6 L 3.8 27.2" fill="none" stroke="#D9DE7A" stroke-width="0.55" opacity="0.95" stroke-linecap="round"/>
+  <!-- Center lane dashed -->
+  <path d="M 16 19.6 L 16 27.2" fill="none" stroke="white" stroke-width="0.55" stroke-dasharray="1.1 1.1" stroke-linecap="round" opacity="0.28"/>
+  <!-- Side lane markers -->
+  <path d="M 13.1 19.6 L 10.1 27.2" fill="none" stroke="white" stroke-width="0.35" opacity="0.18" stroke-linecap="round"/>
+  <path d="M 18.9 19.6 L 21.9 27.2" fill="none" stroke="white" stroke-width="0.35" opacity="0.18" stroke-linecap="round"/>
+
+  <!-- Speed trails (motion blur) -->
+  <g stroke="#D9DE7A" stroke-linecap="round" fill="none">
+    <path d="M 4.2 15.1 H 10.8" stroke-width="1.45" opacity="0.98"/>
+    <path d="M 3.6 17.3 H 10.1" stroke-width="1.15" opacity="0.68"/>
+    <path d="M 4.6 19.1 H 9.2" stroke-width="0.85" opacity="0.38"/>
+  </g>
+  <!-- Accent trail glow -->
+  <g stroke="#E8C96A" stroke-linecap="round" fill="none" opacity="0.9">
+    <path d="M 4.9 15.1 H 7.2" stroke-width="1.45"/>
+  </g>
+
+  <!-- Runner shadow -->
+  <ellipse cx="15.6" cy="26.1" rx="4.2" ry="1.1" fill="black" opacity="0.28"/>
+
+  <!-- Runner — legs -->
+  <path d="M 15.15 18.75 L 11.9 23.05" stroke="#22345A" stroke-width="2.05" stroke-linecap="round"/>
+  <path d="M 15.15 18.75 L 18.25 23.35" stroke="#1D2D4D" stroke-width="2.05" stroke-linecap="round"/>
+  <!-- Shoes -->
+  <ellipse cx="11.55" cy="23.85" rx="1.45" ry="0.72" fill="#0F1112" stroke="#2A2A2E" stroke-width="0.35"/>
+  <ellipse cx="18.75" cy="24.05" rx="1.5" ry="0.74" fill="#0F1112" stroke="#2A2A2E" stroke-width="0.35"/>
+  <path d="M 10.45 23.7 L 12.55 23.7" stroke="#D9DE7A" stroke-width="0.45" opacity="0.9" stroke-linecap="round"/>
+  <path d="M 17.65 23.9 L 18.85 23.9" stroke="#D9DE7A" stroke-width="0.45" opacity="0.9" stroke-linecap="round"/>
+
+  <!-- Torso / Jacket -->
+  <path d="M 16.05 13.95 L 15.15 18.75" stroke="#4A9BD4" stroke-width="2.85" stroke-linecap="round"/>
+  <!-- Jacket highlight -->
+  <path d="M 15.85 14.4 L 15.35 17.6" stroke="white" stroke-width="0.45" opacity="0.22" stroke-linecap="round"/>
+
+  <!-- Arms -->
+  <path d="M 15.75 15.2 L 18.15 14.05" stroke="#F0C8A8" stroke-width="1.55" stroke-linecap="round"/>
+  <path d="M 15.75 15.2 L 13.05 16.45" stroke="#E8B8A0" stroke-width="1.55" stroke-linecap="round"/>
+  <!-- Hands -->
+  <circle cx="18.7" cy="13.85" r="0.85" fill="#F0C8A8" stroke="#070B09" stroke-width="0.25"/>
+  <circle cx="12.55" cy="16.65" r="0.8" fill="#E8B8A0" stroke="#070B09" stroke-width="0.25"/>
+
+  <!-- Head -->
+  <circle cx="16.15" cy="11.05" r="2.95" fill="#F0C8A8" stroke="#070B09" stroke-width="0.45"/>
+  <!-- Cap -->
+  <path d="M 13.35 10.15 A 2.95 2.95 0 0 1 18.95 10.15 L 18.75 8.25 A 2.35 2.35 0 0 0 13.55 8.25 Z" fill="#FF8C42" stroke="#070B09" stroke-width="0.4"/>
+  <path d="M 13.35 10.15 A 2.95 2.95 0 0 1 18.95 10.15" fill="none" stroke="white" stroke-width="0.35" opacity="0.18"/>
+  <!-- Cap brim -->
+  <ellipse cx="16.85" cy="10.55" rx="2.15" ry="0.55" fill="#FF8C42" stroke="#070B09" stroke-width="0.35"/>
+  <ellipse cx="16.85" cy="10.45" rx="1.9" ry="0.32" fill="white" opacity="0.18"/>
+  <!-- Face shadow / smile hint -->
+  <path d="M 15.05 11.55 A 1.2 1.2 0 0 0 17.15 11.55" fill="none" stroke="#8A5A3A" stroke-width="0.38" opacity="0.9" stroke-linecap="round"/>
+  <!-- Eye -->
+  <circle cx="17.05" cy="10.65" r="0.42" fill="#1A1A1E"/>
+  <circle cx="17.18" cy="10.52" r="0.14" fill="white" opacity="0.92"/>
+  <circle cx="15.05" cy="10.7" r="0.38" fill="#1A1A1E"/>
+  <!-- Cap logo -->
+  <circle cx="16.15" cy="9.05" r="0.62" fill="#070B09" opacity="0.95"/>
+  <circle cx="16.15" cy="9.05" r="0.32" fill="#D9DE7A"/>
+
+  <!-- Coin / spark top-right -->
+  <g>
+    <circle cx="24.35" cy="9.85" r="1.55" fill="#E8C96A" stroke="#070B09" stroke-width="0.45"/>
+    <circle cx="24.35" cy="9.85" r="0.95" fill="none" stroke="#FFF1B8" stroke-width="0.35" opacity="0.95"/>
+    <circle cx="24.05" cy="9.55" r="0.32" fill="white" opacity="0.95"/>
+    <!-- spark rays -->
+    <path d="M 24.35 7.6 V 8.25 M 24.35 11.45 V 12.1 M 22.1 9.85 H 22.75 M 25.95 9.85 H 26.6 M 22.75 8.25 L 23.2 8.7 M 25.5 11 L 25.95 11.45 M 23.2 11 L 22.75 11.45 M 25.5 8.7 L 25.95 8.25" stroke="#E8C96A" stroke-width="0.45" stroke-linecap="round" opacity="0.95"/>
+  </g>
+  <!-- Small secondary coin trail -->
+  <circle cx="22.1" cy="12.2" r="0.55" fill="#E8C96A" opacity="0.85"/>
+  <circle cx="20.2" cy="13.4" r="0.35" fill="#E8C96A" opacity="0.55"/>
+</svg>

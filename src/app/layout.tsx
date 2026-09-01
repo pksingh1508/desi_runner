@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   title: "DESI RUN — Futuristic 3D Endless Runner",
   description:
     "Sprint through an infinite neon grid. Dodge, jump, slide and collect energy tokens in this browser-based 3D endless runner built with Next.js and Three.js.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", type: "image/x-icon" },
+    ],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export const viewport: Viewport = {
