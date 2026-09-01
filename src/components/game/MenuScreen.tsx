@@ -264,26 +264,27 @@ function GearTab({
   onEquipCharacter: (id: string) => void;
   onEquipTrail: (id: string) => void;
 }) {
+  const characters = characterOptions();
+  const trails = trailOptions();
   return (
-    <div className="mx-auto max-w-2xl pb-2">
-      <SectionTitle>CHARACTERS</SectionTitle>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {characterOptions().map((option) => (
-          <GearCard
+    <div className="mx-auto max-w-3xl pb-2">
+      <SectionTitle>CHARACTERS — 8 UNIQUE RUNNERS</SectionTitle>
+      <p className="font-tech mb-2 text-center text-[8px] tracking-[0.18em] text-white/30">
+        BOY · GIRL · ROBOTS · ALIENS — EACH WITH A DISTINCT 3D MODEL
+      </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {characters.map((option) => (
+          <CharacterGearCard
             key={option.id}
-            name={option.name}
-            locked={option.locked}
-            equipped={option.equipped}
-            unlockLabel={option.unlockLabel}
-            swatch={option.gradient}
+            option={option}
             onEquip={() => onEquipCharacter(option.id)}
           />
         ))}
       </div>
 
       <SectionTitle>TRAILS</SectionTitle>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
-        {trailOptions().map((option) => (
+      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
+        {trails.map((option) => (
           <GearCard
             key={option.id}
             name={option.name}
@@ -296,6 +297,71 @@ function GearTab({
         ))}
       </div>
     </div>
+  );
+}
+
+function CharacterGearCard({
+  option,
+  onEquip,
+}: {
+  option: import("@/types/game").CharacterOptionView;
+  onEquip: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={option.locked}
+      onClick={onEquip}
+      className={`hud-panel gear-card character-card relative overflow-hidden px-3 py-3 text-left ${option.equipped ? "gear-equipped" : ""} ${option.locked ? "opacity-90" : ""}`}
+    >
+      {/* Gradient preview with large icon — this is the "character" thumbnail */}
+      <div
+        className="relative mb-2.5 flex h-[68px] w-full items-center justify-center overflow-hidden rounded-md border border-white/10"
+        style={{ background: option.gradient, opacity: option.locked ? 0.55 : 1 }}
+      >
+        {/* Subtle inner glow */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
+        <span
+          className="relative text-[34px] leading-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)]"
+          style={{ filter: option.locked ? "grayscale(0.85) brightness(0.6)" : undefined }}
+          aria-hidden
+        >
+          {option.icon}
+        </span>
+        {/* Species pill */}
+        <span
+          className="absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 font-tech text-[7px] font-bold tracking-[0.14em] text-white shadow"
+          style={{
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          {option.species}
+        </span>
+        {/* Lock overlay */}
+        {option.locked && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/55 backdrop-blur-[0.5px]">
+            <span className="rounded-full bg-black/60 px-2 py-1 font-tech text-[10px] tracking-[0.16em] text-white/90">🔒 LOCKED</span>
+          </div>
+        )}
+      </div>
+
+      <div className="font-tech text-[11px] font-bold tracking-[0.18em] text-[#f4f6d0]">{option.name}</div>
+      <div className="font-tech mt-0.5 line-clamp-2 text-[9px] leading-snug tracking-wide text-white/55">{option.description}</div>
+      <div
+        className={`font-tech mt-2 inline-flex items-center rounded-full px-2 py-1 text-[8px] font-bold tracking-[0.16em] ${
+          option.locked
+            ? "bg-white/5 text-white/40"
+            : option.equipped
+              ? "bg-[#e8c96a] text-[#241c05] shadow-[0_0_10px_rgba(232,201,106,0.45)]"
+              : "bg-white/10 text-white/70"
+        }`}
+      >
+        {option.locked ? `🔒 ${option.unlockLabel}` : option.equipped ? "● EQUIPPED" : "READY — TAP TO EQUIP"}
+      </div>
+      {option.equipped && <div className="gear-dot" />}
+    </button>
   );
 }
 

@@ -447,7 +447,8 @@ export class Game {
   private applyCustomizationFromSave(): void {
     const save = SaveService.get();
     const character = getCharacter(save.customization.character);
-    this.player.applyCharacterVariant(character.tintHex, character.accentHex);
+    // Distinct 3D rig per archetype (robot GLB vs boy/girl/alien procedurals).
+    this.player.applyCharacter(character);
     this.trail?.setTrail(save.customization.trail);
   }
 

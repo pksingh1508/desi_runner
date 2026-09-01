@@ -36,6 +36,10 @@ export function characterOptions(): CharacterOptionView[] {
     locked: level < c.unlockLevel,
     equipped: save.customization.character === c.id,
     unlockLabel: c.unlockLevel > 1 ? `LEVEL ${c.unlockLevel}` : "DEFAULT",
+    icon: c.icon,
+    species: c.species,
+    description: c.description,
+    archetype: c.archetype,
   }));
 }
 

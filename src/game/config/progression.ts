@@ -39,16 +39,26 @@ export const LEVEL_BONUS_COINS = 30;
  * LEVEL_BONUS_COINS. Cosmetic ids reference config/characters.ts.
  */
 export const LEVEL_REWARDS: Record<number, Reward[]> = {
-  2: [{ kind: "coins", amount: 100, label: "100 COINS" }],
+  2: [
+    { kind: "character", id: "ryder", label: "RYDER — STREET RUNNER" },
+    { kind: "coins", amount: 100, label: "100 COINS" },
+  ],
   3: [{ kind: "character", id: "ember", label: "EMBER UNIT" }],
   4: [{ kind: "coins", amount: 150, label: "150 COINS" }],
-  5: [{ kind: "trail", id: "electric", label: "ELECTRIC TRAIL" }],
+  5: [
+    { kind: "character", id: "nova", label: "NOVA — NEON STRIKER" },
+    { kind: "trail", id: "electric", label: "ELECTRIC TRAIL" },
+  ],
   6: [{ kind: "character", id: "wraith", label: "WRAITH UNIT" }],
   7: [{ kind: "coins", amount: 200, label: "200 COINS" }],
+  8: [{ kind: "character", id: "xeno", label: "XENO — ALIEN SCOUT" }],
   9: [{ kind: "badge", id: "spark", label: "SPARK BADGE" }],
   10: [{ kind: "character", id: "aurora", label: "AURORA UNIT" }],
   12: [{ kind: "trail", id: "fire", label: "FIRE TRAIL" }],
-  14: [{ kind: "coins", amount: 400, label: "400 COINS" }],
+  14: [
+    { kind: "character", id: "titan", label: "TITAN — ALIEN BRUTE" },
+    { kind: "coins", amount: 400, label: "400 COINS" },
+  ],
   15: [{ kind: "trail", id: "neonPurple", label: "NEON PURPLE TRAIL" }],
   18: [{ kind: "coins", amount: 500, label: "500 COINS" }],
   20: [{ kind: "trail", id: "void", label: "VOID TRAIL" }],

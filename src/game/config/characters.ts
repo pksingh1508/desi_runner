@@ -1,19 +1,32 @@
 /**
- * Cosmetic catalog. Characters are visual variants of the CC0-licensed
- * RobotExpressive model (material tint + emissive accent applied at runtime —
- * the .glb file itself is never modified). Trails are procedural particle
- * ribbons. Unlock levels are the single gating requirement; cosmetics stay
+ * Cosmetic catalog.
+ *
+ * Robot variants (VECTOR / EMBER / WRAITH / AURORA) re-use the single
+ * CC0-licensed RobotExpressive GLB — runtime material tints leave the binary
+ * untouched. Human / alien archetypes (RYDER / NOVA / XENO / TITAN) render as
+ * distinct procedural rigs so each selection feels like a real character swap,
+ * not just a palette change. Trails remain procedural ribbons.
+ *
+ * Unlock levels are the single gating requirement; cosmetics stay
  * gameplay-neutral by design.
  */
+export type CharacterArchetype = "robot" | "boy" | "girl" | "alien_slim" | "alien_brute";
+export type CharacterSpecies = "ROBOT" | "HUMAN" | "ALIEN";
+
 export interface CharacterDefinition {
   id: string;
   name: string;
   unlockLevel: number;
-  /** Suit tint blended over the model's base colors (0..1). */
+  /** Suit / skin tint blended over base colors (0..1). */
   tintHex: string;
-  /** Emissive accent color for glow panels / fallback bot. */
+  /** Emissive accent color for glow panels / highlights. */
   accentHex: string;
   gradient: string;
+  /** Visual archetype driving the 3D procedural rig vs GLB path. */
+  archetype: CharacterArchetype;
+  species: CharacterSpecies;
+  icon: string;
+  description: string;
 }
 
 export const CHARACTERS: CharacterDefinition[] = [
@@ -24,6 +37,22 @@ export const CHARACTERS: CharacterDefinition[] = [
     tintHex: "#9fb86a",
     accentHex: "#d9de7a",
     gradient: "linear-gradient(135deg,#3d4d2c,#d9de7a)",
+    archetype: "robot",
+    species: "ROBOT",
+    icon: "🤖",
+    description: "Classic tactical unit",
+  },
+  {
+    id: "ryder",
+    name: "RYDER",
+    unlockLevel: 2,
+    tintHex: "#4a9bd4",
+    accentHex: "#ff8c42",
+    gradient: "linear-gradient(135deg,#1a2f4a,#ff8c42)",
+    archetype: "boy",
+    species: "HUMAN",
+    icon: "👦",
+    description: "Street runner · Cap & sneakers",
   },
   {
     id: "ember",
@@ -32,6 +61,22 @@ export const CHARACTERS: CharacterDefinition[] = [
     tintHex: "#c07840",
     accentHex: "#ff9e54",
     gradient: "linear-gradient(135deg,#4d3020,#ff9e54)",
+    archetype: "robot",
+    species: "ROBOT",
+    icon: "🔥",
+    description: "Heat-forged chassis",
+  },
+  {
+    id: "nova",
+    name: "NOVA",
+    unlockLevel: 5,
+    tintHex: "#ff6b9e",
+    accentHex: "#ff3ecf",
+    gradient: "linear-gradient(135deg,#4d1a3a,#ff6b9e)",
+    archetype: "girl",
+    species: "HUMAN",
+    icon: "👩",
+    description: "Neon striker · Ponytail dash",
   },
   {
     id: "wraith",
@@ -40,6 +85,22 @@ export const CHARACTERS: CharacterDefinition[] = [
     tintHex: "#6b5a9e",
     accentHex: "#b46bff",
     gradient: "linear-gradient(135deg,#2b2440,#b46bff)",
+    archetype: "robot",
+    species: "ROBOT",
+    icon: "👻",
+    description: "Phase-shift prototype",
+  },
+  {
+    id: "xeno",
+    name: "XENO",
+    unlockLevel: 8,
+    tintHex: "#5ec98a",
+    accentHex: "#7aff7a",
+    gradient: "linear-gradient(135deg,#0f3a1e,#7aff7a)",
+    archetype: "alien_slim",
+    species: "ALIEN",
+    icon: "👽",
+    description: "Slim scout · Antennae ping",
   },
   {
     id: "aurora",
@@ -48,6 +109,22 @@ export const CHARACTERS: CharacterDefinition[] = [
     tintHex: "#3f8f96",
     accentHex: "#37d3e0",
     gradient: "linear-gradient(135deg,#1d3a3f,#37d3e0)",
+    archetype: "robot",
+    species: "ROBOT",
+    icon: "❄️",
+    description: "Cryo-coated runner",
+  },
+  {
+    id: "titan",
+    name: "TITAN",
+    unlockLevel: 14,
+    tintHex: "#c94a4a",
+    accentHex: "#ff3a3a",
+    gradient: "linear-gradient(135deg,#3a1a1a,#ff3a3a)",
+    archetype: "alien_brute",
+    species: "ALIEN",
+    icon: "👾",
+    description: "Brute · Horns & bulk",
   },
 ];
 

@@ -200,6 +200,10 @@ export interface CharacterOptionView {
   locked: boolean;
   equipped: boolean;
   unlockLabel: string;
+  icon: string;
+  species: string;
+  description: string;
+  archetype: string;
 }
 
 export interface TrailOptionView {
