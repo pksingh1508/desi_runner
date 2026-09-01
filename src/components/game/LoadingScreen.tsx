@@ -12,7 +12,7 @@ export function LoadingScreen({ progress, label, error }: LoadingScreenProps) {
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-[#070b09]/95 backdrop-blur-sm">
       <div className="scanlines" />
       <div className="flex flex-col items-center gap-4">
-        <h1 className="title-glow font-retro text-3xl sm:text-5xl">NEON</h1>
+        <h1 className="title-glow font-retro text-3xl sm:text-5xl">DESI</h1>
         <h1 className="title-gold font-retro text-3xl sm:text-5xl">RUN</h1>
       </div>
 

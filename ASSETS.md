@@ -1,6 +1,6 @@
 # Third-Party Assets
 
-NEON RUN deliberately ships almost no third-party assets: the track, skyline,
+DESI RUN deliberately ships almost no third-party assets: the track, skyline,
 billboards, coins, obstacles, pickups, particles, trails and all audio are
 generated procedurally at runtime. The single external asset is listed below
 with full provenance.

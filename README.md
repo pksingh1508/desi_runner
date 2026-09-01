@@ -1,4 +1,4 @@
-# NEON RUN
+# DESI RUN
 
 A production-quality, browser-based **3D endless runner**. Sprint through
 shifting neon sectors: switch lanes, jump barriers, slide under beams, chain

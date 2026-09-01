@@ -25,7 +25,7 @@ export function createRenderer(host: HTMLElement, bag: ResourceBag): RendererHan
     });
   } catch {
     throw new Error(
-      "WebGL is not available in this browser. NEON RUN needs hardware-accelerated WebGL to start."
+      "WebGL is not available in this browser. DESI RUN needs hardware-accelerated WebGL to start."
     );
   }
 

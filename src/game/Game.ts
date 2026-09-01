@@ -217,7 +217,7 @@ export class Game {
       this.applyCustomizationFromSave();
     } catch (error) {
       // Model failed but the procedural fallback keeps the game playable.
-      console.error("[NEON RUN] character load failed:", error);
+      console.error("[DESI RUN] character load failed:", error);
     }
     this.store.setLoading(1, "READY");
     this.store.setState("menu");

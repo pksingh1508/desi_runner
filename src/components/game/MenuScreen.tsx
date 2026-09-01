@@ -56,7 +56,7 @@ export function MenuScreen(props: MenuScreenProps) {
       <div className="flex items-start justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 sm:pt-4">
         <div>
           <h1 className="title-flicker title-glow font-retro text-2xl leading-none sm:text-3xl">
-            NEON <span className="title-gold">RUN</span>
+            DESI <span className="title-gold">RUN</span>
           </h1>
           <div className="mt-2 flex items-center gap-3">
             <span className="lvl-badge font-tech">LV {level.level}</span>
