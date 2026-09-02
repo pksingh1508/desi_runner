@@ -101,6 +101,24 @@ export class WorldManager {
     }
   }
 
+  /** Spawn a high coin trail for rocket flight (elevated, lane-weaving). */
+  spawnRocketCoinTrail(zStart: number): void {
+    const y = 4.45;
+    // 22 coins weaving across lanes, ~2.8m spacing => ~60m trail
+    for (let i = 0; i < 22; i++) {
+      const lane = i % 3;
+      const x = -2.5 + lane * 2.5;
+      // Slight wave: stagger every 3rd coin center to reward lane changes
+      const z = zStart - i * 2.9 - (i % 2) * 0.6;
+      const coin = this.acquireCoin();
+      coin.place(x, z, y);
+      // Make air coins slightly larger / brighter for emphasis
+      coin.mesh.scale.setScalar(1.12);
+      this.root.add(coin.mesh);
+      this.dynamicCoins.push(coin);
+    }
+  }
+
   /** Fresh run layout: warmup zone under the player, patterns ahead. */
   reset(): void {
     for (const segment of this.segments) {
@@ -145,6 +163,7 @@ export class WorldManager {
     this.distance = distance;
     if (this.pickupCooldown > 0) this.pickupCooldown -= delta;
     if (this.keyCooldown > 0) this.keyCooldown -= delta;
+    if (this.rocketCooldown > 0) this.rocketCooldown -= delta;
 
     let minOrigin = Infinity;
     for (const segment of this.segments) {
@@ -164,6 +183,9 @@ export class WorldManager {
       }
       for (const key of segment.keys) {
         key.updateVisual(delta);
+      }
+      for (const rocket of segment.rockets) {
+        rocket.updateVisual(delta);
       }
 
       // Distance culling: fog hides everything past fogFar.
@@ -198,6 +220,7 @@ export class WorldManager {
         this.recycleContent(segment, tierIndex);
         this.maybeSpawnPickup(segment);
         this.maybeSpawnKey(segment);
+        this.maybeSpawnRocket(segment);
       }
     }
   }
@@ -240,6 +263,13 @@ export class WorldManager {
     }
   }
 
+  forEachRocket(fn: (rocket: Rocket) => void): void {
+    for (const segment of this.segments) {
+      if (!segment.group.visible) continue;
+      for (const rocket of segment.rockets) fn(rocket);
+    }
+  }
+
   get activeObstacleCount(): number {
     let count = 0;
     this.forEachObstacle(() => count++);
@@ -255,6 +285,12 @@ export class WorldManager {
   get activeKeyCount(): number {
     let count = 0;
     this.forEachKey(() => count++);
+    return count;
+  }
+
+  get activeRocketCount(): number {
+    let count = 0;
+    this.forEachRocket(() => count++);
     return count;
   }
 
@@ -340,6 +376,13 @@ export class WorldManager {
       this.keyPool.push(key);
     }
     segment.keys.length = 0;
+
+    for (const rocket of segment.rockets) {
+      rocket.active = false;
+      rocket.mesh.removeFromParent();
+      this.rocketPool.push(rocket);
+    }
+    segment.rockets.length = 0;
   }
 
   private maybeSpawnPickup(segment: TrackSegment): void {
@@ -474,6 +517,47 @@ export class WorldManager {
       return reused;
     }
     const created = this.keyFactory.create();
+    created.active = true;
+    return created;
+  }
+
+  private maybeSpawnRocket(segment: TrackSegment): void {
+    if (
+      this.rocketCooldown > 0 ||
+      this.distance < 140 ||
+      Math.random() > 0.17
+    ) {
+      return;
+    }
+    if (segment.pickups.length > 0 || segment.keys.length > 0) return;
+    const candidateZs = [-16, -28, -38];
+    for (const z of candidateZs) {
+      const blocked = segment.obstacles.some(
+        (o) => Math.abs(o.localZ - z) < 3.8 && o.collider.maxY > 1.0
+      );
+      if (blocked) continue;
+      const laneFreeX = [-2.5, 0, 2.5].find(
+        (x) => !segment.obstacles.some((o) => Math.abs(o.localZ - z) < 3.8 && Math.abs(o.centerX - x) < 1.7)
+      );
+      if (laneFreeX === undefined) continue;
+      const coinClog = segment.coins.some((c) => Math.abs(c.localZ - z) < 1.4 && Math.abs(c.mesh.position.x - laneFreeX) < 1.0);
+      if (coinClog) continue;
+      const rocket = this.acquireRocket();
+      rocket.place(laneFreeX, z, 1.0);
+      segment.group.add(rocket.mesh);
+      segment.rockets.push(rocket);
+      this.rocketCooldown = 13;
+      return;
+    }
+  }
+
+  private acquireRocket(): Rocket {
+    const reused = this.rocketPool.pop();
+    if (reused) {
+      reused.active = true;
+      return reused;
+    }
+    const created = this.rocketFactory.create();
     created.active = true;
     return created;
   }
