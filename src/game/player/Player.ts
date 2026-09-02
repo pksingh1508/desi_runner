@@ -156,8 +156,9 @@ export class Player {
     const targetX = LANES[this.targetLane];
     this.root.position.x = damp(this.root.position.x, targetX, PLAYER.laneDampSpeed, delta);
 
-    // Rocket flight overrides vertical simulation
+    // Rocket flight overrides vertical simulation — lay down / sleep pose + jetpack
     if (this.rocketFlying) {
+      if (this.rocketPack) this.rocketPack.visible = true;
       this.rocketTimeLeft -= delta;
       // Hover height with gentle sine
       const targetY = 4.4 + Math.sin(this.age * 3.0) * 0.12;
@@ -166,10 +167,29 @@ export class Player {
       this.verticalVelocity = 0;
       this.grounded = false;
       this.sliding = false;
+      // Lay down transition — modelHolder rotates to horizontal (sleep/superman)
+      const targetRotX = -Math.PI / 2 + 0.12; // slight head-up tilt
+      this.modelHolder.rotation.x = damp(this.modelHolder.rotation.x, targetRotX, 7, delta);
+      this.modelHolder.position.z = damp(this.modelHolder.position.z, 0.92, 7, delta);
+      this.modelHolder.position.y = damp(this.modelHolder.position.y, 0.18, 7, delta);
+      // Keep rocket pack flame pulsing
+      if (this.rocketPack) {
+        const flameL = this.rocketPack.userData.flameL as THREE.Mesh | undefined;
+        const flameR = this.rocketPack.userData.flameR as THREE.Mesh | undefined;
+        const s = 1 + Math.sin(this.age * 18) * 0.22;
+        if (flameL) {
+          flameL.scale.set(s, s * 0.85, s);
+          (flameL.material as THREE.MeshBasicMaterial).opacity = 0.78 + Math.sin(this.age * 20) * 0.14;
+        }
+        if (flameR) {
+          const s2 = 1 + Math.sin(this.age * 18 + 1.2) * 0.22;
+          flameR.scale.set(s2, s2 * 0.85, s2);
+          (flameR.material as THREE.MeshBasicMaterial).opacity = 0.78 + Math.sin(this.age * 20 + 1) * 0.14;
+        }
+      }
       if (this.rocketTimeLeft <= 0) {
         this.rocketFlying = false;
         this.rocketTimeLeft = 0;
-        // Gentle fall after jetpack ends
         this.verticalVelocity = -2;
       } else if (this.rocketTimeLeft < 0.9) {
         // Begin descending in last 0.9s
@@ -185,12 +205,11 @@ export class Player {
           this.playRun();
         }
       }
-      // Visual roll still applies
+      // Visual roll still applies but softer
       const lateralOffset = targetX - this.root.position.x;
-      const targetRoll = -lateralOffset * PLAYER.laneRollFactor * 0.6;
+      const targetRoll = -lateralOffset * PLAYER.laneRollFactor * 0.45;
       this.pivot.rotation.z = damp(this.pivot.rotation.z, targetRoll, 12, delta);
-      // Slight forward lean while flying
-      this.pivot.rotation.x = damp(this.pivot.rotation.x, -0.18, 6, delta);
+      this.pivot.rotation.x = damp(this.pivot.rotation.x, -0.08, 6, delta);
       this.runPhase += delta * (9 + speedRatio * 6);
       this.animateProcedural();
       this.refreshBounds();
@@ -198,8 +217,15 @@ export class Player {
       this.animation?.setRunSpeedRatio(speedRatio * 1.15);
       return;
     } else {
-      // Reset lean when not flying
+      // Reset lay-down & lean when not flying
       this.pivot.rotation.x = damp(this.pivot.rotation.x, 0, 8, delta);
+      this.modelHolder.rotation.x = damp(this.modelHolder.rotation.x, 0, 9, delta);
+      this.modelHolder.position.z = damp(this.modelHolder.position.z, 0, 9, delta);
+      this.modelHolder.position.y = damp(this.modelHolder.position.y, 0, 9, delta);
+      if (this.rocketPack) {
+        // Fade flame quickly when not flying
+        this.rocketPack.visible = false;
+      }
     }
     // The visual rig must follow the simulated height exactly — collision,
     // camera and mesh all share this value so jumps read truthfully.
@@ -1134,6 +1160,77 @@ export class Player {
     return g;
   }
 
+  private buildRocketPack(): THREE.Group {
+    const pack = new THREE.Group();
+    pack.name = "RocketPack";
+
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xd0d6de, roughness: 0.32, metalness: 0.45 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a3440, roughness: 0.55, metalness: 0.3 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: 0xe31902, emissive: 0xe31902, emissiveIntensity: 0.6, roughness: 0.4 });
+    const flameMat = new THREE.MeshBasicMaterial({
+      color: 0xff9a1a,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    // Main backpack body — centered behind torso
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.13), metalMat);
+    body.position.set(0, 0, 0);
+    body.castShadow = true;
+    pack.add(body);
+
+    // Red stripe
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.08, 0.135), accentMat);
+    stripe.position.set(0, 0.08, 0.005);
+    pack.add(stripe);
+
+    // Side thrusters
+    const nozzleGeo = new THREE.CylinderGeometry(0.07, 0.085, 0.18, 12);
+    const nozzleL = new THREE.Mesh(nozzleGeo, darkMat);
+    nozzleL.position.set(-0.11, -0.22, 0.02);
+    nozzleL.castShadow = true;
+    pack.add(nozzleL);
+    const nozzleR = new THREE.Mesh(nozzleGeo, darkMat);
+    nozzleR.position.set(0.11, -0.22, 0.02);
+    nozzleR.castShadow = true;
+    pack.add(nozzleR);
+
+    // Nozzle rims
+    const rimGeo = new THREE.TorusGeometry(0.07, 0.012, 8, 14);
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0xfdd013, emissive: 0xfdd013, emissiveIntensity: 0.7 });
+    const rimL = new THREE.Mesh(rimGeo, rimMat);
+    rimL.position.set(-0.11, -0.31, 0.02);
+    rimL.rotation.x = Math.PI / 2;
+    pack.add(rimL);
+    const rimR = new THREE.Mesh(rimGeo, rimMat);
+    rimR.position.set(0.11, -0.31, 0.02);
+    rimR.rotation.x = Math.PI / 2;
+    pack.add(rimR);
+
+    // Flames
+    const flameGeo = new THREE.ConeGeometry(0.075, 0.32, 12);
+    const flameL = new THREE.Mesh(flameGeo, flameMat);
+    flameL.name = "rocketFlameL";
+    flameL.position.set(-0.11, -0.44, 0.02);
+    flameL.rotation.x = Math.PI;
+    pack.add(flameL);
+    const flameR = new THREE.Mesh(flameGeo, flameMat.clone());
+    flameR.name = "rocketFlameR";
+    flameR.position.set(0.11, -0.44, 0.02);
+    flameR.rotation.x = Math.PI;
+    pack.add(flameR);
+
+    // Store flames for animation
+    pack.userData.flameL = flameL;
+    pack.userData.flameR = flameR;
+
+    // Position behind character's back (standing)
+    pack.position.set(0, 1.02, 0.26);
+    return pack;
+  }
+
   private animateProcedural(): void {
     const active = this.currentArchetype === "robot"
       ? (this.usingFallback ? this.fallbackBot : null)
@@ -1144,6 +1241,19 @@ export class Player {
     if (!group) return;
     const legs = group.userData.legs as THREE.Mesh[] | undefined;
     const arms = group.userData.arms as THREE.Mesh[] | undefined;
+    // Rocket flight — lay straight like sleeping/superman, no swing
+    if (this.rocketFlying && legs) {
+      legs[0].rotation.x = 0.05;
+      legs[1].rotation.x = 0.05;
+      if (arms && arms.length >= 2) {
+        arms[0].rotation.x = -0.15;
+        arms[0].rotation.z = -0.25;
+        arms[1].rotation.x = -0.15;
+        arms[1].rotation.z = 0.25;
+      }
+      group.position.y = Math.sin(this.age * 3.5) * 0.015;
+      return;
+    }
     if (this.grounded && !this.sliding && legs) {
       const swing = Math.sin(this.runPhase * 2.4);
       legs[0].rotation.x = swing * 0.9;
