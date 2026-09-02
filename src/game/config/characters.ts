@@ -1,11 +1,12 @@
 /**
  * Cosmetic catalog.
  *
- * Robot variants (VECTOR / EMBER / WRAITH / AURORA) re-use the single
- * CC0-licensed RobotExpressive GLB — runtime material tints leave the binary
- * untouched. Human / alien archetypes (RYDER / NOVA / XENO / TITAN) render as
- * distinct procedural rigs so each selection feels like a real character swap,
- * not just a palette change. Trails remain procedural ribbons.
+ * VECTOR re-uses the single CC0-licensed RobotExpressive GLB (runtime tints
+ * leave the binary untouched). EMBER / WRAITH / AURORA are distinct procedural
+ * robot rigs — heat-forged, phase-shift and cryo silhouettes — so every
+ * selection is a silhouette swap, not a palette swap. Human / alien
+ * archetypes (RYDER / NOVA / XENO / TITAN) are also distinct procedural
+ * rigs. Trails remain procedural ribbons.
  *
  * Unlock levels are the single gating requirement; cosmetics stay
  * gameplay-neutral by design.

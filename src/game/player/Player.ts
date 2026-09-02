@@ -743,6 +743,271 @@ export class Player {
     return group;
   }
 
+  // -------------------------------------------------------- robot variants
+
+  private buildEmberBot(tintHex: string, accentHex: string): THREE.Group {
+    const tint = new THREE.Color(tintHex);
+    const accent = new THREE.Color(accentHex);
+    const group = new THREE.Group();
+    group.name = "EmberBot";
+
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.62, metalness: 0.28 });
+    const plateMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.55, metalness: 0.22 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.9, roughness: 0.35 });
+    const ventMat = new THREE.MeshStandardMaterial({ color: 0x1a0a08, roughness: 0.9 });
+
+    // Boxy heat-forged torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.64, 0.38), hullMat);
+    torso.position.y = 1.06;
+    torso.castShadow = true;
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.06), glowMat);
+    chest.position.set(0, 1.18, -0.22);
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.02), ventMat);
+    vent.position.set(0, 0.92, -0.2);
+
+    // Shoulder flame armor — upward cones
+    const flameGeo = new THREE.ConeGeometry(0.13, 0.28, 6);
+    const flameL = new THREE.Mesh(flameGeo, glowMat);
+    flameL.position.set(-0.38, 1.48, 0);
+    const flameR = new THREE.Mesh(flameGeo, glowMat);
+    flameR.position.set(0.38, 1.48, 0);
+    const shoulderPlateGeo = new THREE.BoxGeometry(0.18, 0.14, 0.22);
+    const shoulderL = new THREE.Mesh(shoulderPlateGeo, plateMat);
+    shoulderL.position.set(-0.42, 1.35, 0);
+    const shoulderR = new THREE.Mesh(shoulderPlateGeo, plateMat);
+    shoulderR.position.set(0.42, 1.35, 0);
+
+    // Head — helmet with visor blaze
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), hullMat);
+    head.position.set(0, 1.62, -0.02);
+    head.castShadow = true;
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.16), glowMat);
+    visor.position.set(0, 1.6, -0.2);
+    const crest = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.12), glowMat);
+    crest.position.set(0, 1.82, -0.04);
+
+    // Back flame jets
+    const jetGeo = new THREE.ConeGeometry(0.08, 0.22, 6);
+    const jetL = new THREE.Mesh(jetGeo, glowMat);
+    jetL.position.set(-0.16, 1.08, 0.22);
+    jetL.rotation.x = Math.PI * 0.75;
+    const jetR = new THREE.Mesh(jetGeo, glowMat);
+    jetR.position.set(0.16, 1.08, 0.22);
+    jetR.rotation.x = Math.PI * 0.75;
+
+    // Arms
+    const armGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 8);
+    const armL = new THREE.Mesh(armGeo, hullMat);
+    armL.position.set(-0.42, 1.04, 0);
+    const armR = new THREE.Mesh(armGeo, hullMat);
+    armR.position.set(0.42, 1.04, 0);
+    const cuffGeo = new THREE.TorusGeometry(0.08, 0.022, 8, 12);
+    const cuffL = new THREE.Mesh(cuffGeo, glowMat);
+    cuffL.position.set(-0.42, 0.88, 0);
+    cuffL.rotation.x = Math.PI / 2;
+    const cuffR = new THREE.Mesh(cuffGeo, glowMat);
+    cuffR.position.set(0.42, 0.88, 0);
+    cuffR.rotation.x = Math.PI / 2;
+
+    // Legs — reinforced
+    const legGeo = new THREE.CapsuleGeometry(0.13, 0.42, 4, 8);
+    const legL = new THREE.Mesh(legGeo, hullMat);
+    legL.position.set(-0.17, 0.32, 0);
+    legL.castShadow = true;
+    const legR = new THREE.Mesh(legGeo, hullMat);
+    legR.position.set(0.17, 0.32, 0);
+    legR.castShadow = true;
+    const kneeGeo = new THREE.BoxGeometry(0.16, 0.09, 0.05);
+    const kneeL = new THREE.Mesh(kneeGeo, glowMat);
+    kneeL.position.set(-0.17, 0.42, -0.12);
+    const kneeR = new THREE.Mesh(kneeGeo, glowMat);
+    kneeR.position.set(0.17, 0.42, -0.12);
+
+    const shoeGeo = new THREE.BoxGeometry(0.17, 0.09, 0.24);
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0x0f0a08, roughness: 0.9 });
+    const shoeL = new THREE.Mesh(shoeGeo, shoeMat);
+    shoeL.position.set(-0.17, 0.07, -0.04);
+    const shoeR = new THREE.Mesh(shoeGeo, shoeMat);
+    shoeR.position.set(0.17, 0.07, -0.04);
+
+    group.add(torso, chest, vent, flameL, flameR, shoulderL, shoulderR, head, visor, crest, jetL, jetR, armL, armR, cuffL, cuffR, legL, legR, kneeL, kneeR, shoeL, shoeR);
+    group.userData.legs = [legL, legR];
+    group.userData.arms = [armL, armR];
+    // Subtle emissive pulse will be driven by overdrive aura later; base intensity is enough.
+    void tint; // keep param used for future palette tweaks
+    return group;
+  }
+
+  private buildWraithBot(tintHex: string, accentHex: string): THREE.Group {
+    const tint = new THREE.Color(tintHex);
+    const accent = new THREE.Color(accentHex);
+    const group = new THREE.Group();
+    group.name = "WraithBot";
+
+    const shellMat = new THREE.MeshStandardMaterial({
+      color: tint,
+      emissive: accent,
+      emissiveIntensity: 0.55,
+      roughness: 0.28,
+      metalness: 0.55,
+      transparent: true,
+      opacity: 0.96,
+    });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x0f0d1a, roughness: 0.75 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.1, roughness: 0.3, transparent: true, opacity: 0.98 });
+
+    // Sleek capsule torso — ghost-plated
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.68, 4, 12), shellMat);
+    torso.position.y = 1.08;
+    torso.castShadow = true;
+
+    // Floating shoulder plates
+    const plateGeo = new THREE.BoxGeometry(0.2, 0.06, 0.2);
+    const plateL = new THREE.Mesh(plateGeo, glowMat);
+    plateL.position.set(-0.42, 1.42, 0);
+    plateL.rotation.y = 0.35;
+    const plateR = new THREE.Mesh(plateGeo, glowMat);
+    plateR.position.set(0.42, 1.42, 0);
+    plateR.rotation.y = -0.35;
+
+    // Head — elongated with slit visor
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 14, 10), shellMat);
+    head.position.set(0, 1.64, -0.02);
+    head.scale.set(0.95, 1.15, 0.95);
+    head.castShadow = true;
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.06), glowMat);
+    slit.position.set(0, 1.64, -0.22);
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.015, 8, 16), glowMat);
+    halo.position.set(0, 1.78, -0.02);
+    halo.rotation.x = Math.PI / 2;
+
+    // Chest core — vertical slit
+    const core = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.04), glowMat);
+    core.position.set(0, 1.12, -0.2);
+
+    // Arms — slender, slightly detached feel
+    const armGeo = new THREE.CapsuleGeometry(0.06, 0.34, 4, 8);
+    const armL = new THREE.Mesh(armGeo, darkMat);
+    armL.position.set(-0.42, 1.08, 0);
+    const armR = new THREE.Mesh(armGeo, darkMat);
+    armR.position.set(0.42, 1.08, 0);
+    const handGeo = new THREE.SphereGeometry(0.07, 8, 6);
+    const handL = new THREE.Mesh(handGeo, glowMat);
+    handL.position.set(-0.42, 0.82, 0);
+    const handR = new THREE.Mesh(handGeo, glowMat);
+    handR.position.set(0.42, 0.82, 0);
+
+    // Legs — elongated, wraith-like
+    const legGeo = new THREE.CapsuleGeometry(0.09, 0.55, 4, 8);
+    const legL = new THREE.Mesh(legGeo, darkMat);
+    legL.position.set(-0.15, 0.34, 0);
+    legL.castShadow = true;
+    const legR = new THREE.Mesh(legGeo, darkMat);
+    legR.position.set(0.15, 0.34, 0);
+    legR.castShadow = true;
+
+    // Trailing ghost ribbon
+    const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.5), new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.9, transparent: true, opacity: 0.26, side: THREE.DoubleSide }));
+    ribbon.position.set(0, 0.72, 0.22);
+    ribbon.rotation.x = Math.PI * 0.12;
+
+    group.add(torso, plateL, plateR, head, slit, halo, core, armL, armR, handL, handR, legL, legR, ribbon);
+    group.userData.legs = [legL, legR];
+    group.userData.arms = [armL, armR];
+    void tint;
+    return group;
+  }
+
+  private buildAuroraBot(tintHex: string, accentHex: string): THREE.Group {
+    const tint = new THREE.Color(tintHex);
+    const accent = new THREE.Color(accentHex);
+    const group = new THREE.Group();
+    group.name = "AuroraBot";
+
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0xe8f4f8, roughness: 0.45, metalness: 0.22 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.3 });
+    const iceMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.25, roughness: 0.22, transparent: true, opacity: 0.96 });
+    const tankMat = new THREE.MeshStandardMaterial({ color: 0x0a1e26, roughness: 0.7 });
+
+    // Frost torso — lighter
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.6, 4, 12), hullMat);
+    torso.position.y = 1.06;
+    torso.castShadow = true;
+    const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.05), iceMat);
+    chestPlate.position.set(0, 1.15, -0.21);
+
+    // Ice crystal shoulders
+    const crystalGeo = new THREE.OctahedronGeometry(0.14, 0);
+    const crystalL = new THREE.Mesh(crystalGeo, iceMat);
+    crystalL.position.set(-0.44, 1.38, 0);
+    crystalL.rotation.y = 0.6;
+    const crystalR = new THREE.Mesh(crystalGeo, iceMat);
+    crystalR.position.set(0.44, 1.38, 0);
+    crystalR.rotation.y = -0.6;
+    const crystalCoreL = new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), trimMat);
+    crystalCoreL.position.copy(crystalL.position);
+    const crystalCoreR = new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), trimMat);
+    crystalCoreR.position.copy(crystalR.position);
+
+    // Head — cryo helmet
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), hullMat);
+    head.position.set(0, 1.62, -0.02);
+    head.castShadow = true;
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.09, 0.12), iceMat);
+    visor.position.set(0, 1.6, -0.2);
+    const frostCrest = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.18, 6), iceMat);
+    frostCrest.position.set(0, 1.84, -0.02);
+
+    // Back cryo tank
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.34, 10), tankMat);
+    tank.position.set(0, 1.02, 0.22);
+    tank.rotation.x = Math.PI / 2;
+    const tankCap = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 10), trimMat);
+    tankCap.position.set(0, 1.02, 0.39);
+    tankCap.rotation.x = Math.PI / 2;
+    const tankGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.36, 8), iceMat);
+    tankGlow.position.set(0, 1.02, 0.22);
+    tankGlow.rotation.x = Math.PI / 2;
+
+    // Arms
+    const armGeo = new THREE.CapsuleGeometry(0.07, 0.3, 4, 8);
+    const armL = new THREE.Mesh(armGeo, hullMat);
+    armL.position.set(-0.38, 1.06, 0);
+    const armR = new THREE.Mesh(armGeo, hullMat);
+    armR.position.set(0.38, 1.06, 0);
+    const gloveGeo = new THREE.SphereGeometry(0.08, 8, 6);
+    const gloveL = new THREE.Mesh(gloveGeo, trimMat);
+    gloveL.position.set(-0.38, 0.84, 0);
+    const gloveR = new THREE.Mesh(gloveGeo, trimMat);
+    gloveR.position.set(0.38, 0.84, 0);
+
+    // Legs — slimmer, frost guards
+    const legGeo = new THREE.CapsuleGeometry(0.11, 0.46, 4, 8);
+    const legL = new THREE.Mesh(legGeo, hullMat);
+    legL.position.set(-0.16, 0.32, 0);
+    legL.castShadow = true;
+    const legR = new THREE.Mesh(legGeo, hullMat);
+    legR.position.set(0.16, 0.32, 0);
+    legR.castShadow = true;
+    const shinGeo = new THREE.BoxGeometry(0.12, 0.1, 0.04);
+    const shinL = new THREE.Mesh(shinGeo, iceMat);
+    shinL.position.set(-0.16, 0.38, -0.11);
+    const shinR = new THREE.Mesh(shinGeo, iceMat);
+    shinR.position.set(0.16, 0.38, -0.11);
+
+    const shoeGeo = new THREE.BoxGeometry(0.16, 0.08, 0.22);
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xeef6f8, roughness: 0.6 });
+    const shoeL = new THREE.Mesh(shoeGeo, shoeMat);
+    shoeL.position.set(-0.16, 0.07, -0.03);
+    const shoeR = new THREE.Mesh(shoeGeo, shoeMat);
+    shoeR.position.set(0.16, 0.07, -0.03);
+
+    group.add(torso, chestPlate, crystalL, crystalR, crystalCoreL, crystalCoreR, head, visor, frostCrest, tank, tankCap, tankGlow, armL, armR, gloveL, gloveR, legL, legR, shinL, shinR, shoeL, shoeR);
+    group.userData.legs = [legL, legR];
+    group.userData.arms = [armL, armR];
+    return group;
+  }
+
   private buildFallbackBotTinted(_tintHex: string, _accentHex: string): THREE.Group {
     // Reuse the original fallback but tinted — used when robot archetype requested
     // before GLB load and we want to reflect palette.
