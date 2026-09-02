@@ -286,6 +286,19 @@ export class Player {
     return this.dead;
   }
 
+  get isFlying(): boolean {
+    return this.rocketFlying;
+  }
+
+  get rocketRemaining(): number {
+    return this.rocketTimeLeft;
+  }
+
+  get rocketProgress(): number {
+    if (!this.rocketFlying || this.rocketDuration <= 0) return 0;
+    return 1 - this.rocketTimeLeft / this.rocketDuration;
+  }
+
   get currentLane(): LaneIndex {
     return this.targetLane;
   }
@@ -302,6 +315,8 @@ export class Player {
   die(): void {
     if (this.dead) return;
     this.dead = true;
+    this.rocketFlying = false;
+    this.rocketTimeLeft = 0;
     this.verticalVelocity = 0;
     this.sliding = false;
     this.slideTimeLeft = 0;
@@ -312,6 +327,8 @@ export class Player {
   /** Life-Saver revive — restores control at same lane/position with brief grace. */
   revive(): void {
     this.dead = false;
+    this.rocketFlying = false;
+    this.rocketTimeLeft = 0;
     this.sliding = false;
     this.slideTimeLeft = 0;
     this.y = 0;
@@ -325,6 +342,27 @@ export class Player {
     this.pivot.position.set(0, 0, 0);
     this.animation?.setState("run");
     this.refreshBounds();
+  }
+
+  startRocket(duration: number): void {
+    if (this.dead) return;
+    this.rocketFlying = true;
+    this.rocketDuration = duration;
+    this.rocketTimeLeft = duration;
+    this.sliding = false;
+    this.slideTimeLeft = 0;
+    this.jumpBufferLeft = 0;
+    this.slideQueuedFromAir = false;
+    this.verticalVelocity = 0;
+    // Small hop into flight
+    this.grounded = false;
+    this.animation?.setState("jump");
+  }
+
+  stopRocket(): void {
+    this.rocketFlying = false;
+    this.rocketTimeLeft = 0;
+    this.rocketDuration = 0;
   }
 
   reset(): void {
@@ -341,6 +379,9 @@ export class Player {
     this.jumpBufferLeft = 0;
     this.slideQueuedFromAir = false;
     this.dead = false;
+    this.rocketFlying = false;
+    this.rocketTimeLeft = 0;
+    this.rocketDuration = 0;
     this.runPhase = 0;
     this.age = 0;
     this.jumpStartAge = -Infinity;

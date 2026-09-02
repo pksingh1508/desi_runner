@@ -10,6 +10,7 @@ import {
 import { Coin, CoinFactory } from "@/game/entities/Coin";
 import { Pickup, PickupFactory } from "@/game/entities/Pickup";
 import { Key, KeyFactory } from "@/game/entities/Key";
+import { Rocket, RocketFactory } from "@/game/entities/Rocket";
 import {
   LASER_PATTERNS,
   pickPattern,
@@ -43,6 +44,8 @@ export class WorldManager {
   private pickupFactory: PickupFactory;
   private keyPool: Key[] = [];
   private keyFactory: KeyFactory;
+  private rocketPool: Rocket[] = [];
+  private rocketFactory: RocketFactory;
   /** Storm/event coins parented to the world root with absolute z. */
   private dynamicCoins: Coin[] = [];
 
@@ -53,6 +56,7 @@ export class WorldManager {
   private time = 0;
   private pickupCooldown = 0;
   private keyCooldown = 0;
+  private rocketCooldown = 0;
   private billboardSetIndex = 0;
   private distance = 0;
 
@@ -65,6 +69,7 @@ export class WorldManager {
     this.coinFactory = new CoinFactory(bag);
     this.pickupFactory = new PickupFactory(bag);
     this.keyFactory = new KeyFactory(bag);
+    this.rocketFactory = new RocketFactory(bag);
 
     for (let i = 0; i < WORLD.segmentCount; i++) {
       const segment = new TrackSegment(i, shared, bag);
@@ -110,6 +115,7 @@ export class WorldManager {
     this.queuedPatterns.length = 0;
     this.pickupCooldown = 0;
     this.keyCooldown = 4;
+    this.rocketCooldown = 6;
 
     const startZ = WORLD.recycleBehindZ;
     this.segments.forEach((segment, i) => {
