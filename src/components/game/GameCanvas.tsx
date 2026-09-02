@@ -50,7 +50,7 @@ export function GameCanvas() {
   const stats = save?.stats;
 
   return (
-    <div className="fixed inset-0 h-dvh w-screen overflow-hidden bg-[#05060e] text-white select-none">
+    <div className="fixed inset-0 h-dvh w-screen overflow-hidden bg-[#8ecfff] text-white select-none">
       {/* WebGL canvas host */}
       <div ref={hostRef} className="absolute inset-0 touch-none" />
 
