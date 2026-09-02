@@ -107,13 +107,15 @@ export class CharacterAnimationController {
   private buildSlideClip(): void {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
+    // Forward crouch for slide — head forward like Subway, not backward lay.
+    // Slight forward tilt (~42°) + clear dip so slide reads instantly outdoors.
     const tilt = new THREE.Quaternion();
-    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.05);
+    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.72);
     const identity = new THREE.Quaternion();
 
     const quaternionTrack = new THREE.QuaternionKeyframeTrack(
       "SlidePivot.quaternion",
-      [0, 0.18, duration - 0.22, duration],
+      [0, 0.14, duration - 0.18, duration],
       [
         identity.x, identity.y, identity.z, identity.w,
         tiltQ.x, tiltQ.y, tiltQ.z, tiltQ.w,
@@ -123,8 +125,8 @@ export class CharacterAnimationController {
     );
     const dipTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
-      [0, 0.18, duration - 0.22, duration],
-      [0, 0, 0, 0, -0.08, 0, 0, -0.08, 0, 0, 0, 0]
+      [0, 0.14, duration - 0.18, duration],
+      [0, 0, 0, 0, -0.32, 0, 0, -0.32, 0, 0, 0, 0]
     );
     const clip = new THREE.AnimationClip("NeonSlide", duration, [quaternionTrack, dipTrack]);
     const action = this.mixer.clipAction(clip);
