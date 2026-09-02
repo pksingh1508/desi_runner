@@ -12,14 +12,15 @@ function makeBillboardTexture(
   canvas.height = 128;
   const ctx = canvas.getContext("2d")!;
   const gradient = ctx.createLinearGradient(0, 0, 256, 128);
-  gradient.addColorStop(0, "#0a120d");
-  gradient.addColorStop(1, "#111a12");
+  gradient.addColorStop(0, "#ffffff");
+  gradient.addColorStop(1, "#e8f4ff");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 256, 128);
+  // Vivid Subway graffiti border for daylight readability
   ctx.strokeStyle = hue;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 7;
   ctx.shadowColor = hue;
-  ctx.shadowBlur = 18;
+  ctx.shadowBlur = 12;
   if (glyph === "chevrons") {
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
@@ -74,39 +75,38 @@ export class SharedAssets {
     billboardHueSets: readonly [string, string, string][]
   ) {
     this.roadMat = bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x121711, roughness: 0.85, metalness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0xe6ddc3, roughness: 0.92, metalness: 0.05 })
     );
     this.laneStripMat = bag.mat(
       new THREE.MeshBasicMaterial({
-        color: 0xb7c968,
+        color: 0xffffff,
         transparent: true,
-        opacity: 0.38,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.9,
         depthWrite: false,
       })
     );
     this.edgeLimeMat = bag.mat(
-      new THREE.MeshBasicMaterial({ color: 0xd9de7a })
+      new THREE.MeshBasicMaterial({ color: 0xfdd013 })
     );
     this.edgeGreenMat = bag.mat(
-      new THREE.MeshBasicMaterial({ color: 0x6f8d42 })
+      new THREE.MeshBasicMaterial({ color: 0x2eb5e5 })
     );
     this.dashMat = bag.mat(
       new THREE.MeshBasicMaterial({
-        color: 0xdfe8cf,
+        color: 0xffffff,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.32,
         depthWrite: false,
       })
     );
     this.postMat = bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x1c261e, roughness: 0.5, metalness: 0.6 })
+      new THREE.MeshStandardMaterial({ color: 0xc8c5b8, roughness: 0.48, metalness: 0.18 })
     );
-    this.postHeadMat = bag.mat(new THREE.MeshBasicMaterial({ color: 0xd9de7a }));
+    this.postHeadMat = bag.mat(new THREE.MeshBasicMaterial({ color: 0xfdd013 }));
     this.buildingMat = bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x0a0f0c, roughness: 0.92, metalness: 0.15 })
+      new THREE.MeshStandardMaterial({ color: 0xeae6da, roughness: 0.78, metalness: 0.06 })
     );
-    this.bandMats = [0xd9de7a, 0x6f8d42, 0xe0a458].map((color) =>
+    this.bandMats = [0xfdd013, 0xe31902, 0x6aeefd].map((color) =>
       bag.mat(new THREE.MeshBasicMaterial({ color }))
     );
     this.billboardSets = billboardHueSets.map((hues) =>

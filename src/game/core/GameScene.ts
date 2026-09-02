@@ -27,31 +27,32 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
   camera.position.set(0, 4.7, 8.2);
   camera.lookAt(0, 1.5, -7.5);
 
-  const hemi = new THREE.HemisphereLight(0xcfe6bd, 0x0d1a12, 1.15);
+  const hemi = new THREE.HemisphereLight(0xd6f0ff, 0xfff2cc, 1.42);
   scene.add(hemi);
 
-  // Key light: single shadow-casting directional sun over the play area.
-  const sun = new THREE.DirectionalLight(0xdcefd0, 2.2);
-  sun.position.set(7, 16, 6);
+  // Key light: bright daylight sun (Subway Surfers outdoor style).
+  const sun = new THREE.DirectionalLight(0xfffdf5, 3.15);
+  sun.position.set(7, 18, 6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 70;
-  sun.shadow.camera.left = -14;
-  sun.shadow.camera.right = 14;
-  sun.shadow.camera.top = 30;
-  sun.shadow.camera.bottom = -50;
-  sun.shadow.bias = -0.0004;
+  sun.shadow.camera.far = 80;
+  sun.shadow.camera.left = -16;
+  sun.shadow.camera.right = 16;
+  sun.shadow.camera.top = 32;
+  sun.shadow.camera.bottom = -52;
+  sun.shadow.bias = -0.0003;
+  // Crisp daylight shadows for high outdoor readability.
   scene.add(sun);
   scene.add(sun.target);
 
-  // Soft green rim from behind-left to separate the runner from the road.
-  const rim = new THREE.DirectionalLight(0x86a95e, 0.85);
+  // Soft cyan sky rim from behind-left to separate the runner from the road.
+  const rim = new THREE.DirectionalLight(0x6aeefd, 0.52);
   rim.position.set(-6, 5, -8);
   scene.add(rim);
 
   // Warm glow that follows the player (position synced by Game each frame).
-  const playerGlow = new THREE.PointLight(COLORS.signalLime, 14, 12, 1.8);
+  const playerGlow = new THREE.PointLight(COLORS.signalLime, 10, 12, 1.8);
   playerGlow.position.set(0, 3, 1.5);
   scene.add(playerGlow);
 

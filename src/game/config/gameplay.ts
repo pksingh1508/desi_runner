@@ -35,9 +35,9 @@ export const WORLD = {
   roadHalfWidth: 5.4,
   /** A segment is recycled once its far edge passes this z. */
   recycleBehindZ: 18,
-  fogNear: 55,
-  fogFar: 235,
-  backgroundColor: 0x070b09,
+  fogNear: 78,
+  fogFar: 325,
+  backgroundColor: 0x8ecfff,
   groundY: 0,
 } as const;
 
@@ -103,17 +103,17 @@ export const PATTERN = {
 } as const;
 
 export const COLORS = {
-  /** Bright signal lime — primary accent (Task Unit-style military palette). */
-  signalLime: 0xd9de7a,
-  /** Soft foliage green — secondary accent. */
-  signalGreen: 0x9fca7d,
-  /** Mid military green — tertiary accent. */
-  militaryMid: 0x6f8d42,
-  warnAmber: 0xe0a458,
-  coinGold: 0xffd23f,
-  dangerRed: 0xef5350,
-  buildingBody: 0x0a0f0c,
-  roadBody: 0x121711,
+  /** Subway Surfers yellow — primary accent (high visibility outdoors). */
+  signalLime: 0xfdd013,
+  /** Subway cyan — secondary accent. */
+  signalGreen: 0x6aeefd,
+  /** Subway red — tertiary accent. */
+  militaryMid: 0xe31902,
+  warnAmber: 0xeb7d26,
+  coinGold: 0xfdd013,
+  dangerRed: 0xe31902,
+  buildingBody: 0xeae6da,
+  roadBody: 0xe6ddc3,
 } as const;
 
 export const MODEL_URL = "/models/robot_expressive.glb";

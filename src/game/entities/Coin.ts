@@ -91,11 +91,11 @@ export class CoinFactory {
     this.geometry.rotateX(Math.PI / 2); // faces toward the camera
     this.material = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0x8a5a00,
+        color: 0xe8b800,
         emissive: COLORS.coinGold,
-        emissiveIntensity: 1.7,
-        metalness: 0.65,
-        roughness: 0.28,
+        emissiveIntensity: 1.35,
+        metalness: 0.35,
+        roughness: 0.32,
       })
     );
   }
