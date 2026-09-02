@@ -27,6 +27,8 @@ interface GameHUDProps {
   sectorName: string;
   feedback: FeedbackItem[];
   banner: { id: number; text: string } | null;
+  rocketActive: boolean;
+  rocketTimeLeft: number;
 }
 
 interface Popup {
@@ -55,6 +57,8 @@ export function GameHUD({
   sectorName,
   feedback,
   banner,
+  rocketActive,
+  rocketTimeLeft,
 }: GameHUDProps) {
   const [popups, setPopups] = useState<Popup[]>([]);
 
@@ -132,6 +136,28 @@ export function GameHUD({
               <span className="font-tech text-[15px] font-black tabular-nums text-white">{keys}</span>
             </div>
           </div>
+          {rocketActive && (
+            <div className="pw-chip hud-panel flex w-[7.5rem] items-center gap-2 border-[#ff4f4f]/30 bg-[#1a0e12]/80 px-2 py-1">
+              <span className="pw-icon text-xs" style={{ color: "#ff4f4f", textShadow: "0 0 8px #ff4f4f" }}>
+                🚀
+              </span>
+              <div className="flex flex-1 flex-col gap-0.5">
+                <span className="font-tech text-[8px] tracking-[0.2em] text-[#ff9a8a]">
+                  ROCKET {rocketTimeLeft.toFixed(1)}s
+                </span>
+                <div className="pw-track">
+                  <div
+                    className="pw-fill"
+                    style={{
+                      width: `${(rocketTimeLeft / 6.2) * 100}%`,
+                      background: "#ff4f4f",
+                      boxShadow: "0 0 8px #ff4f4f",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           {powerups.map((chip) => (
             <div key={chip.type} className="pw-chip hud-panel flex w-[7.5rem] items-center gap-2 px-2 py-1">
               <span className="pw-icon text-xs" style={{ color: chip.colorHex }}>
