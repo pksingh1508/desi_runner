@@ -10,7 +10,15 @@
  * Unlock levels are the single gating requirement; cosmetics stay
  * gameplay-neutral by design.
  */
-export type CharacterArchetype = "robot" | "boy" | "girl" | "alien_slim" | "alien_brute";
+export type CharacterArchetype =
+  | "robot"
+  | "robot_ember"
+  | "robot_wraith"
+  | "robot_aurora"
+  | "boy"
+  | "girl"
+  | "alien_slim"
+  | "alien_brute";
 export type CharacterSpecies = "ROBOT" | "HUMAN" | "ALIEN";
 
 export interface CharacterDefinition {
@@ -59,12 +67,12 @@ export const CHARACTERS: CharacterDefinition[] = [
     name: "EMBER",
     unlockLevel: 3,
     tintHex: "#c07840",
-    accentHex: "#ff9e54",
-    gradient: "linear-gradient(135deg,#4d3020,#ff9e54)",
-    archetype: "robot",
+    accentHex: "#ff7e1f",
+    gradient: "linear-gradient(135deg,#4d1a0a,#ff7e1f)",
+    archetype: "robot_ember",
     species: "ROBOT",
     icon: "🔥",
-    description: "Heat-forged chassis",
+    description: "Heat-forged · Flame jets",
   },
   {
     id: "nova",
@@ -84,11 +92,11 @@ export const CHARACTERS: CharacterDefinition[] = [
     unlockLevel: 6,
     tintHex: "#6b5a9e",
     accentHex: "#b46bff",
-    gradient: "linear-gradient(135deg,#2b2440,#b46bff)",
-    archetype: "robot",
+    gradient: "linear-gradient(135deg,#1a1030,#b46bff)",
+    archetype: "robot_wraith",
     species: "ROBOT",
     icon: "👻",
-    description: "Phase-shift prototype",
+    description: "Phase-shift · Ghost plating",
   },
   {
     id: "xeno",
@@ -107,12 +115,12 @@ export const CHARACTERS: CharacterDefinition[] = [
     name: "AURORA",
     unlockLevel: 10,
     tintHex: "#3f8f96",
-    accentHex: "#37d3e0",
-    gradient: "linear-gradient(135deg,#1d3a3f,#37d3e0)",
-    archetype: "robot",
+    accentHex: "#7af0ff",
+    gradient: "linear-gradient(135deg,#0a2a3a,#7af0ff)",
+    archetype: "robot_aurora",
     species: "ROBOT",
     icon: "❄️",
-    description: "Cryo-coated runner",
+    description: "Cryo-coated · Ice crystals",
   },
   {
     id: "titan",

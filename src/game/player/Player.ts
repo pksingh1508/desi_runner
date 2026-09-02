@@ -14,7 +14,9 @@ export type PlayerLandCallback = (impactSpeed: number) => void;
  * gameplay state (sliding shrinks it, jumping raises it).
  *
  * Distinct character archetypes:
- *  - "robot" renders the loaded RobotExpressive GLB tinted at runtime.
+ *  - "robot" (VECTOR) renders the loaded RobotExpressive GLB tinted at runtime.
+ *  - "robot_ember" / "robot_wraith" / "robot_aurora" render distinct
+ *    procedural variants so EMBER / WRAITH / AURORA are not just re-tints.
  *  - "boy" / "girl" / "alien_slim" / "alien_brute" render stylized low-poly
  *    procedural rigs so each selection feels like a real character swap.
  */
@@ -279,9 +281,9 @@ export class Player {
 
   /**
    * Primary cosmetic entry — swaps between the GLB robot and procedural
-   * archetypes. For robot archetypes we tint the loaded GLB (original colors
-   * cached); for humans/aliens we rebuild the procedural rig with the
-   * character's palette so silhouettes differ, not just colors.
+   * archetypes. Only VECTOR ("robot") uses the loaded GLB; every other
+   * character (including EMBER / WRAITH / AURORA) rebuilds a distinct
+   * procedural rig so selections are silhouette-level swaps, not re-tints.
    */
   applyCharacter(def: CharacterDefinition): void {
     this.currentCharacterId = def.id;
@@ -289,8 +291,10 @@ export class Player {
     this.currentTint = def.tintHex;
     this.currentAccent = def.accentHex;
 
-    if (def.archetype === "robot") {
-      // Show GLB (or fallback before load), hide procedural archetype.
+    const isVectorGLB = def.archetype === "robot";
+
+    if (isVectorGLB) {
+      // VECTOR — show GLB (or fallback before load), hide procedural archetype.
       if (this.archetypeGroup) {
         this.archetypeGroup.visible = false;
       }
@@ -303,13 +307,12 @@ export class Player {
         this.applyTintToObject(this.fallbackBot, def.tintHex, def.accentHex);
         this.fallbackBot.visible = true;
       }
-      // If fallback still in modelHolder but we hid archetype, ensure fallback visibility
       if (this.fallbackBot) this.fallbackBot.visible = this.usingFallback;
       this.syncModelVisibility();
       return;
     }
 
-    // Human / alien: hide robot model(s), (re)build procedural group.
+    // All non-VECTOR characters: hide GLB/fallback, (re)build distinct procedural group.
     if (this.loadedModel) this.loadedModel.visible = false;
     if (this.fallbackBot) this.fallbackBot.visible = false;
 
@@ -348,10 +351,10 @@ export class Player {
   }
 
   private syncModelVisibility(): void {
-    const isRobot = this.currentArchetype === "robot";
-    if (this.loadedModel) this.loadedModel.visible = isRobot;
-    if (this.archetypeGroup) this.archetypeGroup.visible = !isRobot;
-    if (this.fallbackBot) this.fallbackBot.visible = this.usingFallback && isRobot;
+    const isVector = this.currentArchetype === "robot";
+    if (this.loadedModel) this.loadedModel.visible = isVector;
+    if (this.archetypeGroup) this.archetypeGroup.visible = !isVector;
+    if (this.fallbackBot) this.fallbackBot.visible = this.usingFallback && isVector;
   }
 
   private applyTintToObject(root: THREE.Object3D, tintHex: string, accentHex: string): void {
@@ -457,6 +460,12 @@ export class Player {
         return this.buildAlienSlim(tintHex, accentHex);
       case "alien_brute":
         return this.buildAlienBrute(tintHex, accentHex);
+      case "robot_ember":
+        return this.buildEmberBot(tintHex, accentHex);
+      case "robot_wraith":
+        return this.buildWraithBot(tintHex, accentHex);
+      case "robot_aurora":
+        return this.buildAuroraBot(tintHex, accentHex);
       case "robot":
       default:
         return this.buildFallbackBotTinted(tintHex, accentHex);
