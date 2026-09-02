@@ -4,6 +4,8 @@ import { PLAYER } from "@/game/config/gameplay";
 
 const FADE_FAST = 0.14;
 const FADE_DEATH = 0.1;
+const SLIDE_ENTER_TIME = 0.14;
+const SLIDE_EXIT_TIME = 0.16;
 /** Expected jump airtime from gameplay constants (v/g * 2). */
 const EXPECTED_AIRTIME = (2 * PLAYER.jumpVelocity) / PLAYER.gravity;
 
@@ -12,6 +14,7 @@ interface ClipMapping {
   run?: THREE.AnimationClip;
   walk?: THREE.AnimationClip;
   jump?: THREE.AnimationClip;
+  slide?: THREE.AnimationClip;
   death?: THREE.AnimationClip;
 }
 
@@ -42,6 +45,8 @@ export class CharacterAnimationController {
   private currentState: PlayerAnimationState | null = null;
   private runRatio = 0;
   private jumpAction: THREE.AnimationAction | null = null;
+  /** Root-motion overlay used when the model has no purpose-built slide clip. */
+  private slideOverlayAction: THREE.AnimationAction | null = null;
   private onJumpFinished?: () => void;
 
   constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
@@ -53,11 +58,15 @@ export class CharacterAnimationController {
     const mixer = new THREE.AnimationMixer(root);
     this.mixer = mixer;
 
+    const nativeSlide = findClip(clips, "sliding", "slide", "crouch", "duck");
     const mapping: ClipMapping = {
       idle: findClip(clips, "idle"),
       run: findClip(clips, "running", "run"),
       walk: findClip(clips, "walking", "walk"),
       jump: findClip(clips, "jump"),
+      // RobotExpressive has no slide, but its short Sitting transition gives
+      // us a convincing bent-knee base pose for the procedural overlay.
+      slide: nativeSlide ?? findClip(clips, "sitting", "sit"),
       death: findClip(clips, "death"),
     };
 
@@ -82,6 +91,12 @@ export class CharacterAnimationController {
       ? THREE.MathUtils.clamp(mapping.jump.duration / EXPECTED_AIRTIME, 0.75, 1.6)
       : 1;
     register("jump", mapping.jump, THREE.LoopOnce, jumpFit);
+    if (mapping.slide) {
+      const slideTimeScale = nativeSlide
+        ? mapping.slide.duration / PLAYER.slideDuration
+        : mapping.slide.duration / SLIDE_ENTER_TIME;
+      register("slide", mapping.slide, THREE.LoopOnce, slideTimeScale);
+    }
     register("death", mapping.death ?? mapping.idle, THREE.LoopOnce);
 
     this.jumpAction = this.actions.get("jump") ?? null;
@@ -89,7 +104,9 @@ export class CharacterAnimationController {
       this.mixer.addEventListener("finished", this.handleFinished);
     }
 
-    this.buildSlideClip();
+    // A native slide already owns the full body pose. Otherwise layer a
+    // model-independent low/forward transform over Sitting (or use it alone).
+    if (!nativeSlide) this.buildSlideOverlay();
 
     // Start from Idle; every other state is entered via setState() crossfades.
     const idle = this.actions.get("idle");
@@ -100,22 +117,25 @@ export class CharacterAnimationController {
   }
 
   /**
-   * Procedural keyframe clip (Vector/Quaternion tracks) that tips the runner
-   * back onto the SlidePivot node — used because most GLB characters ship no
-   * slide animation. Final keys return to identity so unclamping is seamless.
+   * Procedural keyframe overlay (Vector/Quaternion/Scale tracks) that makes
+   * the visible character occupy the same low silhouette as the slide
+   * collider. Most GLB characters ship no dedicated slide animation, so this
+   * is layered over a crouched skeletal pose when one is available. Final
+   * keys return to identity so interruptions and unclamping are seamless.
    */
-  private buildSlideClip(): void {
+  private buildSlideOverlay(): void {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
-    // Forward crouch for slide — head forward like Subway, not backward lay.
-    // Slight forward tilt (~42°) + clear dip so slide reads instantly outdoors.
+    const holdUntil = duration - SLIDE_EXIT_TIME;
+    // A strong forward lean plus vertical compression makes the rendered
+    // silhouette truthfully match the half-height gameplay collider.
     const tilt = new THREE.Quaternion();
-    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.72);
+    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.98);
     const identity = new THREE.Quaternion();
 
     const quaternionTrack = new THREE.QuaternionKeyframeTrack(
       "SlidePivot.quaternion",
-      [0, 0.14, duration - 0.18, duration],
+      [0, SLIDE_ENTER_TIME, holdUntil, duration],
       [
         identity.x, identity.y, identity.z, identity.w,
         tiltQ.x, tiltQ.y, tiltQ.z, tiltQ.w,
@@ -125,14 +145,24 @@ export class CharacterAnimationController {
     );
     const dipTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
-      [0, 0.14, duration - 0.18, duration],
-      [0, 0, 0, 0, -0.10, 0, 0, -0.10, 0, 0, 0, 0]
+      [0, SLIDE_ENTER_TIME, holdUntil, duration],
+      [0, 0, 0, 0, -0.06, -0.08, 0, -0.06, -0.08, 0, 0, 0]
     );
-    const clip = new THREE.AnimationClip("NeonSlide", duration, [quaternionTrack, dipTrack]);
+    const scaleTrack = new THREE.VectorKeyframeTrack(
+      "SlidePivot.scale",
+      [0, SLIDE_ENTER_TIME, holdUntil, duration],
+      [1, 1, 1, 1, 0.72, 1, 1, 0.72, 1, 1, 1, 1]
+    );
+    const clip = new THREE.AnimationClip("NeonSlideOverlay", duration, [
+      quaternionTrack,
+      dipTrack,
+      scaleTrack,
+    ]);
     const action = this.mixer.clipAction(clip);
     action.setLoop(THREE.LoopOnce, 1);
     action.clampWhenFinished = false;
-    this.actions.set("slide", action);
+    this.slideOverlayAction = action;
+    if (!this.actions.has("slide")) this.actions.set("slide", action);
   }
 
   private handleFinished = (event: { action: THREE.AnimationAction }): void => {
@@ -173,6 +203,13 @@ export class CharacterAnimationController {
     next.fadeIn(isLooping ? FADE_FAST : FADE_FAST);
     next.play();
 
+    if (state === "slide" && this.slideOverlayAction && this.slideOverlayAction !== next) {
+      this.slideOverlayAction.enabled = true;
+      this.slideOverlayAction.reset().setEffectiveWeight(1).fadeIn(FADE_FAST).play();
+    } else if (state !== "slide" && this.slideOverlayAction?.isRunning()) {
+      this.slideOverlayAction.fadeOut(FADE_FAST);
+    }
+
     if (prev && prev !== next && prev.isRunning()) {
       prev.fadeOut(state === "death" ? FADE_DEATH : FADE_FAST);
     } else if (prev && prev !== next) {
@@ -188,6 +225,10 @@ export class CharacterAnimationController {
     if (action && action.isRunning()) {
       action.enabled = false;
       action.stop();
+    }
+    if (state === "slide" && this.slideOverlayAction && this.slideOverlayAction !== action) {
+      this.slideOverlayAction.enabled = false;
+      this.slideOverlayAction.stop();
     }
   }
 
@@ -228,6 +269,7 @@ export class CharacterAnimationController {
       this.mixer = null;
     }
     this.actions.clear();
+    this.slideOverlayAction = null;
     this.currentState = null;
   }
 }
