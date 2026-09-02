@@ -30,6 +30,7 @@ import { SharedAssets } from "./world/SharedAssets";
 import { BiomeManager } from "./world/BiomeManager";
 import { WorldManager } from "./world/WorldManager";
 import type { Coin } from "./entities/Coin";
+import type { Key } from "./entities/Key";
 import type { Obstacle } from "./entities/Obstacle";
 import type { Drone } from "./systems/RunEventSystem";
 import { MODEL_URL, SPEED } from "./config/gameplay";
@@ -109,7 +110,7 @@ export class Game {
 
   // Reusable per-frame scratch (avoid hot-loop allocations).
   private frameCoins: Coin[] = [];
-  private frameKeys: import("@/game/entities/Key").Key[] = [];
+  private frameKeys: Key[] = [];
   private nearObstacleScratch: Obstacle[] = [];
   private nearColliders: ColliderLike[] = [];
   private hudPowerups: HudPowerUp[] = [];
@@ -723,8 +724,9 @@ export class Game {
       }
     }
 
-    // ---- coins: magnet pull + collection
+    // ---- coins & keys: magnet pull + collection
     this.gatherNearbyCoins();
+    this.gatherNearbyKeys();
     this.applyMagnet(delta);
     const collectHeight = this.player.isSliding ? 0.95 : 1.9;
     this.collision.collectCoins(
@@ -872,6 +874,15 @@ export class Game {
       if (dx * dx + dz * dz + dy * dy < radius * radius) {
         coin.attracted = true;
         coin.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
+      }
+    }
+    for (const key of this.frameKeys) {
+      const dx = this.player.positionX - key.mesh.position.x;
+      const dz = 0 - key.worldZ;
+      const dy = targetY - key.mesh.position.y;
+      if (dx * dx + dz * dz + dy * dy < radius * radius) {
+        key.attracted = true;
+        key.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
       }
     }
   }

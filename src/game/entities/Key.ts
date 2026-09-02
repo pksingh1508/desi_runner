@@ -28,6 +28,7 @@ export class Key {
     this.localZ = localZ;
     this.baseY = y;
     this.active = true;
+    this.attracted = false;
     this.age = Math.random() * 10;
     this.phase = Math.random() * Math.PI * 2;
     this.mesh.visible = true;
