@@ -44,6 +44,8 @@ const HUD_INTERVAL = 0.1;
 const MISSION_SYNC_INTERVAL = 2;
 /** Perceived impact freeze for smashes/shield breaks (simulation scaled). */
 const HIT_STOP_SCALE = 0.18;
+const REVIVE_TIME = 6;
+const REVIVE_INVULN = 2.4;
 
 /**
  * Authoritative game orchestrator: owns the render loop, the state machine
@@ -89,6 +91,8 @@ export class Game {
   private hitStopTimer = 0;
   private timeouts: number[] = [];
   private disposed = false;
+  private reviveCountdown = 0;
+  private reviveInvuln = 0;
 
   // Run bookkeeping
   private runTime = 0;
@@ -285,12 +289,69 @@ export class Game {
       case "paused":
         if (action === "pause" || action === "confirm") this.resume();
         break;
+      case "revive":
+        if (action === "confirm" || action === "jump") this.tryRevive();
+        else if (action === "pause") this.skipRevive();
+        break;
       case "gameover":
         if (action === "confirm" || action === "jump") this.startRun();
         break;
       default:
         break;
     }
+  }
+
+  tryRevive(): void {
+    if (this.store.getSnapshot().gameState !== "revive") return;
+    const save = SaveService.get();
+    if (save.keys <= 0) {
+      this.skipRevive();
+      return;
+    }
+    SaveService.update((s) => {
+      s.keys = Math.max(0, s.keys - 1);
+    });
+    this.tally.keysUsed += 1;
+    this.store.setKeys(SaveService.get().keys);
+    this.store.setReviveCountdown(0);
+    this.reviveCountdown = 0;
+    this.reviveInvuln = REVIVE_INVULN;
+    this.world.clearObstaclesAhead(this.player.positionX, 2.8);
+    // Also sweep drones from the immediate area
+    if (this.events) {
+      for (let i = this.events.drones.length - 1; i >= 0; i--) {
+        const d = this.events.drones[i];
+        if (Math.abs(d.group.position.x - this.player.positionX) < 2.9 && Math.abs(d.group.position.z) < 7) {
+          d.group.visible = false;
+          d.state = "idle";
+          this.events.drones.splice(i, 1);
+        }
+      }
+    }
+    this.player.revive();
+    this.combo.breakCombo();
+    this.hitStopTimer = 0;
+    this.cameraRig?.addShake(0.28);
+    this.feedback.push("LIFE SAVER!", "epic", "CONTINUE!");
+    this.audio.playPowerup();
+    this.particles?.emitBurst(this.player.positionX, 1.1, 0, 0.98, 0.82, 0.18, 20, 1.2);
+    this.setState("playing");
+  }
+
+  skipRevive(): void {
+    if (this.store.getSnapshot().gameState !== "revive") return;
+    this.store.setReviveCountdown(0);
+    this.reviveCountdown = 0;
+    // Proceed to real gameover — now finalize
+    this.deathSpeed = this.difficulty.speed;
+    this.setState("gameover");
+    this.flushMissionProgress();
+    const epoch = this.runEpoch;
+    const timeoutId = window.setTimeout(() => {
+      if (this.disposed || this.runEpoch !== epoch) return;
+      this.finalizeRun();
+    }, 900);
+    this.timeouts.push(timeoutId);
   }
 
   startRun(): void {
@@ -320,6 +381,11 @@ export class Game {
     this.missionSyncTimer = 0;
     this.missionDeltas = {};
     this.hitStopTimer = 0;
+    this.reviveCountdown = 0;
+    this.reviveInvuln = 0;
+    this.store.setReviveCountdown(0);
+    this.store.setRunKeys(0);
+    this.store.setKeys(SaveService.get().keys);
     this.cameraRig?.setFovBoost(0);
     this.deathSpeed = 0;
     this.countdownLeft = COUNTDOWN_STEP * 3;
@@ -342,7 +408,7 @@ export class Game {
     this.setState("playing");
   }
 
-  /** From pause / game over back to the main menu (fresh ambient scene). */
+  /** From pause / game over / revive back to the main menu (fresh ambient scene). */
   returnToMenu(): void {
     this.audio.stopMusic();
     this.audio.playClick();
@@ -361,6 +427,10 @@ export class Game {
     this.cameraRig?.setFovBoost(0);
     this.deathSpeed = 0;
     this.hitStopTimer = 0;
+    this.reviveCountdown = 0;
+    this.reviveInvuln = 0;
+    this.store.setReviveCountdown(0);
+    this.store.setKeys(SaveService.get().keys);
     this.store.clearRunResult();
     this.pushHud(true);
     this.setState("menu");
@@ -527,6 +597,9 @@ export class Game {
       case "paused":
         // Frozen simulation; keep rendering the last frame.
         break;
+      case "revive":
+        this.updateRevive(delta);
+        break;
       case "gameover":
         this.updateGameOver(delta);
         break;
@@ -578,6 +651,7 @@ export class Game {
   private updatePlaying(rawDelta: number): void {
     const delta = rawDelta;
     this.runTime += delta;
+    if (this.reviveInvuln > 0) this.reviveInvuln -= delta;
 
     // ---- speed composition: difficulty × turbo × overdrive (all damped)
     const baseSpeed = this.difficulty.update(delta, true);
@@ -621,22 +695,26 @@ export class Game {
     }
 
     // ---- collision resolution (obstacles + event drones)
-    this.nearColliders.length = 0;
-    this.nearColliders.push(...nearList, ...(this.events?.drones ?? []));
-    const hit = this.collision.findHit(
-      {
-        minX: bounds.min.x,
-        minY: bounds.min.y,
-        minZ: bounds.min.z,
-        maxX: bounds.max.x,
-        maxY: bounds.max.y,
-        maxZ: bounds.max.z,
-      },
-      this.nearColliders
-    );
-    if (hit && !this.resolveHit(hit)) {
-      // Died — skip the rest of the frame.
-      return;
+    // Revive grace — ignore hits for REVIVE_INVULN seconds after a Life Saver
+    let hit: ColliderLike | null = null;
+    if (this.reviveInvuln <= 0) {
+      this.nearColliders.length = 0;
+      this.nearColliders.push(...nearList, ...(this.events?.drones ?? []));
+      hit = this.collision.findHit(
+        {
+          minX: bounds.min.x,
+          minY: bounds.min.y,
+          minZ: bounds.min.z,
+          maxX: bounds.max.x,
+          maxY: bounds.max.y,
+          maxZ: bounds.max.z,
+        },
+        this.nearColliders
+      );
+      if (hit && !this.resolveHit(hit)) {
+        // Died — if Life Saver offered, we are now in revive state and should stop this frame
+        return;
+      }
     }
 
     // ---- coins: magnet pull + collection
@@ -651,12 +729,13 @@ export class Game {
 
     // ---- pickups
     this.checkPickupCollection();
+    this.checkKeyCollection();
 
     // ---- timers & meters
     this.powerups.update(delta);
     this.combo.update(delta);
     this.overdrive.update(delta);
-    this.playerFX.setShield(this.powerups.hasShield());
+    this.playerFX.setShield(this.powerups.hasShield() || this.reviveInvuln > 0);
     this.playerFX.setMagnet(
       this.powerups.isActive("magnet") || this.overdrive.active || this.powerups.turboProtects
     );
@@ -736,6 +815,23 @@ export class Game {
     this.audio.update(0);
   }
 
+  private updateRevive(delta: number): void {
+    this.reviveCountdown -= delta;
+    const shown = Math.max(0, Math.ceil(this.reviveCountdown));
+    if (shown !== this.store.getSnapshot().reviveCountdown) {
+      this.store.setReviveCountdown(shown);
+    }
+    // Keep rendering the frozen death moment (gentle drift)
+    this.world.update(delta * 0.12, 0, this.difficulty.tier.index, this.score.distance);
+    this.player.update(delta, 0);
+    this.playerFX.update(delta);
+    this.syncLights();
+    this.cameraRig!.updatePlaying(delta, this.player, 0, false);
+    if (this.reviveCountdown <= 0) {
+      this.skipRevive();
+    }
+  }
+
   // ------------------------------------------------------------ coin flow
 
   private gatherNearbyCoins(): void {
@@ -799,6 +895,28 @@ export class Game {
       pickup.mesh.visible = false;
       pickup.active = false;
       this.activatePowerUp(pickup.type, pickup.mesh.position.x, pickup.baseY);
+    });
+  }
+
+  private checkKeyCollection(): void {
+    this.world.forEachKey((key) => {
+      if (!key.active) return;
+      const z = key.worldZ;
+      if (z < -1.8 || z > 1.8) return;
+      if (Math.abs(key.mesh.position.x - this.player.positionX) > 1.35) return;
+      if (Math.abs(key.baseY - (this.player.positionY + 1)) > 1.7) return;
+      key.mesh.visible = false;
+      key.active = false;
+      SaveService.update((s) => {
+        s.keys = (s.keys ?? 2) + 1;
+      });
+      this.tally.keysCollected += 1;
+      this.store.setKeys(SaveService.get().keys);
+      this.store.setRunKeys(this.tally.keysCollected);
+      this.feedback.push("KEY +1!", "epic", `${SaveService.get().keys} KEYS`);
+      this.audio.playPowerup();
+      // golden burst
+      this.particles?.emitBurst(key.mesh.position.x, key.baseY + 0.3, 0, 0.98, 0.82, 0.18, 14, 1.0);
     });
   }
 
@@ -908,6 +1026,15 @@ export class Game {
     this.combo.breakCombo();
     this.player.die();
 
+    // Life Saver — offer to consume a key and continue from same spot
+    if (SaveService.get().keys > 0) {
+      this.reviveCountdown = REVIVE_TIME;
+      this.store.setReviveCountdown(Math.ceil(REVIVE_TIME));
+      this.setState("revive");
+      this.feedback.push("LIFE SAVER AVAILABLE!", "epic", "USE KEY TO CONTINUE?");
+      return;
+    }
+
     this.deathSpeed = this.difficulty.speed;
     this.setState("gameover");
 
@@ -988,6 +1115,7 @@ export class Game {
     });
 
     const stats = SaveService.get().stats;
+    const keys = SaveService.get().keys;
     this.store.finishRun(
       {
         score: this.score.score,
@@ -1003,6 +1131,8 @@ export class Game {
         powerUps: this.tally.powerUps,
         obstaclesSmashed: this.tally.obstaclesSmashed,
         survivalTime: Math.floor(this.runTime),
+        keysCollected: this.tally.keysCollected,
+        keysUsed: this.tally.keysUsed,
         xpEarned: xpGain.xpEarned,
         previousLevel,
         previousXp,
@@ -1015,6 +1145,7 @@ export class Game {
         bestScore: stats.bestScore,
         bestDistance: stats.bestDistance,
         totalCoins: stats.totalCoins,
+        keys,
       }
     );
   }
@@ -1143,6 +1274,8 @@ function emptyTally(): RunTallyData {
     obstaclesSmashed: 0,
     maxCombo: 0,
     survivalTime: 0,
+    keysCollected: 0,
+    keysUsed: 0,
   };
 }
 

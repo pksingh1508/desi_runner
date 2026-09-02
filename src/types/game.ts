@@ -4,6 +4,7 @@ export type GameState =
   | "countdown"
   | "playing"
   | "paused"
+  | "revive"
   | "gameover";
 
 export type PlayerAnimationState =
@@ -120,6 +121,8 @@ export interface RunResult {
   powerUps: number;
   obstaclesSmashed: number;
   survivalTime: number;
+  keysCollected: number;
+  keysUsed: number;
   xpEarned: number;
   previousLevel: number;
   previousXp: number;
@@ -141,6 +144,8 @@ export interface RunTallyData {
   obstaclesSmashed: number;
   maxCombo: number;
   survivalTime: number;
+  keysCollected: number;
+  keysUsed: number;
 }
 
 // ----------------------------------------------------------------- HUD views

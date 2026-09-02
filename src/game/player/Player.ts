@@ -258,6 +258,24 @@ export class Player {
     this.animation?.setState("death");
   }
 
+  /** Life-Saver revive — restores control at same lane/position with brief grace. */
+  revive(): void {
+    this.dead = false;
+    this.sliding = false;
+    this.slideTimeLeft = 0;
+    this.y = 0;
+    this.verticalVelocity = 0;
+    this.grounded = true;
+    this.jumpBufferLeft = 0;
+    this.slideQueuedFromAir = false;
+    this.jumpStartAge = -Infinity;
+    this.root.position.y = 0;
+    this.pivot.rotation.set(0, 0, 0);
+    this.pivot.position.set(0, 0, 0);
+    this.animation?.setState("run");
+    this.refreshBounds();
+  }
+
   reset(): void {
     this.targetLane = CENTER_LANE;
     this.root.position.set(0, 0, 0);

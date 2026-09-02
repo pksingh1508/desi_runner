@@ -13,6 +13,7 @@ interface MenuScreenProps {
   bestScore: number;
   bestDistance: number;
   totalCoins: number;
+  totalKeys: number;
   muted: boolean;
   missions: MissionView[];
   achievements: AchievementView[];
@@ -72,6 +73,8 @@ export function MenuScreen(props: MenuScreenProps) {
           <span className="text-white">BEST {props.bestScore.toLocaleString()}</span>
           <span className="text-white/30">|</span>
           <span className="text-white">{props.bestDistance.toLocaleString()}m</span>
+          <span className="text-white/30">|</span>
+          <span className="text-[#fdd013]">🔑 {props.totalKeys}</span>
         </div>
       </div>
 
@@ -97,6 +100,7 @@ export function MenuScreen(props: MenuScreenProps) {
             bestScore={props.bestScore}
             bestDistance={props.bestDistance}
             totalCoins={props.totalCoins}
+            totalKeys={props.totalKeys}
             missions={props.missions}
             onPlay={props.onPlay}
           />
@@ -138,6 +142,7 @@ function PlayTab({
   bestScore,
   bestDistance,
   totalCoins,
+  totalKeys,
   missions,
   onPlay,
 }: {
@@ -145,6 +150,7 @@ function PlayTab({
   bestScore: number;
   bestDistance: number;
   totalCoins: number;
+  totalKeys: number;
   missions: MissionView[];
   onPlay: () => void;
 }) {
@@ -178,6 +184,8 @@ function PlayTab({
         <span className="text-white">{bestDistance.toLocaleString()}m</span>
         <span className="text-white/30">|</span>
         <span className="text-[#fdd013]">✦ {totalCoins.toLocaleString()}</span>
+        <span className="text-white/30">|</span>
+        <span className="text-white">🔑 {totalKeys}</span>
       </div>
 
       {missions.some((m) => !m.completed) && (

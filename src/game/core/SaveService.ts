@@ -50,6 +50,8 @@ export interface SaveDataV2 {
   achievements: AchievementsSave;
   customization: CustomizationData;
   settings: SettingsData;
+  /** Life-Saver keys inventory — used to revive at death point. */
+  keys: number;
 }
 
 const SAVE_KEY = "neonrun.save.v2";
@@ -100,6 +102,7 @@ export function defaultSave(): SaveDataV2 {
       sound: true,
       performanceMode: false,
     },
+    keys: 2,
   };
 }
 
@@ -176,6 +179,7 @@ function clampIntoDefaults(raw: unknown): SaveDataV2 {
       badges: Array.isArray(data.customization?.badges) ? data.customization.badges : [],
     },
     settings: { ...base.settings, ...(data.settings ?? {}) },
+    keys: Number.isFinite((data as { keys?: unknown }).keys) ? Math.max(0, Math.floor((data as { keys: number }).keys)) : base.keys,
   };
 }
 

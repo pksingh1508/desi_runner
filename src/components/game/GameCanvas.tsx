@@ -10,6 +10,7 @@ import { CountdownOverlay } from "./CountdownOverlay";
 import { GameHUD } from "./GameHUD";
 import { PauseScreen } from "./PauseScreen";
 import { RunSummaryScreen } from "./RunSummaryScreen";
+import { ReviveScreen } from "./ReviveScreen";
 import { DebugPanel } from "./DebugPanel";
 
 /**
@@ -66,6 +67,7 @@ export function GameCanvas() {
           bestScore={snapshot.bestScore}
           bestDistance={snapshot.bestDistance}
           totalCoins={stats.totalCoins}
+          totalKeys={snapshot.keys}
           muted={snapshot.muted}
           missions={missions}
           achievements={achievements}
@@ -82,12 +84,13 @@ export function GameCanvas() {
         />
       )}
 
-      {(snapshot.gameState === "countdown" || snapshot.gameState === "playing") && (
+      {(snapshot.gameState === "countdown" || snapshot.gameState === "playing" || snapshot.gameState === "revive") && (
         <>
           <GameHUD
             score={snapshot.score}
             distance={snapshot.distance}
             coins={snapshot.coins}
+            keys={snapshot.keys}
             tierName={snapshot.tierName}
             tierLabel={snapshot.tierLabel}
             popupSeq={snapshot.popupSeq}
@@ -109,6 +112,15 @@ export function GameCanvas() {
           />
           <CountdownOverlay value={snapshot.countdownValue} visible={snapshot.gameState === "countdown"} />
         </>
+      )}
+
+      {snapshot.gameState === "revive" && (
+        <ReviveScreen
+          keys={snapshot.keys}
+          countdown={snapshot.reviveCountdown}
+          onRevive={() => game().tryRevive()}
+          onSkip={() => game().skipRevive()}
+        />
       )}
 
       {snapshot.gameState === "paused" && (

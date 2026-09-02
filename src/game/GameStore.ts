@@ -21,6 +21,7 @@ export interface HudSnapshot {
   bestScore: number;
   bestDistance: number;
   totalCoins: number;
+  keys: number;
   muted: boolean;
   countdownValue: number; // 3,2,1 and 0 => "GO"
   runResult: RunResult | null;
@@ -41,10 +42,14 @@ export interface HudSnapshot {
   shieldActive: boolean;
   /** Bumped whenever persistent meta data changed (run end, equip, unlock). */
   metaVersion: number;
+  // ---- Life Saver ----
+  reviveCountdown: number;
+  runKeysCollected: number;
 }
 
 function initialSnapshot(): HudSnapshot {
   const stats = SaveService.get().stats;
+  const save = SaveService.get();
   return {
     gameState: "loading",
     loadingProgress: 0,
@@ -59,6 +64,7 @@ function initialSnapshot(): HudSnapshot {
     bestScore: stats.bestScore,
     bestDistance: stats.bestDistance,
     totalCoins: stats.totalCoins,
+    keys: save.keys,
     muted: SaveService.get().settings.muted,
     countdownValue: 3,
     runResult: null,
@@ -75,6 +81,8 @@ function initialSnapshot(): HudSnapshot {
     sectorName: "NEON CITY",
     shieldActive: false,
     metaVersion: 0,
+    reviveCountdown: 0,
+    runKeysCollected: 0,
   };
 }
 
@@ -185,10 +193,23 @@ export class GameStore {
     this.patch({ popupSeq: this.snapshot.popupSeq + 1 }, true);
   }
 
+  setKeys(keys: number): void {
+    this.patch({ keys }, true);
+  }
+
+  setRunKeys(collected: number): void {
+    this.patch({ runKeysCollected: collected }, false);
+  }
+
+  setReviveCountdown(value: number): void {
+    this.patch({ reviveCountdown: value }, true);
+  }
+
   finishRun(result: RunResult, stats: {
     bestScore: number;
     bestDistance: number;
     totalCoins: number;
+    keys: number;
   }): void {
     this.patch(
       { runResult: result, ...stats, metaVersion: this.snapshot.metaVersion + 1 },

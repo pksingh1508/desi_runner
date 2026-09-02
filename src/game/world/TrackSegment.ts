@@ -4,6 +4,7 @@ import type { SharedAssets } from "./SharedAssets";
 import type { Obstacle } from "@/game/entities/Obstacle";
 import type { Coin } from "@/game/entities/Coin";
 import type { Pickup } from "@/game/entities/Pickup";
+import type { Key } from "@/game/entities/Key";
 import { WORLD } from "@/game/config/gameplay";
 import { randRange } from "@/game/utils/math";
 
@@ -20,6 +21,7 @@ export class TrackSegment {
   readonly obstacles: Obstacle[] = [];
   readonly coins: Coin[] = [];
   readonly pickups: Pickup[] = [];
+  readonly keys: Key[] = [];
 
   private billboards: { mesh: THREE.Mesh; slot: number; phase: number }[] = [];
   private buildings: THREE.Mesh[] = [];

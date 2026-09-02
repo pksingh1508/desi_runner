@@ -9,6 +9,7 @@ import {
 } from "@/game/entities/Obstacle";
 import { Coin, CoinFactory } from "@/game/entities/Coin";
 import { Pickup, PickupFactory } from "@/game/entities/Pickup";
+import { Key, KeyFactory } from "@/game/entities/Key";
 import {
   LASER_PATTERNS,
   pickPattern,
@@ -40,6 +41,8 @@ export class WorldManager {
   private coinFactory: CoinFactory;
   private pickupPool: Pickup[] = [];
   private pickupFactory: PickupFactory;
+  private keyPool: Key[] = [];
+  private keyFactory: KeyFactory;
   /** Storm/event coins parented to the world root with absolute z. */
   private dynamicCoins: Coin[] = [];
 
@@ -49,6 +52,7 @@ export class WorldManager {
   private lastPatternId: string | null = null;
   private time = 0;
   private pickupCooldown = 0;
+  private keyCooldown = 0;
   private billboardSetIndex = 0;
   private distance = 0;
 
@@ -60,6 +64,7 @@ export class WorldManager {
     this.root.name = "WorldRoot";
     this.coinFactory = new CoinFactory(bag);
     this.pickupFactory = new PickupFactory(bag);
+    this.keyFactory = new KeyFactory(bag);
 
     for (let i = 0; i < WORLD.segmentCount; i++) {
       const segment = new TrackSegment(i, shared, bag);
@@ -104,6 +109,7 @@ export class WorldManager {
     this.dynamicCoins.length = 0;
     this.queuedPatterns.length = 0;
     this.pickupCooldown = 0;
+    this.keyCooldown = 4;
 
     const startZ = WORLD.recycleBehindZ;
     this.segments.forEach((segment, i) => {
@@ -132,6 +138,7 @@ export class WorldManager {
     this.time += delta;
     this.distance = distance;
     if (this.pickupCooldown > 0) this.pickupCooldown -= delta;
+    if (this.keyCooldown > 0) this.keyCooldown -= delta;
 
     let minOrigin = Infinity;
     for (const segment of this.segments) {
@@ -148,6 +155,9 @@ export class WorldManager {
       }
       for (const pickup of segment.pickups) {
         pickup.updateVisual(delta);
+      }
+      for (const key of segment.keys) {
+        key.updateVisual(delta);
       }
 
       // Distance culling: fog hides everything past fogFar.
@@ -181,6 +191,7 @@ export class WorldManager {
         segment.decorate(this.shared, this.billboardSetIndex);
         this.recycleContent(segment, tierIndex);
         this.maybeSpawnPickup(segment);
+        this.maybeSpawnKey(segment);
       }
     }
   }
@@ -216,6 +227,13 @@ export class WorldManager {
     }
   }
 
+  forEachKey(fn: (key: Key) => void): void {
+    for (const segment of this.segments) {
+      if (!segment.group.visible) continue;
+      for (const key of segment.keys) fn(key);
+    }
+  }
+
   get activeObstacleCount(): number {
     let count = 0;
     this.forEachObstacle(() => count++);
@@ -225,6 +243,12 @@ export class WorldManager {
   get activeCoinCount(): number {
     let count = 0;
     this.forEachCoin(() => count++, 0);
+    return count;
+  }
+
+  get activeKeyCount(): number {
+    let count = 0;
+    this.forEachKey(() => count++);
     return count;
   }
 
@@ -245,6 +269,27 @@ export class WorldManager {
       return true;
     }
     return false;
+  }
+
+  /** Destroy obstacles in a radius around the player after a Life Saver revive. */
+  clearObstaclesAhead(playerX: number, radiusXZ: number): void {
+    for (const segment of this.segments) {
+      for (let i = segment.obstacles.length - 1; i >= 0; i--) {
+        const ob = segment.obstacles[i];
+        if (!ob.active) continue;
+        const cz = segment.originZ + ob.localZ;
+        if (cz < -14 || cz > 8) continue;
+        if (Math.abs(ob.centerX - playerX) > radiusXZ) continue;
+        // Only clear ahead + nearby — leave distant pattern intact
+        if (cz > -1.5) {
+          ob.active = false;
+          ob.mesh.removeFromParent();
+          const pool = this.obstaclePools.get(ob.kind);
+          if (pool) pool.push(ob);
+          segment.obstacles.splice(i, 1);
+        }
+      }
+    }
   }
 
   dispose(scene: THREE.Scene): void {
@@ -282,6 +327,13 @@ export class WorldManager {
       this.pickupPool.push(pickup);
     }
     segment.pickups.length = 0;
+
+    for (const key of segment.keys) {
+      key.active = false;
+      key.mesh.removeFromParent();
+      this.keyPool.push(key);
+    }
+    segment.keys.length = 0;
   }
 
   private maybeSpawnPickup(segment: TrackSegment): void {
@@ -373,6 +425,49 @@ export class WorldManager {
       return reused;
     }
     const created = this.pickupFactory.create(type);
+    created.active = true;
+    return created;
+  }
+
+  private maybeSpawnKey(segment: TrackSegment): void {
+    if (
+      this.keyCooldown > 0 ||
+      this.distance < 60 ||
+      Math.random() > 0.22
+    ) {
+      return;
+    }
+    // Avoid stacking key directly on a pickup
+    if (segment.pickups.length > 0) return;
+    const candidateZs = [-14, -26, -38];
+    for (const z of candidateZs) {
+      const blocked = segment.obstacles.some(
+        (o) => Math.abs(o.localZ - z) < 3.5 && o.collider.maxY > 1.0
+      );
+      if (blocked) continue;
+      const laneFreeX = [-2.5, 0, 2.5].find(
+        (x) => !segment.obstacles.some((o) => Math.abs(o.localZ - z) < 3.5 && Math.abs(o.centerX - x) < 1.6)
+      );
+      if (laneFreeX === undefined) continue;
+      // also avoid coin line overlap for visual clarity
+      const coinClog = segment.coins.some((c) => Math.abs(c.localZ - z) < 1.2 && Math.abs(c.mesh.position.x - laneFreeX) < 0.9);
+      if (coinClog) continue;
+      const key = this.acquireKey();
+      key.place(laneFreeX, z, 1.0);
+      segment.group.add(key.mesh);
+      segment.keys.push(key);
+      this.keyCooldown = 9;
+      return;
+    }
+  }
+
+  private acquireKey(): Key {
+    const reused = this.keyPool.pop();
+    if (reused) {
+      reused.active = true;
+      return reused;
+    }
+    const created = this.keyFactory.create();
     created.active = true;
     return created;
   }
