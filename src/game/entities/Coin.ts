@@ -83,26 +83,200 @@ export class Coin {
   }
 }
 
-/** Shares one geometry/material across every coin instance for a Game session. */
+/** Shares geometries/materials across every coin instance for a Game session. */
 export class CoinFactory {
-  private geometry: THREE.CylinderGeometry;
-  private material: THREE.MeshStandardMaterial;
+  private sideGeometry: THREE.CylinderGeometry;
+  private capGeometry: THREE.CircleGeometry;
+  private edgeGeometry: THREE.TorusGeometry;
+  private sideMaterial: THREE.MeshStandardMaterial;
+  private capMaterial: THREE.MeshStandardMaterial;
+  private capMaterialBack: THREE.MeshStandardMaterial;
+  private edgeMaterial: THREE.MeshStandardMaterial;
 
   constructor(bag: ResourceBag) {
-    this.geometry = bag.geo(new THREE.CylinderGeometry(0.34, 0.34, 0.07, 22));
-    this.geometry.rotateX(Math.PI / 2); // faces toward the camera
-    this.material = bag.mat(
+    // Beveled rim — slightly thicker for readability outdoors
+    this.sideGeometry = bag.geo(new THREE.CylinderGeometry(0.38, 0.38, 0.085, 26));
+    this.capGeometry = bag.geo(new THREE.CircleGeometry(0.365, 26));
+    this.edgeGeometry = bag.geo(new THREE.TorusGeometry(0.38, 0.018, 10, 28));
+
+    const faceTexture = bag.tex(makeCoinFaceTexture());
+
+    this.sideMaterial = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0xe8b800,
-        emissive: COLORS.coinGold,
-        emissiveIntensity: 1.35,
-        metalness: 0.35,
+        color: 0xb47a00,
+        emissive: 0x332200,
+        emissiveIntensity: 0.18,
+        metalness: 0.72,
         roughness: 0.32,
+      })
+    );
+    this.capMaterial = bag.mat(
+      new THREE.MeshStandardMaterial({
+        map: faceTexture,
+        color: 0xffffff,
+        emissive: 0x221800,
+        emissiveIntensity: 0.12,
+        metalness: 0.62,
+        roughness: 0.28,
+      })
+    );
+    this.capMaterialBack = bag.mat(
+      new THREE.MeshStandardMaterial({
+        map: faceTexture,
+        color: 0xffffff,
+        emissive: 0x221800,
+        emissiveIntensity: 0.12,
+        metalness: 0.62,
+        roughness: 0.28,
+      })
+    );
+    this.edgeMaterial = bag.mat(
+      new THREE.MeshStandardMaterial({
+        color: 0x6b4f00,
+        metalness: 0.55,
+        roughness: 0.38,
       })
     );
   }
 
-  create(): THREE.Mesh {
-    return new THREE.Mesh(this.geometry, this.material);
+  create(): THREE.Group {
+    const group = new THREE.Group();
+
+    const rim = new THREE.Mesh(this.sideGeometry, this.sideMaterial);
+    // Cylinder default axis is Y — rotate to face the camera (axis -> Z)
+    rim.rotation.x = Math.PI / 2;
+    rim.castShadow = true;
+    rim.receiveShadow = true;
+    group.add(rim);
+
+    const top = new THREE.Mesh(this.capGeometry, this.capMaterial);
+    top.position.z = 0.044;
+    // Circle faces +Z by default — no rotation needed
+    top.castShadow = true;
+    top.receiveShadow = true;
+    group.add(top);
+
+    const bottom = new THREE.Mesh(this.capGeometry, this.capMaterialBack);
+    bottom.position.z = -0.044;
+    bottom.rotation.y = Math.PI;
+    group.add(bottom);
+
+    // Dark outer rim torus for extra outdoor edge contrast (ring in XY)
+    const edge = new THREE.Mesh(this.edgeGeometry, this.edgeMaterial);
+    // Torus already lies in XY, perfect for a vertical disc facing Z
+    group.add(edge);
+
+    // Coins face the runner; group rotates around world Y for spin, but
+    // keep the cylinder axis aligned to camera (layout matches original
+    // rotateX(PI/2) → now handled by orientation of rim/top).
+    // Keep group upright; WorldManager places via position only.
+    return group;
   }
+}
+
+function makeCoinFaceTexture(): THREE.CanvasTexture {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const c = size / 2;
+
+  // Deep gold rim background
+  ctx.fillStyle = "#7a5200";
+  ctx.beginPath();
+  ctx.arc(c, c, c - 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Radial gold gradient for the face
+  const grad = ctx.createRadialGradient(c - 40, c - 55, 42, c, c, 218);
+  grad.addColorStop(0, "#fff8cc");
+  grad.addColorStop(0.22, "#ffe27a");
+  grad.addColorStop(0.42, "#fdd013");
+  grad.addColorStop(0.68, "#e8b800");
+  grad.addColorStop(0.86, "#c99700");
+  grad.addColorStop(1, "#8c6a00");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(c, c, 212, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bevel highlights
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(c, c, 206, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#6b4f00";
+  ctx.lineWidth = 9;
+  ctx.globalAlpha = 0.95;
+  ctx.beginPath();
+  ctx.arc(c, c, 217, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Inner decorative double ring
+  ctx.strokeStyle = "rgba(58, 34, 0, 0.42)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(c, c, 162, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(c, c, 158, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Subtle radial pattern ticks (like real coin milling)
+  ctx.strokeStyle = "rgba(92, 66, 0, 0.14)";
+  ctx.lineWidth = 1.2;
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 20) {
+    const r1 = 172, r2 = 188;
+    ctx.beginPath();
+    ctx.moveTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1);
+    ctx.lineTo(c + Math.cos(a) * r2, c + Math.sin(a) * r2);
+    ctx.stroke();
+  }
+
+  // Embossed symbol — ₹ (rupee) with strong drop emboss
+  ctx.save();
+  ctx.translate(c, c + 14);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // Outer hard shadow for punch
+  ctx.fillStyle = "#2b1a00";
+  ctx.font = "900 190px 'Geist', system-ui, sans-serif";
+  // Slight offset for emboss depth
+  ctx.fillText("₹", 3, 6);
+  // Main glyph gradient (deep brown to warm gold edge)
+  const glyphGrad = ctx.createLinearGradient(-64, -72, 64, 72);
+  glyphGrad.addColorStop(0, "#3a2200");
+  glyphGrad.addColorStop(0.5, "#5a3500");
+  glyphGrad.addColorStop(1, "#2b1a00");
+  ctx.fillStyle = glyphGrad as unknown as string;
+  // Inner highlight stroke for beveled look
+  ctx.shadowColor = "rgba(255, 244, 190, 0.9)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 1.5;
+  ctx.fillText("₹", 0, 0);
+  ctx.shadowColor = "transparent";
+  // Thin highlight edge
+  ctx.strokeStyle = "rgba(255, 248, 210, 0.62)";
+  ctx.lineWidth = 2.2;
+  ctx.strokeText("₹", 0, 0);
+  ctx.restore();
+
+  // Specular glint (top-left)
+  ctx.globalAlpha = 0.38;
+  ctx.fillStyle = "#fffbe0";
+  ctx.beginPath();
+  ctx.ellipse(c - 78, c - 78, 52, 36, -0.65, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }
