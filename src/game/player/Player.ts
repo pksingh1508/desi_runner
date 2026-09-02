@@ -49,6 +49,11 @@ export class Player {
   private dead = false;
   private runPhase = 0;
 
+  /** Rocket flight (jetpack) */
+  private rocketFlying = false;
+  private rocketTimeLeft = 0;
+  private rocketDuration = 0;
+
   /** Simulation age (seconds) and jump start age — used by SkillSystem. */
   private age = 0;
   private jumpStartAge = -Infinity;
@@ -142,6 +147,52 @@ export class Player {
     // Lane interpolation (frame-rate independent damping).
     const targetX = LANES[this.targetLane];
     this.root.position.x = damp(this.root.position.x, targetX, PLAYER.laneDampSpeed, delta);
+
+    // Rocket flight overrides vertical simulation
+    if (this.rocketFlying) {
+      this.rocketTimeLeft -= delta;
+      // Hover height with gentle sine
+      const targetY = 4.4 + Math.sin(this.age * 3.0) * 0.12;
+      this.y = damp(this.y, targetY, 4.5, delta);
+      this.root.position.y = this.y;
+      this.verticalVelocity = 0;
+      this.grounded = false;
+      this.sliding = false;
+      if (this.rocketTimeLeft <= 0) {
+        this.rocketFlying = false;
+        this.rocketTimeLeft = 0;
+        // Gentle fall after jetpack ends
+        this.verticalVelocity = -2;
+      } else if (this.rocketTimeLeft < 0.9) {
+        // Begin descending in last 0.9s
+        this.y = damp(this.y, 0, 3.2, delta);
+        this.root.position.y = this.y;
+        if (this.y < 0.12) {
+          this.y = 0;
+          this.root.position.y = 0;
+          this.rocketFlying = false;
+          this.grounded = true;
+          this.verticalVelocity = 0;
+          this.onLand?.(2);
+          this.playRun();
+        }
+      }
+      // Visual roll still applies
+      const lateralOffset = targetX - this.root.position.x;
+      const targetRoll = -lateralOffset * PLAYER.laneRollFactor * 0.6;
+      this.pivot.rotation.z = damp(this.pivot.rotation.z, targetRoll, 12, delta);
+      // Slight forward lean while flying
+      this.pivot.rotation.x = damp(this.pivot.rotation.x, -0.18, 6, delta);
+      this.runPhase += delta * (9 + speedRatio * 6);
+      this.animateProcedural();
+      this.refreshBounds();
+      this.animation?.update(delta);
+      this.animation?.setRunSpeedRatio(speedRatio * 1.15);
+      return;
+    } else {
+      // Reset lean when not flying
+      this.pivot.rotation.x = damp(this.pivot.rotation.x, 0, 8, delta);
+    }
     // The visual rig must follow the simulated height exactly — collision,
     // camera and mesh all share this value so jumps read truthfully.
     this.root.position.y = this.y;
