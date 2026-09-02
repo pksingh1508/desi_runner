@@ -97,6 +97,7 @@ export class Game {
   private disposed = false;
   private reviveCountdown = 0;
   private reviveInvuln = 0;
+  private wasRocketFlying = false;
 
   // Run bookkeeping
   private runTime = 0;
@@ -392,9 +393,11 @@ export class Game {
     this.hitStopTimer = 0;
     this.reviveCountdown = 0;
     this.reviveInvuln = 0;
+    this.wasRocketFlying = false;
     this.store.setReviveCountdown(0);
     this.store.setRunKeys(0);
     this.store.setKeys(SaveService.get().keys);
+    this.store.setRocket(false, 0);
     this.cameraRig?.setFovBoost(0);
     this.deathSpeed = 0;
     this.countdownLeft = COUNTDOWN_STEP * 3;
@@ -438,8 +441,10 @@ export class Game {
     this.hitStopTimer = 0;
     this.reviveCountdown = 0;
     this.reviveInvuln = 0;
+    this.wasRocketFlying = false;
     this.store.setReviveCountdown(0);
     this.store.setKeys(SaveService.get().keys);
+    this.store.setRocket(false, 0);
     this.store.clearRunResult();
     this.pushHud(true);
     this.setState("menu");
@@ -544,7 +549,9 @@ export class Game {
       obstacles: this.world?.activeObstacleCount ?? 0,
       coinsActive: this.world?.activeCoinCount ?? 0,
       keysActive: this.world?.activeKeyCount ?? 0,
+      rocketsActive: this.world?.activeRocketCount ?? 0,
       keys: SaveService.get().keys,
+      isFlying: this.player.isFlying,
       usingFallback: this.player.isUsingFallback(),
     };
   }
@@ -706,9 +713,9 @@ export class Game {
     }
 
     // ---- collision resolution (obstacles + event drones)
-    // Revive grace — ignore hits for REVIVE_INVULN seconds after a Life Saver
+    // Revive grace + rocket flight — ignore ground hits while invulnerable or flying
     let hit: ColliderLike | null = null;
-    if (this.reviveInvuln <= 0) {
+    if (this.reviveInvuln <= 0 && !this.player.isFlying) {
       this.nearColliders.length = 0;
       this.nearColliders.push(...nearList, ...(this.events?.drones ?? []));
       hit = this.collision.findHit(
@@ -728,9 +735,10 @@ export class Game {
       }
     }
 
-    // ---- coins & keys: magnet pull + collection
+    // ---- coins & keys & rockets: magnet pull + collection
     this.gatherNearbyCoins();
     this.gatherNearbyKeys();
+    this.gatherNearbyRockets();
     this.applyMagnet(delta);
     const collectHeight = this.player.isSliding ? 0.95 : 1.9;
     this.collision.collectCoins(
@@ -739,24 +747,39 @@ export class Game {
       (coin) => this.onCoinCollected(coin, totalMult)
     );
 
-    // ---- pickups
+    // ---- pickups & keys & rockets
     this.checkPickupCollection();
     this.checkKeyCollection();
+    this.checkRocketCollection();
 
     // ---- timers & meters
     this.powerups.update(delta);
     this.combo.update(delta);
     this.overdrive.update(delta);
-    this.playerFX.setShield(this.powerups.hasShield() || this.reviveInvuln > 0);
+    // Rocket HUD sync (must run every frame while flying for countdown)
+    if (this.player.isFlying) {
+      this.store.setRocket(true, this.player.rocketRemaining);
+    } else if (this.wasRocketFlying) {
+      this.store.setRocket(false, 0);
+      this.reviveInvuln = ROCKET_INVULN_EXTRA;
+      this.feedback.push("LANDED!", "good");
+    }
+    this.wasRocketFlying = this.player.isFlying;
+
+    this.playerFX.setShield(this.powerups.hasShield() || this.reviveInvuln > 0 || this.player.isFlying);
     this.playerFX.setMagnet(
-      this.powerups.isActive("magnet") || this.overdrive.active || this.powerups.turboProtects
+      this.powerups.isActive("magnet") || this.overdrive.active || this.powerups.turboProtects || this.player.isFlying
     );
     this.playerFX.setOverdrive(this.overdrive.ramp);
+    // Extra flight aura when rocket active
+    if (this.player.isFlying) this.playerFX.setOverdrive(0.9);
     this.playerFX.update(delta);
 
     // ---- camera/audio/trail channels driven by ramped intensities
-    this.cameraRig!.setFovBoost(this.powerups.turboFovBoost + OVERDRIVE_CFG.fovBoost * this.overdrive.ramp);
-    this.trail?.setIntensityBoost(this.overdrive.ramp * 1.6 + this.powerups.turboRamp * 1.1);
+    const rocketFov = this.player.isFlying ? 7 : 0;
+    const rocketTrail = this.player.isFlying ? 1.7 : 0;
+    this.cameraRig!.setFovBoost(this.powerups.turboFovBoost + OVERDRIVE_CFG.fovBoost * this.overdrive.ramp + rocketFov);
+    this.trail?.setIntensityBoost(this.overdrive.ramp * 1.6 + this.powerups.turboRamp * 1.1 + rocketTrail);
     this.trail?.update(delta, this.player.positionX, this.player.positionY, effectiveSpeed, true);
 
     // Coin collection shrink animation.
@@ -864,6 +887,15 @@ export class Game {
     });
   }
 
+  private gatherNearbyRockets(): void {
+    this.frameRockets.length = 0;
+    this.world.forEachRocket((rocket) => {
+      if (rocket.active && rocket.worldZ > -30 && rocket.worldZ < 6) {
+        this.frameRockets.push(rocket);
+      }
+    });
+  }
+
   private applyMagnet(delta: number): void {
     const magnetOn = this.powerups.isActive("magnet");
     const odOn = this.overdrive.active;
@@ -887,6 +919,15 @@ export class Game {
       if (dx * dx + dz * dz + dy * dy < radius * radius) {
         key.attracted = true;
         key.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
+      }
+    }
+    for (const rocket of this.frameRockets) {
+      const dx = this.player.positionX - rocket.mesh.position.x;
+      const dz = 0 - rocket.worldZ;
+      const dy = targetY - rocket.mesh.position.y;
+      if (dx * dx + dz * dz + dy * dy < radius * radius) {
+        rocket.attracted = true;
+        rocket.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
       }
     }
   }
@@ -948,6 +989,34 @@ export class Game {
       // golden burst
       this.particles?.emitBurst(key.mesh.position.x, key.baseY + 0.3, 0, 0.98, 0.82, 0.18, 14, 1.0);
     });
+  }
+
+  private checkRocketCollection(): void {
+    this.world.forEachRocket((rocket) => {
+      if (!rocket.active) return;
+      const z = rocket.worldZ;
+      if (z < -1.8 || z > 1.8) return;
+      if (Math.abs(rocket.mesh.position.x - this.player.positionX) > 1.4) return;
+      if (Math.abs(rocket.baseY - (this.player.positionY + 1)) > 1.7) return;
+      rocket.mesh.visible = false;
+      rocket.active = false;
+      this.activateRocket();
+    });
+  }
+
+  private activateRocket(): void {
+    this.tally.rocketsUsed += 1;
+    this.player.startRocket(ROCKET_DURATION);
+    this.store.setRocket(true, ROCKET_DURATION);
+    // Spawn a weaving air coin trail for the flight
+    this.world.spawnRocketCoinTrail(-10);
+    this.feedback.push("ROCKET!", "epic", "FLY HIGH!");
+    this.audio.playOverdriveActivate();
+    this.particles?.emitBurst(this.player.positionX, 2.2, 0, 0xff4f4f, 0.55, 0.18, 22, 1.3);
+    this.cameraRig?.addShake(0.32);
+    // FOV + trail boost for flight feel
+    this.cameraRig?.setFovBoost(6);
+    this.trail?.setIntensityBoost(1.4);
   }
 
   private activatePowerUp(type: HudPowerUp["type"], x: number, y: number): void {
@@ -1163,6 +1232,7 @@ export class Game {
         survivalTime: Math.floor(this.runTime),
         keysCollected: this.tally.keysCollected,
         keysUsed: this.tally.keysUsed,
+        rocketsUsed: this.tally.rocketsUsed,
         xpEarned: xpGain.xpEarned,
         previousLevel,
         previousXp,
@@ -1306,6 +1376,7 @@ function emptyTally(): RunTallyData {
     survivalTime: 0,
     keysCollected: 0,
     keysUsed: 0,
+    rocketsUsed: 0,
   };
 }
 
