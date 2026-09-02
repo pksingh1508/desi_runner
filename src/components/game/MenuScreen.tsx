@@ -167,7 +167,7 @@ function PlayTab({
         <p className="font-tech text-center text-[11px] font-semibold leading-relaxed tracking-widest text-white">
           SWIPE ← → TO CHANGE LANES · SWIPE ↑ JUMP · SWIPE ↓ SLIDE
           <br />
-          DOUBLE-TAP FOR OVERDRIVE · COLLECT <span className="text-[#fdd013]">🔑</span> TO REVIVE
+          DOUBLE-TAP FOR OVERDRIVE · <span className="text-[#fdd013]">🔑</span> KEY TO REVIVE · <span className="text-[#ff7a6b]">🚀</span> ROCKET TO FLY
         </p>
       ) : (
         <div className="font-tech flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-semibold tracking-widest text-white">
@@ -176,6 +176,7 @@ function PlayTab({
           <span><kbd className="kbd">↓</kbd> SLIDE</span>
           <span><kbd className="kbd">E</kbd> OVERDRIVE</span>
           <span className="text-[#fdd013]">🔑 LIFE SAVER</span>
+          <span className="text-[#ff7a6b]">🚀 ROCKET</span>
         </div>
       )}
 

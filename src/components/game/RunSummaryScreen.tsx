@@ -57,10 +57,10 @@ export function RunSummaryScreen({
           <SummaryStat label="SMASHES" value={String(result.obstaclesSmashed)} />
           <SummaryStat label="KEYS" value={`🔑 ${result.keysCollected}`} accent="text-[#fdd013]" />
           <SummaryStat label="SAVES" value={String(result.keysUsed)} accent="text-[#7efff5]" />
+          <SummaryStat label="ROCKETS" value={`🚀 ${result.rocketsUsed}`} accent="text-[#ff7a6b]" />
           <SummaryStat label="OVERDRIVES" value={String(result.overdrives)} />
           <SummaryStat label="POWER-UPS" value={String(result.powerUps)} />
           <SummaryStat label="SURVIVED" value={`${result.survivalTime}s`} />
-          <SummaryStat label="SCORE" value={result.score.toLocaleString()} accent="text-white" />
         </div>
 
         {/* ------------------------------------------------------- XP bar */}
