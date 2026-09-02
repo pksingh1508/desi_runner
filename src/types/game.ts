@@ -123,6 +123,7 @@ export interface RunResult {
   survivalTime: number;
   keysCollected: number;
   keysUsed: number;
+  rocketsUsed: number;
   xpEarned: number;
   previousLevel: number;
   previousXp: number;
@@ -146,6 +147,7 @@ export interface RunTallyData {
   survivalTime: number;
   keysCollected: number;
   keysUsed: number;
+  rocketsUsed: number;
 }
 
 // ----------------------------------------------------------------- HUD views

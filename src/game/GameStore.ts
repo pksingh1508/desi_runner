@@ -45,6 +45,9 @@ export interface HudSnapshot {
   // ---- Life Saver ----
   reviveCountdown: number;
   runKeysCollected: number;
+  // ---- Rocket ----
+  rocketActive: boolean;
+  rocketTimeLeft: number;
 }
 
 function initialSnapshot(): HudSnapshot {
@@ -83,6 +86,8 @@ function initialSnapshot(): HudSnapshot {
     metaVersion: 0,
     reviveCountdown: 0,
     runKeysCollected: 0,
+    rocketActive: false,
+    rocketTimeLeft: 0,
   };
 }
 
@@ -203,6 +208,10 @@ export class GameStore {
 
   setReviveCountdown(value: number): void {
     this.patch({ reviveCountdown: value }, true);
+  }
+
+  setRocket(active: boolean, timeLeft: number): void {
+    this.patch({ rocketActive: active, rocketTimeLeft: timeLeft }, true);
   }
 
   finishRun(result: RunResult, stats: {

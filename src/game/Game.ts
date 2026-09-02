@@ -31,6 +31,7 @@ import { BiomeManager } from "./world/BiomeManager";
 import { WorldManager } from "./world/WorldManager";
 import type { Coin } from "./entities/Coin";
 import type { Key } from "./entities/Key";
+import type { Rocket } from "./entities/Rocket";
 import type { Obstacle } from "./entities/Obstacle";
 import type { Drone } from "./systems/RunEventSystem";
 import { MODEL_URL, SPEED } from "./config/gameplay";
@@ -47,6 +48,8 @@ const MISSION_SYNC_INTERVAL = 2;
 const HIT_STOP_SCALE = 0.18;
 const REVIVE_TIME = 6;
 const REVIVE_INVULN = 2.4;
+const ROCKET_DURATION = 6.2;
+const ROCKET_INVULN_EXTRA = 0.6;
 
 /**
  * Authoritative game orchestrator: owns the render loop, the state machine
@@ -111,6 +114,7 @@ export class Game {
   // Reusable per-frame scratch (avoid hot-loop allocations).
   private frameCoins: Coin[] = [];
   private frameKeys: Key[] = [];
+  private frameRockets: Rocket[] = [];
   private nearObstacleScratch: Obstacle[] = [];
   private nearColliders: ColliderLike[] = [];
   private hudPowerups: HudPowerUp[] = [];
