@@ -49,7 +49,7 @@ export function MenuScreen(props: MenuScreenProps) {
   const xpFraction = Math.min(level.xpInto / Math.max(level.xpForNext, 1), 1);
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col">
+    <div className="absolute inset-0 z-40 flex flex-col bg-gradient-to-b from-[#0a1628]/22 via-transparent to-[#0a1628]/16">
       <div className="scanlines" />
 
       {/* ---------------------------------------------------------- header */}
@@ -68,10 +68,10 @@ export function MenuScreen(props: MenuScreenProps) {
             </span>
           </div>
         </div>
-        <div className="stats-chip font-tech hidden items-center gap-4 px-4 py-2 text-[10px] tracking-widest sm:flex">
-          <span className="text-[#d9de7a]/95">BEST {props.bestScore.toLocaleString()}</span>
-          <span className="text-white/25">|</span>
-          <span className="text-[#9fca7d]/95">{props.bestDistance.toLocaleString()}m</span>
+        <div className="stats-chip font-tech hidden items-center gap-4 px-4 py-2 text-[10px] font-bold tracking-widest sm:flex">
+          <span className="text-white">BEST {props.bestScore.toLocaleString()}</span>
+          <span className="text-white/30">|</span>
+          <span className="text-white">{props.bestDistance.toLocaleString()}m</span>
         </div>
       </div>
 
@@ -114,7 +114,7 @@ export function MenuScreen(props: MenuScreenProps) {
 
       {/* ---------------------------------------------------------- footer */}
       <div className="flex items-center justify-between gap-2 px-5 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-2 sm:px-8">
-        <div className="font-tech text-[8px] tracking-[0.3em] text-white/25">
+        <div className="font-tech text-[8px] font-bold tracking-[0.32em] text-white/70">
           RUN · DODGE · SURVIVE
         </div>
         <div className="flex gap-1.5">
@@ -150,7 +150,7 @@ function PlayTab({
 }) {
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-6 py-6">
-      <p className="font-tech text-xs tracking-[0.45em] text-[#9fca7d]/90">
+      <p className="font-tech text-xs font-bold tracking-[0.45em] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.35)]">
         RUN · DODGE · SURVIVE
       </p>
       <button type="button" onClick={onPlay} className="btn-neon px-16 py-4 text-sm">
@@ -158,13 +158,13 @@ function PlayTab({
       </button>
 
       {touch ? (
-        <p className="font-tech text-center text-[11px] leading-relaxed tracking-widest text-white/60">
+        <p className="font-tech text-center text-[11px] font-semibold leading-relaxed tracking-widest text-white">
           SWIPE ← → TO CHANGE LANES · SWIPE ↑ JUMP · SWIPE ↓ SLIDE
           <br />
           DOUBLE-TAP FOR OVERDRIVE
         </p>
       ) : (
-        <div className="font-tech flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] tracking-widest text-white/60">
+        <div className="font-tech flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-semibold tracking-widest text-white">
           <span><kbd className="kbd">←</kbd> <kbd className="kbd">→</kbd> MOVE</span>
           <span><kbd className="kbd">↑</kbd> / <kbd className="kbd">SPACE</kbd> JUMP</span>
           <span><kbd className="kbd">↓</kbd> SLIDE</span>
@@ -172,17 +172,17 @@ function PlayTab({
         </div>
       )}
 
-      <div className="stats-chip font-tech flex items-center gap-4 px-6 py-2 text-[11px] tracking-widest">
-        <span className="text-[#d9de7a]/95">BEST {bestScore.toLocaleString()}</span>
-        <span className="text-white/25">|</span>
-        <span className="text-[#9fca7d]/95">{bestDistance.toLocaleString()}m</span>
-        <span className="text-white/25">|</span>
-        <span className="text-[#e8c96a]/95">✦ {totalCoins.toLocaleString()}</span>
+      <div className="stats-chip font-tech flex items-center gap-4 px-6 py-2 text-[11px] font-bold tracking-widest">
+        <span className="text-white">BEST {bestScore.toLocaleString()}</span>
+        <span className="text-white/30">|</span>
+        <span className="text-white">{bestDistance.toLocaleString()}m</span>
+        <span className="text-white/30">|</span>
+        <span className="text-[#fdd013]">✦ {totalCoins.toLocaleString()}</span>
       </div>
 
       {missions.some((m) => !m.completed) && (
         <div className="w-full max-w-xl">
-          <p className="font-tech mb-2 text-center text-[9px] tracking-[0.35em] text-white/35">
+          <p className="font-tech mb-2 text-center text-[9px] font-bold tracking-[0.35em] text-white/90">
             TODAY&apos;S MISSIONS
           </p>
           <MissionCard mission={missions.find((m) => !m.completed)!} compact />
@@ -206,29 +206,29 @@ function MissionsTab({ missions }: { missions: MissionView[] }) {
 function MissionCard({ mission, compact }: { mission: MissionView; compact?: boolean }) {
   const fraction = Math.min(mission.progress / Math.max(mission.target, 1), 1);
   return (
-    <div className={`hud-panel px-4 py-3 ${compact ? "" : ""}`}>
+    <div className={`hud-panel px-5 py-3.5 ${compact ? "" : ""}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="text-base text-[#d9de7a]">{mission.icon}</span>
+          <span className="text-base text-[#fdd013] drop-shadow-[0_0_8px_rgba(253,208,19,0.45)]">{mission.icon}</span>
           <div>
-            <div className="font-tech text-[11px] tracking-[0.18em] text-[#f4f6d0]">
+            <div className="font-tech text-[11px] font-bold tracking-[0.18em] text-white">
               {mission.title}
             </div>
-            <div className="font-tech text-[9px] tracking-wider text-white/50">
+            <div className="font-tech text-[9px] font-medium tracking-wider text-white/85">
               {mission.description}
             </div>
           </div>
         </div>
-        <div className="font-tech whitespace-nowrap text-right text-[9px] leading-relaxed text-[#e8c96a]/90">
+        <div className="font-tech whitespace-nowrap text-right text-[9px] font-bold leading-relaxed text-[#fdd013]">
           +{mission.rewardXp} XP
           <br />+{mission.rewardCoins} ✦
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         <div className="progress-track flex-1">
           <div className="progress-fill" style={{ width: `${fraction * 100}%` }} />
         </div>
-        <span className="font-tech text-[9px] tabular-nums text-white/55">
+        <span className="font-tech text-[9px] font-bold tabular-nums text-white">
           {mission.completed ? "DONE ✓" : `${Math.floor(mission.progress)} / ${mission.target}`}
         </span>
       </div>
@@ -241,14 +241,14 @@ function CareerTab({ stats }: { stats: PlayerStatsData }) {
   return (
     <div className="mx-auto grid max-w-2xl gap-3 py-2 sm:grid-cols-2">
       {groups.map((group) => (
-        <div key={group.label} className="hud-panel px-4 py-3">
-          <div className="font-tech mb-2 text-[9px] tracking-[0.35em] text-[#d9de7a]/80">
+        <div key={group.label} className="hud-panel px-5 py-4">
+          <div className="font-retro mb-3 text-[10px] font-bold tracking-[0.32em] text-white">
             {group.label}
           </div>
           {group.rows.map((row) => (
-            <div key={row.label} className="flex items-baseline justify-between border-t border-white/5 py-1.5 first:border-t-0">
-              <span className="font-tech text-[10px] tracking-wider text-white/55">{row.label}</span>
-              <span className="font-tech text-[12px] tabular-nums text-[#eef3e4]">{row.value}</span>
+            <div key={row.label} className="flex items-baseline justify-between border-t border-white/10 py-2 first:border-t-0">
+              <span className="font-tech text-[10px] font-semibold tracking-[0.12em] text-white/90">{row.label}</span>
+              <span className="font-retro text-[13px] font-bold tabular-nums tracking-wide text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.35)]">{row.value}</span>
             </div>
           ))}
         </div>
@@ -269,7 +269,7 @@ function GearTab({
   return (
     <div className="mx-auto max-w-3xl pb-2">
       <SectionTitle>CHARACTERS — 8 UNIQUE RUNNERS</SectionTitle>
-      <p className="font-tech mb-2 text-center text-[8px] tracking-[0.18em] text-white/30">
+      <p className="font-tech mb-2 text-center text-[8px] font-semibold tracking-[0.18em] text-white/80">
         BOY · GIRL · ROBOTS · ALIENS — EACH WITH A DISTINCT 3D MODEL
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -347,8 +347,8 @@ function CharacterGearCard({
         )}
       </div>
 
-      <div className="font-tech text-[11px] font-bold tracking-[0.18em] text-[#f4f6d0]">{option.name}</div>
-      <div className="font-tech mt-0.5 line-clamp-2 text-[9px] leading-snug tracking-wide text-white/55">{option.description}</div>
+      <div className="font-tech text-[11px] font-bold tracking-[0.18em] text-white">{option.name}</div>
+      <div className="font-tech mt-0.5 line-clamp-2 text-[9px] font-medium leading-snug tracking-wide text-white/85">{option.description}</div>
       <div
         className={`font-tech mt-2 inline-flex items-center rounded-full px-2 py-1 text-[8px] font-bold tracking-[0.16em] ${
           option.locked
@@ -388,8 +388,8 @@ function GearCard({
       className={`hud-panel gear-card relative overflow-hidden px-3 py-3 text-left ${equipped ? "gear-equipped" : ""}`}
     >
       <div className="mb-2 h-14 w-full rounded-md" style={{ background: swatch, opacity: locked ? 0.25 : 1 }} />
-      <div className="font-tech text-[10px] tracking-[0.2em] text-[#f4f6d0]">{name}</div>
-      <div className="font-tech mt-0.5 text-[8px] tracking-[0.2em] text-white/40">
+      <div className="font-tech text-[10px] font-bold tracking-[0.2em] text-white">{name}</div>
+      <div className="font-tech mt-0.5 text-[8px] font-semibold tracking-[0.2em] text-white/75">
         {locked ? `🔒 ${unlockLabel}` : equipped ? "EQUIPPED" : "READY"}
       </div>
       {equipped && <div className="gear-dot" />}
@@ -407,21 +407,21 @@ function AwardsTab({ achievements }: { achievements: AchievementView[] }) {
         return (
           <div
             key={achievement.id}
-            className={`hud-panel flex items-center gap-3 px-4 py-2.5 ${achievement.completed ? "award-done" : ""}`}
+            className={`hud-panel flex items-center gap-3 px-5 py-3 ${achievement.completed ? "award-done" : ""}`}
           >
-            <span className={`w-7 text-center text-base ${achievement.completed ? "" : "opacity-45"}`}>
+            <span className={`w-7 text-center text-base ${achievement.completed ? "" : "opacity-60"}`}>
               {achievement.icon}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-tech truncate text-[11px] tracking-[0.15em] text-[#f4f6d0]">
+                <span className="font-tech truncate text-[11px] font-bold tracking-[0.15em] text-white">
                   {achievement.title}
                 </span>
-                <span className="font-tech whitespace-nowrap text-[8px] text-[#e8c96a]/85">
+                <span className="font-tech whitespace-nowrap text-[8px] font-bold text-[#fdd013]">
                   +{achievement.rewardXp} XP · +{achievement.rewardCoins} ✦
                 </span>
               </div>
-              <div className="font-tech truncate text-[9px] text-white/45">{achievement.description}</div>
+              <div className="font-tech truncate text-[9px] font-medium text-white/80">{achievement.description}</div>
               {!achievement.completed && (
                 <div className="progress-track mt-1 h-1">
                   <div className="progress-fill" style={{ width: `${fraction * 100}%` }} />
@@ -439,7 +439,7 @@ function AwardsTab({ achievements }: { achievements: AchievementView[] }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-tech mt-2 mb-1 text-center text-[9px] tracking-[0.35em] text-white/35">
+    <p className="font-retro mt-3 mb-2 text-center text-[10px] font-bold tracking-[0.32em] text-white/90">
       {children}
     </p>
   );
