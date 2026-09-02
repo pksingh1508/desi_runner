@@ -53,6 +53,8 @@ export class Player {
   private rocketFlying = false;
   private rocketTimeLeft = 0;
   private rocketDuration = 0;
+  private rocketPack: THREE.Group | null = null;
+  private rocketFlame: THREE.Mesh | null = null;
 
   /** Simulation age (seconds) and jump start age — used by SkillSystem. */
   private age = 0;
@@ -72,6 +74,12 @@ export class Player {
 
     this.fallbackBot = this.buildFallbackBot();
     this.modelHolder.add(this.fallbackBot);
+
+    // Rocket jetpack (hidden until flight) — attached to modelHolder so it
+    // rotates with the character when laying down
+    this.rocketPack = this.buildRocketPack();
+    this.rocketPack.visible = false;
+    this.modelHolder.add(this.rocketPack);
   }
 
   /** Swap the procedural placeholder for the loaded GLB (normalized height). */
