@@ -28,7 +28,7 @@ export class PlayerFX {
       new THREE.MeshBasicMaterial({
         color: 0x4f8dff,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.22,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
@@ -39,7 +39,7 @@ export class PlayerFX {
       new THREE.MeshBasicMaterial({
         color: 0x9fc0ff,
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.32,
         wireframe: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,

@@ -76,13 +76,13 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
 let starsMaterialRef: THREE.PointsMaterial | null = null;
 
 function buildStars(scene: THREE.Scene, bag: ResourceBag): void {
-  const count = 420;
+  const count = 280;
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
-    // Upper hemisphere shell, far away so fog does not reach it.
-    const radius = 240 + Math.random() * 160;
+    // Upper hemisphere shell — kept very sparse for daylight; opacity stays ~0.05.
+    const radius = 260 + Math.random() * 140;
     const theta = Math.random() * Math.PI * 2;
-    const elevation = 0.12 + Math.random() * 1.35; // radians above horizon
+    const elevation = 0.18 + Math.random() * 1.2;
     positions[i * 3] = Math.cos(theta) * Math.cos(elevation) * radius;
     positions[i * 3 + 1] = Math.sin(elevation) * radius;
     positions[i * 3 + 2] = Math.sin(theta) * Math.cos(elevation) * radius;
@@ -91,11 +91,11 @@ function buildStars(scene: THREE.Scene, bag: ResourceBag): void {
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const material = bag.mat(
     new THREE.PointsMaterial({
-      color: 0xdfe8cf,
-      size: 1.6,
+      color: 0xffffff,
+      size: 1.35,
       sizeAttenuation: false,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.06,
       depthWrite: false,
       fog: false,
       blending: THREE.AdditiveBlending,
