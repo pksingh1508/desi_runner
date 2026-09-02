@@ -5,9 +5,11 @@ import { COIN, COLORS } from "@/game/config/gameplay";
 /**
  * Collectible energy token. Visuals are code-driven (spin + bob); collection
  * state is owned here so the pool can recycle instances cheaply.
+ * Upgraded to a realistic gold coin with embossed “₹” face (Subway-style
+ * high contrast) — group contains beveled rim + textured caps.
  */
 export class Coin {
-  readonly mesh: THREE.Mesh;
+  readonly mesh: THREE.Group;
   active = false;
   collected = false;
   /** When magnetized, visual bobbing is suspended so attraction stays smooth. */
@@ -20,7 +22,7 @@ export class Coin {
   private phase = Math.random() * Math.PI * 2;
   private age = Math.random() * 10;
 
-  constructor(mesh: THREE.Mesh) {
+  constructor(mesh: THREE.Group) {
     this.mesh = mesh;
   }
 

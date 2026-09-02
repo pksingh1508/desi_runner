@@ -23,13 +23,13 @@ export function CountdownOverlay({ value, visible }: CountdownOverlayProps) {
   return (
     <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
       {value > 0 ? (
-        <span key={value} className="countdown-pop font-retro text-7xl text-[#d9de7a] sm:text-8xl">
-          {value}
-        </span>
+        <div key={value} className="countdown-plate">
+          <span className="countdown-pop font-retro text-7xl sm:text-8xl">{value}</span>
+        </div>
       ) : showGo ? (
-        <span className="countdown-go font-retro text-6xl tracking-[0.2em] text-[#e8c96a] sm:text-7xl">
-          GO!
-        </span>
+        <div className="countdown-plate countdown-plate-go">
+          <span className="countdown-go font-retro text-6xl tracking-[0.2em] sm:text-7xl">GO!</span>
+        </div>
       ) : null}
     </div>
   );

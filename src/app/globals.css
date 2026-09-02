@@ -258,27 +258,60 @@ body {
 
 /* --------------------------------------------------------------- countdown */
 
+.countdown-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  min-height: 132px;
+  padding: 1.05rem 1.8rem;
+  background: rgba(14, 22, 36, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 1.15rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    0 14px 44px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 1px rgba(253, 208, 19, 0.12);
+}
+
+.countdown-plate-go {
+  min-width: 198px;
+  min-height: 108px;
+}
+
 .countdown-pop {
+  color: #ffffff;
+  -webkit-text-stroke: 3.5px #0f1e32;
+  paint-order: stroke fill;
   animation: countdownPop 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   text-shadow:
-    0 0 10px rgba(217, 222, 122, 0.9),
-    0 0 40px rgba(183, 201, 104, 0.5),
-    0 0 110px rgba(159, 202, 125, 0.4);
+    0 2px 0 #0f1e32,
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(255, 255, 255, 0.45),
+    0 0 32px rgba(253, 208, 19, 0.55);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
 }
 
 @keyframes countdownPop {
   0% { opacity: 0; transform: scale(2.4); letter-spacing: 0.6em; }
-  30% { opacity: 1; transform: scale(1); letter-spacing: 0.1em; }
+  30% { opacity: 1; transform: scale(1); letter-spacing: 0.06em; }
   80% { opacity: 1; }
   100% { opacity: 0; transform: scale(0.92); }
 }
 
 .countdown-go {
+  color: #fdd013;
+  -webkit-text-stroke: 3px #0f1e32;
+  paint-order: stroke fill;
   animation: goFlash 700ms ease-out forwards;
   text-shadow:
-    0 0 12px rgba(232, 201, 106, 1),
-    0 0 48px rgba(212, 175, 55, 0.6),
-    0 0 120px rgba(217, 222, 122, 0.5);
+    0 2px 0 #0f1e32,
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 0 22px rgba(253, 208, 19, 0.9),
+    0 0 44px rgba(255, 255, 255, 0.35);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
 }
 
 @keyframes goFlash {
