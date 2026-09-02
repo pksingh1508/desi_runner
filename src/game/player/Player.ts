@@ -129,7 +129,7 @@ export class Player {
   }
 
   requestJump(): void {
-    if (this.dead) return;
+    if (this.dead || this.rocketFlying) return;
     if (this.grounded && !this.sliding) {
       this.launchJump();
     } else {
@@ -138,7 +138,7 @@ export class Player {
   }
 
   requestSlide(): void {
-    if (this.dead) return;
+    if (this.dead || this.rocketFlying) return;
     if (!this.grounded) {
       // Slam down and slide on landing.
       this.verticalVelocity = Math.min(this.verticalVelocity, -PLAYER.fastFallVelocity);
@@ -1271,8 +1271,25 @@ export class Player {
         arms[1].rotation.x = 0.8;
       }
     } else if (this.sliding) {
-      group.position.y = -0.04;
+      // Clear crouch — lowered center of mass, legs folded, arms forward
+      group.position.y = -0.28;
+      if (legs) {
+        legs[0].rotation.x = 1.35;
+        legs[1].rotation.x = 1.35;
+        legs[0].position.z = 0.08;
+        legs[1].position.z = 0.08;
+      }
+      if (arms) {
+        arms[0].rotation.x = 0.55;
+        arms[1].rotation.x = 0.55;
+        arms[0].rotation.z = -0.35;
+        arms[1].rotation.z = 0.35;
+      }
     } else {
+      if (legs) {
+        legs[0].position.z = 0;
+        legs[1].position.z = 0;
+      }
       group.position.y = 0;
     }
   }
