@@ -1271,19 +1271,19 @@ export class Player {
         arms[1].rotation.x = 0.8;
       }
     } else if (this.sliding) {
-      // Clear crouch — lowered center of mass, legs folded, arms forward
-      group.position.y = -0.28;
+      // Slide stays on the track — slight dip + folded legs, never burying feet
+      group.position.y = -0.10;
       if (legs) {
-        legs[0].rotation.x = 1.35;
-        legs[1].rotation.x = 1.35;
-        legs[0].position.z = 0.08;
-        legs[1].position.z = 0.08;
+        legs[0].rotation.x = 0.95;
+        legs[1].rotation.x = 0.95;
+        legs[0].position.z = 0.04;
+        legs[1].position.z = 0.04;
       }
       if (arms) {
-        arms[0].rotation.x = 0.55;
-        arms[1].rotation.x = 0.55;
-        arms[0].rotation.z = -0.35;
-        arms[1].rotation.z = 0.35;
+        arms[0].rotation.x = 0.45;
+        arms[1].rotation.x = 0.45;
+        arms[0].rotation.z = -0.30;
+        arms[1].rotation.z = 0.30;
       }
     } else {
       if (legs) {

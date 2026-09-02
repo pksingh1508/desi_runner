@@ -126,7 +126,7 @@ export class CharacterAnimationController {
     const dipTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
       [0, 0.14, duration - 0.18, duration],
-      [0, 0, 0, 0, -0.32, 0, 0, -0.32, 0, 0, 0, 0]
+      [0, 0, 0, 0, -0.10, 0, 0, -0.10, 0, 0, 0, 0]
     );
     const clip = new THREE.AnimationClip("NeonSlide", duration, [quaternionTrack, dipTrack]);
     const action = this.mixer.clipAction(clip);
