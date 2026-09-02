@@ -9,6 +9,7 @@ import type { ResourceBag } from "@/game/utils/dispose";
 export class Key {
   readonly mesh: THREE.Group;
   active = false;
+  attracted = false;
   localZ = 0;
   baseY = 1.05;
 
@@ -38,12 +39,23 @@ export class Key {
 
   updateVisual(delta: number): void {
     if (!this.active) return;
+    if (this.attracted) {
+      this.age += delta;
+      this.mesh.rotation.y += 3.2 * delta;
+      return;
+    }
     this.age += delta;
     this.mesh.rotation.y += 1.8 * delta;
     this.mesh.position.y = this.baseY + Math.sin(this.age * 2.2 + this.phase) * 0.14;
     // gentle wobble
     const inner = this.mesh.getObjectByName("keySpin") as THREE.Group | null;
     if (inner) inner.rotation.z = Math.sin(this.age * 1.6 + this.phase) * 0.12;
+  }
+
+  pullTowards(targetX: number, targetY: number, lambda: number, delta: number): void {
+    const k = 1 - Math.exp(-lambda * delta);
+    this.mesh.position.x += (targetX - this.mesh.position.x) * k;
+    this.mesh.position.y += (targetY - this.mesh.position.y) * k;
   }
 }
 

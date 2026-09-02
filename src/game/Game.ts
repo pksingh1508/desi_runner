@@ -109,6 +109,7 @@ export class Game {
 
   // Reusable per-frame scratch (avoid hot-loop allocations).
   private frameCoins: Coin[] = [];
+  private frameKeys: import("@/game/entities/Key").Key[] = [];
   private nearObstacleScratch: Obstacle[] = [];
   private nearColliders: ColliderLike[] = [];
   private hudPowerups: HudPowerUp[] = [];
@@ -145,6 +146,7 @@ export class Game {
     this.audio.setMuted(save.settings.muted);
     this.audio.setMusicEnabled(save.settings.music);
     this.audio.setSfxEnabled(save.settings.sound);
+    this.store.setKeys(save.keys);
 
     const shared = new SharedAssets(this.bag, BIOMES.map((b) => b.billboardHues));
     this.world = new WorldManager(bundle.scene, shared, this.bag);
@@ -331,9 +333,11 @@ export class Game {
     this.player.revive();
     this.combo.breakCombo();
     this.hitStopTimer = 0;
+    this.deathSpeed = 0;
     this.cameraRig?.addShake(0.28);
     this.feedback.push("LIFE SAVER!", "epic", "CONTINUE!");
     this.audio.playPowerup();
+    this.audio.startMusic();
     this.particles?.emitBurst(this.player.positionX, 1.1, 0, 0.98, 0.82, 0.18, 20, 1.2);
     this.setState("playing");
   }
@@ -534,6 +538,8 @@ export class Game {
       distance: Math.floor(this.score.distance),
       obstacles: this.world?.activeObstacleCount ?? 0,
       coinsActive: this.world?.activeCoinCount ?? 0,
+      keysActive: this.world?.activeKeyCount ?? 0,
+      keys: SaveService.get().keys,
       usingFallback: this.player.isUsingFallback(),
     };
   }
@@ -841,6 +847,15 @@ export class Game {
         this.frameCoins.push(coin);
       }
     }, 0);
+  }
+
+  private gatherNearbyKeys(): void {
+    this.frameKeys.length = 0;
+    this.world.forEachKey((key) => {
+      if (key.active && key.worldZ > -30 && key.worldZ < 6) {
+        this.frameKeys.push(key);
+      }
+    });
   }
 
   private applyMagnet(delta: number): void {
