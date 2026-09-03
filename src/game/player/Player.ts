@@ -374,6 +374,11 @@ export class Player {
     this.root.position.y = 0;
     this.pivot.rotation.set(0, 0, 0);
     this.pivot.position.set(0, 0, 0);
+    this.pivot.scale.set(1, 1, 1);
+    this.modelHolder.rotation.x = 0;
+    this.modelHolder.position.set(0, 0, 0);
+    if (this.archetypeGroup) this.archetypeGroup.scale.set(1, 1, 1);
+    if (this.fallbackBot) this.fallbackBot.scale.set(1, 1, 1);
     this.animation?.setState("run");
     this.refreshBounds();
   }
@@ -405,6 +410,10 @@ export class Player {
     this.pivot.rotation.set(0, 0, 0);
     this.pivot.position.set(0, 0, 0);
     this.pivot.scale.set(1, 1, 1);
+    this.modelHolder.rotation.x = 0;
+    this.modelHolder.position.set(0, 0, 0);
+    if (this.archetypeGroup) this.archetypeGroup.scale.set(1, 1, 1);
+    if (this.fallbackBot) this.fallbackBot.scale.set(1, 1, 1);
     this.y = 0;
     this.verticalVelocity = 0;
     this.grounded = true;
@@ -1256,39 +1265,58 @@ export class Player {
     }
     if (this.grounded && !this.sliding && legs) {
       const swing = Math.sin(this.runPhase * 2.4);
+      // Restore the upright slide pose (scale/offsets) before running.
+      group.scale.set(1, 1, 1);
       legs[0].rotation.x = swing * 0.9;
       legs[1].rotation.x = -swing * 0.9;
+      legs[0].position.z = 0;
+      legs[1].position.z = 0;
       if (arms && arms.length >= 2) {
         arms[0].rotation.x = -swing * 0.7;
         arms[1].rotation.x = swing * 0.7;
+        arms[0].rotation.z = 0;
+        arms[1].rotation.z = 0;
       }
       group.position.y = Math.abs(Math.cos(this.runPhase * 2.4)) * 0.06;
     } else if (!this.grounded && legs) {
+      group.scale.set(1, 1, 1);
+      legs[0].position.z = 0;
+      legs[1].position.z = 0;
       legs[0].rotation.x = 0.5;
       legs[1].rotation.x = -0.35;
       if (arms && arms.length >= 2) {
         arms[0].rotation.x = 0.8;
         arms[1].rotation.x = 0.8;
+        arms[0].rotation.z = 0;
+        arms[1].rotation.z = 0;
       }
     } else if (this.sliding) {
-      // Slide stays on the track — slight dip + folded legs, never burying feet
-      group.position.y = -0.10;
+      // Subway-style baseball slide ON the track surface: crouch low via
+      // scale (feet stay planted at y=0), legs extended forward (-Z),
+      // arms swept back/out for balance. Nothing goes below y=0.
+      group.position.y = 0;
+      group.scale.set(1.05, 0.62, 1.05);
       if (legs) {
-        legs[0].rotation.x = 0.95;
-        legs[1].rotation.x = 0.95;
-        legs[0].position.z = 0.04;
-        legs[1].position.z = 0.04;
+        legs[0].rotation.x = 1.0;
+        legs[1].rotation.x = 1.0;
+        legs[0].position.z = -0.1;
+        legs[1].position.z = -0.1;
       }
       if (arms) {
-        arms[0].rotation.x = 0.45;
-        arms[1].rotation.x = 0.45;
-        arms[0].rotation.z = -0.30;
-        arms[1].rotation.z = 0.30;
+        arms[0].rotation.x = -0.55;
+        arms[1].rotation.x = -0.55;
+        arms[0].rotation.z = -0.45;
+        arms[1].rotation.z = 0.45;
       }
     } else {
+      group.scale.set(1, 1, 1);
       if (legs) {
         legs[0].position.z = 0;
         legs[1].position.z = 0;
+      }
+      if (arms && arms.length >= 2) {
+        arms[0].rotation.z = 0;
+        arms[1].rotation.z = 0;
       }
       group.position.y = 0;
     }

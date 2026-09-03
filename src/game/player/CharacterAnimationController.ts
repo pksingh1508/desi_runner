@@ -127,10 +127,13 @@ export class CharacterAnimationController {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
     const holdUntil = duration - SLIDE_EXIT_TIME;
-    // A strong forward lean plus vertical compression makes the rendered
-    // silhouette truthfully match the half-height gameplay collider.
+    // Subway/Temple-Run style baseball slide: crouch low onto the track,
+    // torso leaned BACK (head up, feet leading forward), feet never below
+    // the ground plane. Forward is -Z, so a positive X rotation leans the
+    // head toward +Z (backward) while the feet shoot forward.
+    // Effective height ≈ standingHeight * 0.58 * cos(0.52) ≈ slideHeight.
     const tilt = new THREE.Quaternion();
-    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.98);
+    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.52);
     const identity = new THREE.Quaternion();
 
     const quaternionTrack = new THREE.QuaternionKeyframeTrack(
@@ -143,15 +146,17 @@ export class CharacterAnimationController {
         identity.x, identity.y, identity.z, identity.w,
       ]
     );
+    // Y stays >= 0 at every key so the mesh can never sink under the track;
+    // Z shifts forward (-Z) so the feet lead the slide.
     const dipTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
       [0, SLIDE_ENTER_TIME, holdUntil, duration],
-      [0, 0, 0, 0, -0.06, -0.08, 0, -0.06, -0.08, 0, 0, 0]
+      [0, 0, 0, 0, 0.02, -0.22, 0, 0.02, -0.22, 0, 0, 0]
     );
     const scaleTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.scale",
       [0, SLIDE_ENTER_TIME, holdUntil, duration],
-      [1, 1, 1, 1, 0.72, 1, 1, 0.72, 1, 1, 1, 1]
+      [1, 1, 1, 1.06, 0.58, 1.08, 1.06, 0.58, 1.08, 1, 1, 1]
     );
     const clip = new THREE.AnimationClip("NeonSlideOverlay", duration, [
       quaternionTrack,
