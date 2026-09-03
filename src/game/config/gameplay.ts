@@ -72,6 +72,9 @@ export const COIN = {
   bobAmplitude: 0.12,
   bobSpeed: 3.1,
   poolSize: 140,
+  /** Pure-gold disc size (larger than the old embossed token). */
+  radius: 0.46,
+  thickness: 0.1,
 } as const;
 
 export const CAMERA_CFG = {

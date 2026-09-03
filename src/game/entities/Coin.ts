@@ -5,8 +5,8 @@ import { COIN, COLORS } from "@/game/config/gameplay";
 /**
  * Collectible energy token. Visuals are code-driven (spin + bob); collection
  * state is owned here so the pool can recycle instances cheaply.
- * Upgraded to a realistic gold coin with embossed “₹” face (Subway-style
- * high contrast) — group contains beveled rim + textured caps.
+ * A pure-gold disc (beveled rim + bright caps, no emblem) for maximum
+ * outdoor readability.
  */
 export class Coin {
   readonly mesh: THREE.Group;
@@ -92,49 +92,52 @@ export class CoinFactory {
   private capMaterial: THREE.MeshStandardMaterial;
   private capMaterialBack: THREE.MeshStandardMaterial;
   private edgeMaterial: THREE.MeshStandardMaterial;
+  private capOffset: number;
 
   constructor(bag: ResourceBag) {
-    // Beveled rim — slightly thicker for readability outdoors
-    this.sideGeometry = bag.geo(new THREE.CylinderGeometry(0.38, 0.38, 0.085, 26));
-    this.capGeometry = bag.geo(new THREE.CircleGeometry(0.365, 26));
-    this.edgeGeometry = bag.geo(new THREE.TorusGeometry(0.38, 0.018, 10, 28));
+    // Pure-gold disc — slightly larger than the old token for readability.
+    const r = COIN.radius;
+    const half = COIN.thickness / 2;
+    this.sideGeometry = bag.geo(new THREE.CylinderGeometry(r, r, COIN.thickness, 26));
+    this.capGeometry = bag.geo(new THREE.CircleGeometry(r - 0.015, 26));
+    this.edgeGeometry = bag.geo(new THREE.TorusGeometry(r, 0.02, 10, 28));
+    this.capOffset = half + 0.001;
 
-    const faceTexture = bag.tex(makeCoinFaceTexture());
-
+    // Solid gold, no texture/emblem: bright face that survives daylight.
     this.sideMaterial = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0xb47a00,
-        emissive: 0x332200,
-        emissiveIntensity: 0.18,
-        metalness: 0.72,
-        roughness: 0.32,
+        color: 0xd99a00,
+        emissive: 0x6b4a00,
+        emissiveIntensity: 0.35,
+        metalness: 0.75,
+        roughness: 0.3,
       })
     );
     this.capMaterial = bag.mat(
       new THREE.MeshStandardMaterial({
-        map: faceTexture,
-        color: 0xffffff,
-        emissive: 0x221800,
-        emissiveIntensity: 0.12,
-        metalness: 0.62,
-        roughness: 0.28,
+        color: 0xfdd013,
+        emissive: 0x7a5c00,
+        emissiveIntensity: 0.35,
+        metalness: 0.7,
+        roughness: 0.26,
       })
     );
     this.capMaterialBack = bag.mat(
       new THREE.MeshStandardMaterial({
-        map: faceTexture,
-        color: 0xffffff,
-        emissive: 0x221800,
-        emissiveIntensity: 0.12,
-        metalness: 0.62,
-        roughness: 0.28,
+        color: 0xfdd013,
+        emissive: 0x7a5c00,
+        emissiveIntensity: 0.35,
+        metalness: 0.7,
+        roughness: 0.26,
       })
     );
     this.edgeMaterial = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0x6b4f00,
-        metalness: 0.55,
-        roughness: 0.38,
+        color: 0xffe27a,
+        emissive: 0x8c6a00,
+        emissiveIntensity: 0.4,
+        metalness: 0.65,
+        roughness: 0.3,
       })
     );
   }
@@ -150,18 +153,18 @@ export class CoinFactory {
     group.add(rim);
 
     const top = new THREE.Mesh(this.capGeometry, this.capMaterial);
-    top.position.z = 0.044;
+    top.position.z = this.capOffset;
     // Circle faces +Z by default — no rotation needed
     top.castShadow = true;
     top.receiveShadow = true;
     group.add(top);
 
     const bottom = new THREE.Mesh(this.capGeometry, this.capMaterialBack);
-    bottom.position.z = -0.044;
+    bottom.position.z = -this.capOffset;
     bottom.rotation.y = Math.PI;
     group.add(bottom);
 
-    // Dark outer rim torus for extra outdoor edge contrast (ring in XY)
+    // Bright outer rim torus for extra outdoor edge contrast (ring in XY)
     const edge = new THREE.Mesh(this.edgeGeometry, this.edgeMaterial);
     // Torus already lies in XY, perfect for a vertical disc facing Z
     group.add(edge);
