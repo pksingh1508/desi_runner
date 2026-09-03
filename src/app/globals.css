@@ -741,6 +741,91 @@ body {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
 }
 
+/* ------------------------------------------------------------ menu tabs */
+
+/* All menu-tab surfaces sit over the bright live 3D scene: near-opaque
+ * panels + outlined game type keep every tab readable like the GEAR cards. */
+.menu-panel {
+  background: rgba(8, 14, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.85rem;
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  box-shadow:
+    0 8px 32px rgba(8, 18, 38, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+.menu-title {
+  font-family: var(--font-retro), monospace;
+  color: #ffffff;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(253, 208, 19, 0.35);
+}
+
+.menu-gold {
+  color: #e8c96a;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(232, 201, 106, 0.4);
+}
+
+.menu-text {
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.menu-value {
+  font-family: var(--font-retro), monospace;
+  color: #ffffff;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+.menu-row-label {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Big PLAY call-to-action with an attention pulse. */
+.play-cta {
+  animation: playCtaPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes playCtaPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 12px 22px rgba(26, 109, 170, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 0 22px rgba(253, 208, 19, 0.45);
+  }
+  50% {
+    transform: scale(1.045);
+    box-shadow:
+      0 12px 26px rgba(26, 109, 170, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 0 38px rgba(253, 208, 19, 0.65);
+  }
+}
+
+/* Completed mission card: gold seal treatment. */
+.mission-done {
+  border-color: rgba(253, 208, 19, 0.55);
+  box-shadow:
+    0 0 18px rgba(253, 208, 19, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+.mission-done-badge {
+  font-family: var(--font-retro), monospace;
+  background: linear-gradient(180deg, #fdd013, #ffb800);
+  color: #241c05;
+  box-shadow: 0 0 12px rgba(253, 208, 19, 0.55);
+}
+
 .gear-dot {
   position: absolute;
   top: 0.5rem;
