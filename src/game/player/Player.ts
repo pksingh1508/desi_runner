@@ -694,10 +694,12 @@ export class Player {
 
     // Street-runner backpack — the rear-view signature: body, front pocket,
     // top bedroll and shoulder straps.
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.2), darkMat);
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.2), jacketMat);
     pack.position.set(0, 1.06, 0.32);
-    const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.07), accentMat);
+    const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.07), accentMat);
     packPocket.position.set(0, 0.98, 0.44);
+    const packStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.05, 0.02), whiteMat);
+    packStrip.position.set(0, 1.06, 0.48);
     const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.34, 10), jacketDark);
     bedroll.rotation.z = Math.PI / 2;
     bedroll.position.set(0, 1.32, 0.32);
@@ -759,7 +761,7 @@ export class Player {
 
     group.add(
       torso, shirt, hem, head, capDome, capBrim, capStrap, capButton, nape, shades,
-      pack, packPocket, bedroll, strapL, strapR, hood, armL, armR, legL, legR
+      pack, packPocket, packStrip, bedroll, strapL, strapR, hood, armL, armR, legL, legR
     );
     this.shadowify(group);
     group.userData.legs = [legL, legR];
@@ -807,11 +809,11 @@ export class Player {
     const lockR = new THREE.Mesh(lockGeo, hairMat);
     lockR.position.set(0.22, 1.42, -0.06);
     const ponytail = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.6, 10), hairMat);
-    ponytail.position.set(0, 1.74, 0.3);
-    ponytail.rotation.x = 0.9; // tip streams up-back, readable from behind
+    ponytail.position.set(0, 1.72, 0.3);
+    ponytail.rotation.x = 0.55; // tip streams high, clearing the head silhouette
     const hairTie = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.028, 8, 12), whiteMat);
-    hairTie.position.set(0, 1.71, 0.26);
-    hairTie.rotation.x = 0.68;
+    hairTie.position.set(0, 1.7, 0.29);
+    hairTie.rotation.x = 1.02;
 
     // Sport visor.
     const visorBand = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.07, 12, 1, true), accentMat);
