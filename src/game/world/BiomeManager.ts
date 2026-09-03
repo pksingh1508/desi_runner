@@ -111,6 +111,9 @@ export class BiomeManager {
     this.lerpMatColor(shared.edgeGreenMat, a.edgeB, b.edgeB, t);
     this.lerpMatColor(shared.postHeadMat, a.postHead, b.postHead, t);
     this.lerpMatColor(shared.buildingMat, a.building, b.building, t);
+    this.lerpMatColor(shared.sideGroundMat, a.sideGround, b.sideGround, t);
+    this.lerpMatColor(shared.sidewalkMat, a.sidewalk, b.sidewalk, t);
+    this.lerpMatColor(shared.flatRoofMat, a.roofTrim, b.roofTrim, t);
     for (let i = 0; i < shared.bandMats.length; i++) {
       this.lerpMatColor(shared.bandMats[i], a.bands[i] ?? a.bands[0], b.bands[i] ?? b.bands[0], t);
     }
