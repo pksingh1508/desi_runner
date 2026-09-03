@@ -69,11 +69,6 @@ export class ProgressionSystem {
             save.customization.unlockedCharacters.push(reward.id!);
           }
         }
-        if (reward.kind === "trail") {
-          if (!save.customization.unlockedTrails.includes(reward.id!)) {
-            save.customization.unlockedTrails.push(reward.id!);
-          }
-        }
         if (reward.kind === "badge") {
           if (!save.customization.badges.includes(reward.id!)) {
             save.customization.badges.push(reward.id!);

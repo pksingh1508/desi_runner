@@ -1,10 +1,9 @@
 import { SaveService } from "@/game/core/SaveService";
-import { CHARACTERS, TRAILS } from "@/game/config/characters";
+import { CHARACTERS } from "@/game/config/characters";
 import { xpRequiredForLevel } from "@/game/config/progression";
 import type {
   CharacterOptionView,
   PlayerStatsData,
-  TrailOptionView,
 } from "@/types/game";
 
 /**
@@ -40,19 +39,6 @@ export function characterOptions(): CharacterOptionView[] {
     species: c.species,
     description: c.description,
     archetype: c.archetype,
-  }));
-}
-
-export function trailOptions(): TrailOptionView[] {
-  const save = SaveService.get();
-  const level = save.progression.level;
-  return TRAILS.map((t) => ({
-    id: t.id,
-    name: t.name,
-    colorHex: t.colorHex,
-    locked: level < t.unlockLevel,
-    equipped: save.customization.trail === t.id,
-    unlockLabel: t.unlockLevel > 1 ? `LEVEL ${t.unlockLevel}` : "DEFAULT",
   }));
 }
 

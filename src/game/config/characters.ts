@@ -6,8 +6,6 @@
  * robot rigs — heat-forged, phase-shift and cryo silhouettes — so every
  * selection is a silhouette swap, not a palette swap. Human / alien
  * archetypes (RYDER / NOVA / XENO / TITAN) are also distinct procedural
- * rigs. Trails remain procedural ribbons.
- *
  * Unlock levels are the single gating requirement; cosmetics stay
  * gameplay-neutral by design.
  */
@@ -137,57 +135,6 @@ export const CHARACTERS: CharacterDefinition[] = [
   },
 ];
 
-export interface TrailDefinition {
-  id: string;
-  name: string;
-  unlockLevel: number;
-  colorHex: string;
-  /** Relative emission strength / brightness multiplier. */
-  strength: number;
-}
-
-export const TRAILS: TrailDefinition[] = [
-  {
-    id: "default",
-    name: "SIGNAL",
-    unlockLevel: 1,
-    colorHex: "#d9de7a",
-    strength: 0.7,
-  },
-  {
-    id: "electric",
-    name: "ELECTRIC",
-    unlockLevel: 5,
-    colorHex: "#37d3e0",
-    strength: 1.0,
-  },
-  {
-    id: "fire",
-    name: "FIRE",
-    unlockLevel: 12,
-    colorHex: "#ff7a3c",
-    strength: 1.15,
-  },
-  {
-    id: "neonPurple",
-    name: "NEON PURPLE",
-    unlockLevel: 15,
-    colorHex: "#c06bff",
-    strength: 1.15,
-  },
-  {
-    id: "void",
-    name: "VOID",
-    unlockLevel: 20,
-    colorHex: "#7a5cff",
-    strength: 1.35,
-  },
-];
-
 export function getCharacter(id: string): CharacterDefinition {
   return CHARACTERS.find((c) => c.id === id) ?? CHARACTERS[0];
-}
-
-export function getTrail(id: string): TrailDefinition {
-  return TRAILS.find((t) => t.id === id) ?? TRAILS[0];
 }

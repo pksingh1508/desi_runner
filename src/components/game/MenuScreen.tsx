@@ -6,7 +6,6 @@ import {
   careerGroups,
   characterOptions,
   levelInfo,
-  trailOptions,
 } from "./meta";
 
 interface MenuScreenProps {
@@ -26,7 +25,6 @@ interface MenuScreenProps {
   onToggleSound: () => void;
   onTogglePerformance: () => void;
   onEquipCharacter: (id: string) => void;
-  onEquipTrail: (id: string) => void;
 }
 
 type Tab = "play" | "missions" | "career" | "gear" | "awards";
@@ -110,7 +108,6 @@ export function MenuScreen(props: MenuScreenProps) {
         {tab === "gear" && (
           <GearTab
             onEquipCharacter={props.onEquipCharacter}
-            onEquipTrail={props.onEquipTrail}
           />
         )}
         {tab === "awards" && <AwardsTab achievements={props.achievements} />}
@@ -269,18 +266,15 @@ function CareerTab({ stats }: { stats: PlayerStatsData }) {
 
 function GearTab({
   onEquipCharacter,
-  onEquipTrail,
 }: {
   onEquipCharacter: (id: string) => void;
-  onEquipTrail: (id: string) => void;
 }) {
   const characters = characterOptions();
-  const trails = trailOptions();
   return (
     <div className="mx-auto max-w-3xl pb-2">
-      <SectionTitle>CHARACTERS — 8 UNIQUE RUNNERS</SectionTitle>
+      <SectionTitle>CHARACTERS — {characters.length} UNIQUE RUNNERS</SectionTitle>
       <p className="font-tech mb-2 text-center text-[8px] font-semibold tracking-[0.18em] text-white/80">
-        BOY · GIRL · ROBOTS · ALIENS — EACH WITH A DISTINCT 3D MODEL
+        STREET · ROBOTS · ALIENS · LEGENDS — EACH WITH A DISTINCT 3D MODEL
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {characters.map((option) => (
@@ -288,21 +282,6 @@ function GearTab({
             key={option.id}
             option={option}
             onEquip={() => onEquipCharacter(option.id)}
-          />
-        ))}
-      </div>
-
-      <SectionTitle>TRAILS</SectionTitle>
-      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
-        {trails.map((option) => (
-          <GearCard
-            key={option.id}
-            name={option.name}
-            locked={option.locked}
-            equipped={option.equipped}
-            unlockLabel={option.unlockLabel}
-            swatch={`linear-gradient(135deg,#10151a,${option.colorHex})`}
-            onEquip={() => onEquipTrail(option.id)}
           />
         ))}
       </div>
@@ -371,38 +350,6 @@ function CharacterGearCard({
         {option.locked ? `🔒 ${option.unlockLabel}` : option.equipped ? "● EQUIPPED" : "READY — TAP TO EQUIP"}
       </div>
       {option.equipped && <div className="gear-dot" />}
-    </button>
-  );
-}
-
-function GearCard({
-  name,
-  locked,
-  equipped,
-  unlockLabel,
-  swatch,
-  onEquip,
-}: {
-  name: string;
-  locked: boolean;
-  equipped: boolean;
-  unlockLabel: string;
-  swatch: string;
-  onEquip: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={locked}
-      onClick={onEquip}
-      className={`hud-panel gear-card relative overflow-hidden px-3 py-3 text-left ${equipped ? "gear-equipped" : ""}`}
-    >
-      <div className="mb-2 h-14 w-full rounded-md" style={{ background: swatch, opacity: locked ? 0.25 : 1 }} />
-      <div className="font-tech text-[10px] font-bold tracking-[0.2em] text-white">{name}</div>
-      <div className="font-tech mt-0.5 text-[8px] font-semibold tracking-[0.2em] text-white/75">
-        {locked ? `🔒 ${unlockLabel}` : equipped ? "EQUIPPED" : "READY"}
-      </div>
-      {equipped && <div className="gear-dot" />}
     </button>
   );
 }

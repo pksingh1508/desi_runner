@@ -19,9 +19,7 @@ export interface SettingsData {
 
 export interface CustomizationData {
   character: string;
-  trail: string;
   unlockedCharacters: string[];
-  unlockedTrails: string[];
   badges: string[];
 }
 
@@ -90,9 +88,7 @@ export function defaultSave(): SaveDataV2 {
     achievements: { completed: [] },
     customization: {
       character: "vector",
-      trail: "default",
       unlockedCharacters: ["vector"],
-      unlockedTrails: ["default"],
       badges: [],
     },
     settings: {
@@ -169,13 +165,9 @@ function clampIntoDefaults(raw: unknown): SaveDataV2 {
     },
     customization: {
       character: typeof data.customization?.character === "string" ? data.customization.character : base.customization.character,
-      trail: typeof data.customization?.trail === "string" ? data.customization.trail : base.customization.trail,
       unlockedCharacters: Array.isArray(data.customization?.unlockedCharacters)
         ? data.customization.unlockedCharacters
         : base.customization.unlockedCharacters,
-      unlockedTrails: Array.isArray(data.customization?.unlockedTrails)
-        ? data.customization.unlockedTrails
-        : base.customization.unlockedTrails,
       badges: Array.isArray(data.customization?.badges) ? data.customization.badges : [],
     },
     settings: { ...base.settings, ...(data.settings ?? {}) },

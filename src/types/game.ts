@@ -53,11 +53,11 @@ export type MissionType =
   | "scoreInSingleRun"
   | "survivalTime";
 
-export type RewardKind = "coins" | "character" | "trail" | "badge";
+export type RewardKind = "coins" | "character" | "badge";
 
 export interface Reward {
   kind: RewardKind;
-  /** Cosmetic id for character/trail rewards. */
+  /** Cosmetic id for character rewards. */
   id?: string;
   amount?: number;
   label: string;
@@ -211,13 +211,4 @@ export interface CharacterOptionView {
   species: string;
   description: string;
   archetype: string;
-}
-
-export interface TrailOptionView {
-  id: string;
-  name: string;
-  colorHex: string;
-  locked: boolean;
-  equipped: boolean;
-  unlockLabel: string;
 }

@@ -82,7 +82,6 @@ export function GameCanvas() {
           onToggleSound={() => game().toggleSound()}
           onTogglePerformance={() => game().togglePerformanceMode()}
           onEquipCharacter={(id) => game().equipCharacter(id)}
-          onEquipTrail={(id) => game().equipTrail(id)}
         />
       )}
 
