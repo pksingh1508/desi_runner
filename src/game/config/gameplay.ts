@@ -205,4 +205,15 @@ export const ROCKET_TRAIL = {
   extraSeconds: 1.4,
 } as const;
 
+/**
+ * Escalating rocket flights: the 1st rocket of a run flies firstSeconds,
+ * the 2nd adds stepSeconds, and so on up to maxSeconds. Later pickups feel
+ * progressively more rewarding without breaking early-run balance.
+ */
+export const ROCKET_FLIGHT = {
+  firstSeconds: 3,
+  stepSeconds: 1,
+  maxSeconds: 6,
+} as const;
+
 export const MODEL_URL = "/models/robot_expressive.glb";

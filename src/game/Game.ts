@@ -34,7 +34,7 @@ import type { Key } from "./entities/Key";
 import type { Rocket } from "./entities/Rocket";
 import type { Obstacle } from "./entities/Obstacle";
 import type { Drone } from "./systems/RunEventSystem";
-import { MODEL_URL, SPEED } from "./config/gameplay";
+import { MODEL_URL, ROCKET_FLIGHT, SPEED } from "./config/gameplay";
 import { MAGNET, TURBO } from "./config/powerups";
 import { BIOMES } from "./config/biomes";
 import { getCharacter, getTrail } from "./config/characters";
@@ -48,7 +48,6 @@ const MISSION_SYNC_INTERVAL = 2;
 const HIT_STOP_SCALE = 0.18;
 const REVIVE_TIME = 6;
 const REVIVE_INVULN = 2.4;
-const ROCKET_DURATION = 6.2;
 /** Collision-free grace after touching back down — landing blind at 30m/s
  * into a wall would feel unfair without a moment to re-orient. The shield
  * bubble stays up for the whole window so safety reads visually. */
@@ -1022,10 +1021,15 @@ export class Game {
 
   private activateRocket(): void {
     this.tally.rocketsUsed += 1;
-    this.player.startRocket(ROCKET_DURATION);
-    this.store.setRocket(true, ROCKET_DURATION, ROCKET_DURATION);
+    // Escalating flight time per pickup this run: 3s, 4s, 5s … capped.
+    const duration = Math.min(
+      ROCKET_FLIGHT.firstSeconds + (this.tally.rocketsUsed - 1) * ROCKET_FLIGHT.stepSeconds,
+      ROCKET_FLIGHT.maxSeconds
+    );
+    this.player.startRocket(duration);
+    this.store.setRocket(true, duration, duration);
     // Burst-gap air trail sized for the whole flight at current speed.
-    this.world.spawnRocketCoinTrail(-10, ROCKET_DURATION, this.lastEffectiveSpeed);
+    this.world.spawnRocketCoinTrail(-10, duration, this.lastEffectiveSpeed);
     this.feedback.push("ROCKET!", "epic", "FLY HIGH!");
     this.audio.playOverdriveActivate();
     this.particles?.emitBurst(this.player.positionX, 2.2, 0, 0xff4f4f, 0.55, 0.18, 22, 1.3);
