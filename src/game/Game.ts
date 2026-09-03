@@ -910,7 +910,8 @@ export class Game {
     // Rocket flight vacuums air coins like a magnet — otherwise the high
     // trail is decoration the player can never reach.
     const flyOn = this.player.isFlying;
-    if (!magnetOn && !odOn && !this.powerups.turboProtects && !flyOn) return;
+    const turboOn = this.powerups.turboProtects;
+    if (!magnetOn && !odOn && !turboOn && !flyOn) return;
     const radius = magnetOn ? MAGNET.radius : odOn ? OVERDRIVE_CFG.magnetRadiusBoost : flyOn ? 7 : 4.5;
     const targetY = this.player.positionY + 1;
     this.magnetTargetY = targetY;
@@ -923,6 +924,10 @@ export class Game {
         coin.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
       }
     }
+    // The magnet power-up pulls coins ONLY — Life Saver keys and rockets are
+    // never vacuumed by it (walk over them to collect). Overdrive / turbo /
+    // flight keep their full vacuum.
+    if (!odOn && !turboOn && !flyOn) return;
     for (const key of this.frameKeys) {
       const dx = this.player.positionX - key.mesh.position.x;
       const dz = 0 - key.worldZ;

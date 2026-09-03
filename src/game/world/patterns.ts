@@ -14,6 +14,8 @@ export interface PatternCoin {
   x: number;
   z: number;
   y?: number;
+  /** Jump-arc coin (scales with speed at spawn); ground lines leave it unset. */
+  arc?: boolean;
 }
 
 export interface PatternDef {
