@@ -49,6 +49,10 @@ function arc(lane: number, zCenter: number, peak = 2.7, count = 7, span = 12): P
  * Hand-authored, always-survivable pattern templates. Every row leaves at
  * least one valid action (lane change / jump / slide), satisfying the
  * "never generate impossible sequences" rule by construction.
+ *
+ * Base rows sit 16–18m apart: at start speed (12m/s) that is ~1.4s of
+ * reaction time, and WorldManager stretches rows further apart as speed
+ * rises so the *time* gap never collapses at 32m/s.
  */
 export const PATTERNS: PatternDef[] = [
   {
@@ -78,9 +82,9 @@ export const PATTERNS: PatternDef[] = [
     weight: 1.6,
     obstacles: [
       { kind: "barrier", lane: 0, z: -12 },
-      { kind: "barrier", lane: 2, z: -26 },
+      { kind: "barrier", lane: 2, z: -30 },
     ],
-    coins: [...arc(0, -12), ...line(1, -18, 3), ...arc(2, -26)],
+    coins: [...arc(0, -12), ...line(1, -19, 3), ...arc(2, -30)],
   },
   {
     id: "dodge-blocks",
@@ -89,22 +93,22 @@ export const PATTERNS: PatternDef[] = [
     obstacles: [
       { kind: "block", lane: 0, z: -10 },
       { kind: "block", lane: 2, z: -10 },
-      { kind: "block", lane: 1, z: -25 },
-      { kind: "block", lane: 2, z: -25 },
+      { kind: "block", lane: 1, z: -28 },
+      { kind: "block", lane: 2, z: -28 },
     ],
-    // Open path: center @-10 then left @-25; coins trace the safe route.
-    coins: [...line(1, -6, 3), ...line(0, -21, 4)],
+    // Open path: center @-10 then left @-28; coins trace the safe route.
+    coins: [...line(1, -6, 3), ...line(0, -23, 4)],
   },
   {
     id: "weave",
     minTier: 1,
     weight: 1.8,
     obstacles: [
-      { kind: "block", lane: 1, z: -9 },
-      { kind: "overhead1", lane: 0, z: -21 },
-      { kind: "block", lane: 2, z: -33 },
+      { kind: "block", lane: 1, z: -8 },
+      { kind: "overhead1", lane: 0, z: -24 },
+      { kind: "block", lane: 2, z: -40 },
     ],
-    coins: [...line(0, -6, 2), ...line(1, -17, 3), ...line(1, -29, 3)],
+    coins: [...line(0, -5, 2), ...line(1, -19, 3), ...line(1, -35, 3)],
   },
   {
     id: "double-slide",
@@ -112,18 +116,18 @@ export const PATTERNS: PatternDef[] = [
     weight: 1.6,
     obstacles: [
       { kind: "overhead3", lane: 1, z: -11 },
-      { kind: "overhead3", lane: 1, z: -27 },
+      { kind: "overhead3", lane: 1, z: -29 },
     ],
-    coins: [...line(1, -15, 3), ...line(1, -32, 4)],
+    coins: [...line(1, -16, 3), ...line(1, -34, 4)],
   },
   {
     id: "gauntlet",
     minTier: 2,
     weight: 2,
     obstacles: [
-      { kind: "overhead3", lane: 1, z: -10 },
+      { kind: "overhead3", lane: 1, z: -8 },
       { kind: "barrier", lane: 1, z: -24 },
-      { kind: "moving", lane: 1, z: -38, moveAmp: 2.5, moveSpeed: 1.7 },
+      { kind: "moving", lane: 1, z: -40, moveAmp: 2.5, moveSpeed: 1.7 },
     ],
     coins: [...arc(1, -24), ...line(0, -31, 2)],
   },
@@ -134,22 +138,22 @@ export const PATTERNS: PatternDef[] = [
     obstacles: [
       { kind: "block", lane: 0, z: -8 },
       { kind: "block", lane: 2, z: -8 },
-      { kind: "overhead3", lane: 1, z: -22 },
-      { kind: "moving", lane: 1, z: -36, moveAmp: 2.5, moveSpeed: 2.1 },
+      { kind: "overhead3", lane: 1, z: -24 },
+      { kind: "moving", lane: 1, z: -40, moveAmp: 2.5, moveSpeed: 2.1 },
     ],
-    coins: [...line(1, -13, 3), ...line(1, -28, 2)],
+    coins: [...line(1, -13, 3), ...line(1, -30, 2)],
   },
   {
     id: "slalom",
     minTier: 3,
     weight: 1.6,
     obstacles: [
-      { kind: "moving", lane: 1, z: -10, moveAmp: 2.5, moveSpeed: 2.4 },
-      { kind: "block", lane: 0, z: -23 },
-      { kind: "barrier", lane: 1, z: -23 },
-      { kind: "overhead3", lane: 1, z: -37 },
+      { kind: "moving", lane: 1, z: -8, moveAmp: 2.5, moveSpeed: 2.4 },
+      { kind: "block", lane: 0, z: -24 },
+      { kind: "barrier", lane: 1, z: -24 },
+      { kind: "overhead3", lane: 1, z: -40 },
     ],
-    coins: [...line(2, -19, 3), ...arc(1, -23)],
+    coins: [...line(2, -19, 3), ...arc(1, -24)],
   },
   {
     id: "coin-rush",
@@ -164,15 +168,19 @@ export const PATTERNS: PatternDef[] = [
   },
 ];
 
-/** Weighted pick among patterns unlocked for the tier, avoiding immediate repeats. */
+/** Weighted pick among patterns unlocked for the tier, avoiding immediate repeats.
+ * @param emptyBonus added to the weight of obstacle-free (breather) patterns
+ * so late runs keep recovery windows as speed rises.
+ */
 export function pickPattern(
   tierIndex: number,
-  lastPatternId: string | null
+  lastPatternId: string | null,
+  emptyBonus = 0
 ): PatternDef {
   const eligible = PATTERNS.filter((p) => p.minTier <= tierIndex);
   let pool = eligible.filter((p) => p.id !== lastPatternId);
   if (pool.length === 0) pool = eligible;
-  const weights = pool.map((p) => p.weight);
+  const weights = pool.map((p) => p.weight + (p.obstacles.length === 0 ? emptyBonus : 0));
   let total = 0;
   for (const w of weights) total += w;
   let roll = Math.random() * total;
@@ -194,22 +202,22 @@ export const LASER_PATTERNS: PatternDef[] = [
     minTier: 0,
     weight: 0,
     obstacles: [
-      { kind: "overhead3", lane: 1, z: -10 },
+      { kind: "overhead3", lane: 1, z: -8 },
       { kind: "barrier", lane: 1, z: -24 },
-      { kind: "overhead3", lane: 1, z: -38 },
+      { kind: "overhead3", lane: 1, z: -40 },
     ],
-    coins: [...line(1, -16, 3), ...arc(1, -24)],
+    coins: [...line(1, -14, 3), ...arc(1, -24)],
   },
   {
     id: "laser-chain-b",
     minTier: 0,
     weight: 0,
     obstacles: [
-      { kind: "barrier", lane: 0, z: -10 },
+      { kind: "barrier", lane: 0, z: -8 },
       { kind: "overhead3", lane: 1, z: -24 },
-      { kind: "moving", lane: 1, z: -38, moveAmp: 2.2, moveSpeed: 1.9 },
+      { kind: "moving", lane: 1, z: -40, moveAmp: 2.2, moveSpeed: 1.9 },
     ],
-    coins: [...arc(0, -10), ...line(2, -18, 3), ...line(0, -30, 3)],
+    coins: [...arc(0, -8), ...line(2, -18, 3), ...line(0, -32, 3)],
   },
 ];
 
