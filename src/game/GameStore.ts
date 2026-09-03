@@ -48,6 +48,7 @@ export interface HudSnapshot {
   // ---- Rocket ----
   rocketActive: boolean;
   rocketTimeLeft: number;
+  rocketDuration: number;
 }
 
 function initialSnapshot(): HudSnapshot {
@@ -88,6 +89,7 @@ function initialSnapshot(): HudSnapshot {
     runKeysCollected: 0,
     rocketActive: false,
     rocketTimeLeft: 0,
+    rocketDuration: 1,
   };
 }
 
@@ -210,8 +212,15 @@ export class GameStore {
     this.patch({ reviveCountdown: value }, true);
   }
 
-  setRocket(active: boolean, timeLeft: number): void {
-    this.patch({ rocketActive: active, rocketTimeLeft: timeLeft }, true);
+  setRocket(active: boolean, timeLeft: number, duration?: number): void {
+    this.patch(
+      {
+        rocketActive: active,
+        rocketTimeLeft: timeLeft,
+        ...(duration !== undefined ? { rocketDuration: duration } : {}),
+      },
+      true
+    );
   }
 
   finishRun(result: RunResult, stats: {

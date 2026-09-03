@@ -120,6 +120,8 @@ export class Game {
   private nearColliders: ColliderLike[] = [];
   private hudPowerups: HudPowerUp[] = [];
   private magnetTargetY = 0;
+  /** Latest composed world speed — used to size the rocket coin trail. */
+  private lastEffectiveSpeed: number = SPEED.start;
 
   constructor(
     private host: HTMLElement,
@@ -675,6 +677,7 @@ export class Game {
     const baseSpeed = this.difficulty.update(delta, true);
     const effectiveSpeed =
       baseSpeed * this.powerups.turboSpeedFactor * (1 + (OVERDRIVE_CFG.speedFactor - 1) * this.overdrive.ramp);
+    this.lastEffectiveSpeed = effectiveSpeed;
     const ratioRaw = (effectiveSpeed - SPEED.start) / (SPEED.max * 1.45 - SPEED.start);
     const ratio = clamp(ratioRaw, 0, 1);
 
@@ -740,7 +743,9 @@ export class Game {
     this.gatherNearbyKeys();
     this.gatherNearbyRockets();
     this.applyMagnet(delta);
-    const collectHeight = this.player.isSliding ? 0.95 : 1.9;
+    // At flight height the trail sits just above the rig (y + ~0.05), so the
+    // window centers there; on the ground it stays chest-centered as before.
+    const collectHeight = this.player.isSliding ? 0.95 : this.player.isFlying ? 0.6 : 1.9;
     this.collision.collectCoins(
       { x: this.player.positionX, y: this.player.positionY, height: collectHeight },
       this.frameCoins,
@@ -899,8 +904,11 @@ export class Game {
   private applyMagnet(delta: number): void {
     const magnetOn = this.powerups.isActive("magnet");
     const odOn = this.overdrive.active;
-    if (!magnetOn && !odOn && !this.powerups.turboProtects) return;
-    const radius = magnetOn ? MAGNET.radius : odOn ? OVERDRIVE_CFG.magnetRadiusBoost : 4.5;
+    // Rocket flight vacuums air coins like a magnet — otherwise the high
+    // trail is decoration the player can never reach.
+    const flyOn = this.player.isFlying;
+    if (!magnetOn && !odOn && !this.powerups.turboProtects && !flyOn) return;
+    const radius = magnetOn ? MAGNET.radius : odOn ? OVERDRIVE_CFG.magnetRadiusBoost : flyOn ? 7 : 4.5;
     const targetY = this.player.positionY + 1;
     this.magnetTargetY = targetY;
     for (const coin of this.frameCoins) {
@@ -1007,9 +1015,9 @@ export class Game {
   private activateRocket(): void {
     this.tally.rocketsUsed += 1;
     this.player.startRocket(ROCKET_DURATION);
-    this.store.setRocket(true, ROCKET_DURATION);
-    // Spawn a weaving air coin trail for the flight
-    this.world.spawnRocketCoinTrail(-10);
+    this.store.setRocket(true, ROCKET_DURATION, ROCKET_DURATION);
+    // Burst-gap air trail sized for the whole flight at current speed.
+    this.world.spawnRocketCoinTrail(-10, ROCKET_DURATION, this.lastEffectiveSpeed);
     this.feedback.push("ROCKET!", "epic", "FLY HIGH!");
     this.audio.playOverdriveActivate();
     this.particles?.emitBurst(this.player.positionX, 2.2, 0, 0xff4f4f, 0.55, 0.18, 22, 1.3);

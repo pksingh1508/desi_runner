@@ -415,6 +415,47 @@ body {
   transition: width 120ms linear;
 }
 
+/* ------------------------------------------------------------ rocket timer */
+
+.rocket-timer {
+  border-color: rgba(255, 79, 79, 0.45);
+  background: rgba(26, 10, 14, 0.78);
+  box-shadow:
+    0 8px 32px rgba(8, 18, 38, 0.28),
+    0 0 22px rgba(255, 79, 79, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  animation: rocketTimerPulse 1s ease-in-out infinite;
+}
+
+.rocket-time-value {
+  color: #fff;
+  text-shadow:
+    0 0 10px rgba(255, 79, 79, 0.9),
+    0 0 30px rgba(255, 154, 26, 0.55);
+  line-height: 1.1;
+}
+
+.rocket-track {
+  height: 5px;
+  width: 100%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.rocket-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff4f4f, #ff9a1a);
+  box-shadow: 0 0 10px #ff4f4f;
+  transition: width 120ms linear;
+}
+
+@keyframes rocketTimerPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
 /* ------------------------------------------------------------------ toasts */
 
 .toast {

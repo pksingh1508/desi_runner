@@ -29,6 +29,7 @@ interface GameHUDProps {
   banner: { id: number; text: string } | null;
   rocketActive: boolean;
   rocketTimeLeft: number;
+  rocketDuration: number;
 }
 
 interface Popup {
@@ -59,6 +60,7 @@ export function GameHUD({
   banner,
   rocketActive,
   rocketTimeLeft,
+  rocketDuration,
 }: GameHUDProps) {
   const [popups, setPopups] = useState<Popup[]>([]);
 
@@ -136,28 +138,6 @@ export function GameHUD({
               <span className="font-tech text-[15px] font-black tabular-nums text-white">{keys}</span>
             </div>
           </div>
-          {rocketActive && (
-            <div className="pw-chip hud-panel flex w-[7.5rem] items-center gap-2 border-[#ff4f4f]/30 bg-[#1a0e12]/80 px-2 py-1">
-              <span className="pw-icon text-xs" style={{ color: "#ff4f4f", textShadow: "0 0 8px #ff4f4f" }}>
-                🚀
-              </span>
-              <div className="flex flex-1 flex-col gap-0.5">
-                <span className="font-tech text-[8px] tracking-[0.2em] text-[#ff9a8a]">
-                  ROCKET {rocketTimeLeft.toFixed(1)}s
-                </span>
-                <div className="pw-track">
-                  <div
-                    className="pw-fill"
-                    style={{
-                      width: `${(rocketTimeLeft / 6.2) * 100}%`,
-                      background: "#ff4f4f",
-                      boxShadow: "0 0 8px #ff4f4f",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
           {powerups.map((chip) => (
             <div key={chip.type} className="pw-chip hud-panel flex w-[7.5rem] items-center gap-2 px-2 py-1">
               <span className="pw-icon text-xs" style={{ color: chip.colorHex }}>
@@ -196,6 +176,29 @@ export function GameHUD({
           </div>
         </div>
       </div>
+
+      {/* ---------------------------------------------------- rocket timer */}
+      {rocketActive && (
+        <div className="absolute inset-x-0 top-[4.6rem] flex justify-center sm:top-[5.2rem]">
+          <div className="rocket-timer hud-panel w-52 px-5 pb-2.5 pt-2 text-center sm:w-64">
+            <div className="font-retro text-[10px] tracking-[0.3em] text-[#ff9a8a]">
+              🚀 ROCKET FLIGHT
+            </div>
+            <div className="rocket-time-value font-retro text-3xl tabular-nums sm:text-4xl">
+              {Math.max(0, rocketTimeLeft).toFixed(1)}
+              <span className="ml-1 text-sm text-[#ff9a8a]">s</span>
+            </div>
+            <div className="rocket-track mt-1.5">
+              <div
+                className="rocket-fill"
+                style={{
+                  width: `${Math.max(0, Math.min(1, rocketTimeLeft / Math.max(rocketDuration, 0.01))) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---------------------------------------------------- feedback toasts */}
       <div className="absolute inset-x-0 top-[22%] flex flex-col items-center gap-2">

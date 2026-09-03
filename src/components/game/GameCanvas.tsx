@@ -113,6 +113,7 @@ export function GameCanvas() {
             banner={snapshot.banner}
             rocketActive={snapshot.rocketActive}
             rocketTimeLeft={snapshot.rocketTimeLeft}
+            rocketDuration={snapshot.rocketDuration}
           />
           <CountdownOverlay value={snapshot.countdownValue} visible={snapshot.gameState === "countdown"} />
         </>
