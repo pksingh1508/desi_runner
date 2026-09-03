@@ -213,7 +213,7 @@ export class Player {
       this.pivot.rotation.z = damp(this.pivot.rotation.z, targetRoll, 12, delta);
       this.pivot.rotation.x = damp(this.pivot.rotation.x, -0.08, 6, delta);
       this.runPhase += delta * (9 + speedRatio * 6);
-      this.animateProcedural();
+      this.animateProcedural(delta);
       this.refreshBounds();
       this.animation?.update(delta);
       this.animation?.setRunSpeedRatio(speedRatio * 1.15);
@@ -287,7 +287,7 @@ export class Player {
       this.runPhase += delta * (6 + speedRatio * 9);
     }
 
-    this.animateProcedural();
+    this.animateProcedural(delta);
 
     this.refreshBounds();
     this.animation?.update(delta);
@@ -1264,6 +1264,7 @@ export class Player {
     const arms = group.userData.arms as THREE.Mesh[] | undefined;
     // Rocket flight — lay straight like sleeping/superman, no swing
     if (this.rocketFlying && legs) {
+      this.relaxProceduralScale(group, delta);
       legs[0].rotation.x = 0.05;
       legs[1].rotation.x = 0.05;
       if (arms && arms.length >= 2) {
@@ -1291,7 +1292,7 @@ export class Player {
       }
       group.position.y = Math.abs(Math.cos(this.runPhase * 2.4)) * 0.06;
     } else if (!this.grounded && legs) {
-      group.scale.set(1, 1, 1);
+      this.relaxProceduralScale(group, delta);
       legs[0].position.z = 0;
       legs[1].position.z = 0;
       legs[0].rotation.x = 0.5;
