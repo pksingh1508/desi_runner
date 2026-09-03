@@ -35,6 +35,8 @@ export function GameCanvas() {
     const game = new Game(host, store);
     gameRef.current = game;
     game.init();
+    // TEMPORARY repro hook (removed before finishing).
+    (window as unknown as { __desiGame?: Game }).__desiGame = game;
     return () => {
       game.dispose();
       gameRef.current = null;
