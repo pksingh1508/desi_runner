@@ -27,17 +27,20 @@ export class TrackSegment {
   readonly rockets: Rocket[] = [];
 
   private billboards: { mesh: THREE.Mesh; slot: number; phase: number }[] = [];
-  private buildings: THREE.Mesh[] = [];
+  private buildings: RoadsideBuilding[] = [];
   private time = Math.random() * 100;
   private side = 1;
+  private shared: SharedAssets;
 
   constructor(
     readonly index: number,
     shared: SharedAssets,
     bag: ResourceBag
   ) {
+    this.shared = shared;
     this.group.name = `segment-${index}`;
     this.buildRoad(shared, bag);
+    this.buildSideGrounds(shared, bag);
     this.buildRails(shared, bag);
     this.buildPosts(shared, bag);
     this.buildSkyline(shared, bag);
@@ -60,23 +63,25 @@ export class TrackSegment {
       const material = board.mesh.material as THREE.MeshBasicMaterial;
       material.opacity = 0.65 + Math.sin(this.time * 2.2 + board.phase) * 0.25;
     }
+    // Neon shop signs breathe together; beacons blink per building.
+    const signPulse =
+      BUILDINGS.anim.signBaseOpacity +
+      Math.sin(this.time * BUILDINGS.anim.signPulseSpeed) * BUILDINGS.anim.signPulseAmp;
+    for (const mat of this.shared.signMats) mat.opacity = signPulse;
+    for (const building of this.buildings) building.update(this.time);
   }
 
   /** Re-randomize skyline + billboard art for a fresh look after recycling. */
   decorate(shared: SharedAssets, billboardSetIndex: number): void {
-    const half = L / 2;
+    // Even spread along the segment (jittered) so buildings never stack
+    // into the "random column" clumps of pure randomness.
+    const perSide = Math.ceil(this.buildings.length / 2);
+    const slotLen = (L - 6) / perSide;
     let side = this.side;
-    for (const building of this.buildings) {
-      const width = randRange(3, 7);
-      const depth = randRange(3, 6);
-      const height = randRange(5, 26);
-      building.scale.set(width, height, depth);
-      building.position.set(
-        side * randRange(8.5, 30),
-        0,
-        -randRange(2, L - 2)
-      );
-      building.rotation.y = randRange(-0.15, 0.15);
+    for (let i = 0; i < this.buildings.length; i++) {
+      const slot = Math.floor(i / 2);
+      const z = -(3 + slot * slotLen + Math.random() * (slotLen - 4));
+      this.buildings[i].configure(shared, side, z);
       side = -side;
     }
     this.side = -this.side;
@@ -145,16 +150,34 @@ export class TrackSegment {
 
   private buildSkyline(shared: SharedAssets, _bag: ResourceBag): void {
     void _bag;
-    for (let i = 0; i < 10; i++) {
-      const building = new THREE.Mesh(this.unitBox(shared), shared.buildingMat);
+    for (let i = 0; i < BUILDINGS.perSegment; i++) {
+      const building = new RoadsideBuilding(shared);
       this.buildings.push(building);
-      this.group.add(building);
+      this.group.add(building.group);
     }
     this.decorate(shared, 0); // initial random layout
   }
 
-  private unitBox(shared: SharedAssets): THREE.BufferGeometry {
-    return shared.unitBoxBase;
+  /** Side aprons + raised sidewalks so buildings sit on streets, not void. */
+  private buildSideGrounds(shared: SharedAssets, bag: ResourceBag): void {
+    const apronGeo = bag.geo(
+      new THREE.BoxGeometry(SIDE_GROUND.apronWidth, 0.2, L)
+    );
+    for (const s of [-1, 1]) {
+      const apron = new THREE.Mesh(apronGeo, shared.sideGroundMat);
+      apron.position.set(s * SIDE_GROUND.apronOffset, -0.12, -L / 2);
+      apron.receiveShadow = true;
+      this.group.add(apron);
+    }
+    const walkGeo = bag.geo(
+      new THREE.BoxGeometry(SIDE_GROUND.sidewalkWidth, 0.3, L)
+    );
+    for (const s of [-1, 1]) {
+      const walk = new THREE.Mesh(walkGeo, shared.sidewalkMat);
+      walk.position.set(s * (WORLD.roadHalfWidth + SIDE_GROUND.sidewalkOffset), -0.1, -L / 2);
+      walk.receiveShadow = true;
+      this.group.add(walk);
+    }
   }
 
   private buildBillboards(shared: SharedAssets, bag: ResourceBag): void {

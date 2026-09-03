@@ -25,6 +25,10 @@ export interface BiomeDefinition {
   edgeB: number;
   postHead: number;
   building: number;
+  /** Side aprons / sidewalks / flat-roof trim the street sits on. */
+  sideGround: number;
+  sidewalk: number;
+  roofTrim: number;
   bands: [number, number, number];
   /** Billboard art hues (canvas textures generated per biome at boot). */
   billboardHues: [string, string, string];
@@ -53,6 +57,9 @@ export const NEON_CITY: BiomeDefinition = {
   edgeB: 0x2eb5e5,
   postHead: 0xfdd013,
   building: 0xeae6da,
+  sideGround: 0xcfd8cc,
+  sidewalk: 0xf2ede0,
+  roofTrim: 0xfff8ee,
   bands: [0xfdd013, 0xe31902, 0x6aeefd],
   billboardHues: ["#FDD013", "#6AEEFD", "#E31902"],
   starOpacity: 0.06,
@@ -80,6 +87,9 @@ export const UNDERGROUND: BiomeDefinition = {
   edgeB: 0x4f8dff,
   postHead: 0x37d3e0,
   building: 0xe3f2ff,
+  sideGround: 0xc4ddd4,
+  sidewalk: 0xeef4ea,
+  roofTrim: 0xf4fbff,
   bands: [0x37d3e0, 0x4f8dff, 0xffb84f],
   billboardHues: ["#37D3E0", "#4F8DFF", "#F7BE76"],
   starOpacity: 0.04,
@@ -107,6 +117,9 @@ export const INDUSTRIAL: BiomeDefinition = {
   edgeB: 0xe31902,
   postHead: 0xeb7d26,
   building: 0xf5e6cc,
+  sideGround: 0xdccfae,
+  sidewalk: 0xf5ecd8,
+  roofTrim: 0xfff4e0,
   bands: [0xeb7d26, 0xe31902, 0xfdd013],
   billboardHues: ["#EB7D26", "#FDD013", "#E31902"],
   starOpacity: 0.05,
@@ -134,6 +147,9 @@ export const CYBER_VOID: BiomeDefinition = {
   edgeB: 0xfdd013,
   postHead: 0x7ac74f,
   building: 0xe6efe0,
+  sideGround: 0xc2d8b2,
+  sidewalk: 0xeef3e2,
+  roofTrim: 0xfbfff2,
   bands: [0x7ac74f, 0xfdd013, 0x6aeefd],
   billboardHues: ["#7AC74F", "#FDD013", "#6AEEFD"],
   starOpacity: 0.05,
