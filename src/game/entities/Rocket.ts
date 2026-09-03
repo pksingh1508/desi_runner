@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
+import { PICKUP_VISUAL } from "@/game/config/gameplay";
 
 /**
  * Rocket pickup — triggers flight (Subway jetpack style).
@@ -31,7 +32,7 @@ export class Rocket {
     this.age = Math.random() * 10;
     this.phase = Math.random() * Math.PI * 2;
     this.mesh.visible = true;
-    this.mesh.scale.setScalar(1);
+    this.mesh.scale.setScalar(PICKUP_VISUAL.rocketScale);
     this.mesh.position.set(x, y, localZ);
     this.mesh.rotation.y = Math.random() * 0.6 - 0.3;
   }
@@ -81,13 +82,13 @@ export class RocketFactory {
     this.bodyGeo = bag.geo(new THREE.CylinderGeometry(0.14, 0.16, 0.58, 14));
     this.noseGeo = bag.geo(new THREE.ConeGeometry(0.14, 0.22, 14));
     this.finGeo = bag.geo(new THREE.BoxGeometry(0.04, 0.18, 0.14));
-    this.flameGeo = bag.geo(new THREE.ConeGeometry(0.09, 0.26, 12));
+    this.flameGeo = bag.geo(new THREE.ConeGeometry(0.12, 0.34, 12));
 
     this.bodyMat = bag.mat(
       new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        emissive: 0x1a3a5a,
-        emissiveIntensity: 0.12,
+        emissive: 0x9fc8ff,
+        emissiveIntensity: 0.45,
         roughness: 0.32,
         metalness: 0.18,
       })
@@ -96,7 +97,7 @@ export class RocketFactory {
       new THREE.MeshStandardMaterial({
         color: 0xe31902,
         emissive: 0xe31902,
-        emissiveIntensity: 0.35,
+        emissiveIntensity: PICKUP_VISUAL.rocketGlowEmissiveIntensity,
         roughness: 0.4,
         metalness: 0.2,
       })
@@ -104,6 +105,8 @@ export class RocketFactory {
     this.finMat = bag.mat(
       new THREE.MeshStandardMaterial({
         color: 0x2eb5e5,
+        emissive: 0x2eb5e5,
+        emissiveIntensity: 0.8,
         roughness: 0.38,
         metalness: 0.22,
       })
@@ -121,7 +124,7 @@ export class RocketFactory {
       new THREE.MeshBasicMaterial({
         color: 0xff9a1a,
         transparent: true,
-        opacity: 0.78,
+        opacity: PICKUP_VISUAL.rocketFlameOpacity,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
@@ -193,11 +196,11 @@ export class RocketFactory {
     bodyGroup.add(flame);
 
     // Glow ring at base for visibility on bright road
-    const ringGeo = new THREE.RingGeometry(0.20, 0.27, 16);
+    const ringGeo = new THREE.RingGeometry(0.28, 0.38, 16);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xffb84f,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.4,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
       depthWrite: false,

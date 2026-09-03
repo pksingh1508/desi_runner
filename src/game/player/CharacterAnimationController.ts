@@ -117,23 +117,27 @@ export class CharacterAnimationController {
   }
 
   /**
-   * Procedural keyframe overlay (Vector/Quaternion/Scale tracks) that makes
-   * the visible character occupy the same low silhouette as the slide
-   * collider. Most GLB characters ship no dedicated slide animation, so this
+   * Procedural keyframe overlay (Vector/Quaternion tracks) that poses the
+   * visible character as a real track glide: torso leaned BACK (head up,
+   * feet leading forward), pivoting about the feet so nothing sinks under
+   * the road. Most GLB characters ship no dedicated slide animation, so this
    * is layered over a crouched skeletal pose when one is available. Final
    * keys return to identity so interruptions and unclamping are seamless.
+   *
+   * Deliberately no scale squash: scaling Y read as "shrink into the ground"
+   * instead of sliding, and it stacked with the procedural rig's own crouch
+   * into a 0.36-height pancake.
    */
   private buildSlideOverlay(): void {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
     const holdUntil = duration - SLIDE_EXIT_TIME;
-    // Subway/Temple-Run style baseball slide: crouch low onto the track,
-    // torso leaned BACK (head up, feet leading forward), feet never below
-    // the ground plane. Forward is -Z, so a positive X rotation leans the
-    // head toward +Z (backward) while the feet shoot forward.
-    // Effective height ≈ standingHeight * 0.58 * cos(0.52) ≈ slideHeight.
+    // Subway-style baseball slide: lean back about the feet (pivot origin),
+    // head toward +Z (backward, since forward is -Z), feet planted at y=0.
+    // Head height ≈ standingHeight * cos(lean) ≈ 1.25m — clears duck-gate
+    // beams (underside 1.45m) while reading unmistakably low and fast.
     const tilt = new THREE.Quaternion();
-    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.52);
+    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), PLAYER.slideLeanAngle);
     const identity = new THREE.Quaternion();
 
     const quaternionTrack = new THREE.QuaternionKeyframeTrack(
@@ -146,22 +150,16 @@ export class CharacterAnimationController {
         identity.x, identity.y, identity.z, identity.w,
       ]
     );
-    // Y stays >= 0 at every key so the mesh can never sink under the track;
-    // Z shifts forward (-Z) so the feet lead the slide.
-    const dipTrack = new THREE.VectorKeyframeTrack(
+    // Feet stay planted at y=0 (never below the track); the rig shifts
+    // forward (-Z) so the feet lead the slide under the collider.
+    const shiftTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
       [0, SLIDE_ENTER_TIME, holdUntil, duration],
-      [0, 0, 0, 0, 0.02, -0.22, 0, 0.02, -0.22, 0, 0, 0]
-    );
-    const scaleTrack = new THREE.VectorKeyframeTrack(
-      "SlidePivot.scale",
-      [0, SLIDE_ENTER_TIME, holdUntil, duration],
-      [1, 1, 1, 1.06, 0.58, 1.08, 1.06, 0.58, 1.08, 1, 1, 1]
+      [0, 0, 0, 0, 0, PLAYER.slideShiftZ, 0, 0, PLAYER.slideShiftZ, 0, 0, 0]
     );
     const clip = new THREE.AnimationClip("NeonSlideOverlay", duration, [
       quaternionTrack,
-      dipTrack,
-      scaleTrack,
+      shiftTrack,
     ]);
     const action = this.mixer.clipAction(clip);
     action.setLoop(THREE.LoopOnce, 1);

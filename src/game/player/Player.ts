@@ -222,8 +222,25 @@ export class Player {
       this.animation?.setRunSpeedRatio(speedRatio * 1.15);
       return;
     } else {
-      // Reset lay-down & lean when not flying
-      this.pivot.rotation.x = damp(this.pivot.rotation.x, 0, 8, delta);
+      // Reset lay-down lean when not flying. While sliding, the lean-back
+      // pose is owned by the mixer's slide overlay — except before the GLB
+      // loads (or if it failed), when no overlay exists and the pivot is
+      // eased manually so the fallback rig still glides instead of squashing.
+      const manualSlide = this.sliding && !this.animation?.hasClips;
+      this.pivot.rotation.x = damp(
+        this.pivot.rotation.x,
+        manualSlide ? PLAYER.slideLeanAngle : 0,
+        manualSlide ? 12 : 8,
+        delta
+      );
+      // The overlay overwrites position while it runs; easing here only
+      // takes effect when it is idle, pulling stale offsets back to center.
+      this.pivot.position.z = damp(
+        this.pivot.position.z,
+        manualSlide ? PLAYER.slideShiftZ : 0,
+        10,
+        delta
+      );
       this.modelHolder.rotation.x = damp(this.modelHolder.rotation.x, 0, 9, delta);
       this.modelHolder.position.z = damp(this.modelHolder.position.z, 0, 9, delta);
       this.modelHolder.position.y = damp(this.modelHolder.position.y, 0, 9, delta);
@@ -1635,16 +1652,18 @@ export class Player {
         arms[1].rotation.z = 0.25;
       }
     } else if (this.sliding) {
-      // Subway-style baseball slide ON the track surface: crouch low via
-      // scale (feet stay planted at y=0), legs extended forward (-Z),
-      // arms swept back/out for balance. Nothing goes below y=0.
+      // Subway-style baseball slide ON the track surface: the lean-back tilt
+      // comes from the SlidePivot (mixer overlay, or the manual lean below),
+      // so the rig itself stays at full scale — squashing here stacked with
+      // the pivot into a "shrink into the ground" pancake. Limbs just strike
+      // the pose: legs kicked forward (-Z), arms swept back for balance.
       group.position.y = 0;
-      group.scale.set(1.05, 0.62, 1.05);
+      group.scale.set(1, 1, 1);
       if (legs) {
         // Limbs pivot at hip/shoulder joints now: a smaller angle already
         // throws the feet well forward without floating them off the track.
-        legs[0].rotation.x = 0.55;
-        legs[1].rotation.x = 0.55;
+        legs[0].rotation.x = 0.65;
+        legs[1].rotation.x = 0.65;
         legs[0].position.z = -0.1;
         legs[1].position.z = -0.1;
       }

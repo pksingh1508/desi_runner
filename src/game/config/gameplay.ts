@@ -23,6 +23,10 @@ export const PLAYER = {
   /** Extra downward velocity when slide is requested mid-air. */
   fastFallVelocity: 30,
   slideDuration: 0.85,
+  /** Lean-back angle (radians) of the slide pose — a real track glide, not a squash. */
+  slideLeanAngle: 0.85,
+  /** Forward (-Z) shift of the rig while sliding so the feet lead. */
+  slideShiftZ: -0.2,
   /** Seconds a jump press stays buffered before landing. */
   jumpBufferTime: 0.12,
   /** Visual roll while switching lanes (radians per meter of offset). */
@@ -161,6 +165,24 @@ export const OBSTACLE_COLORS = {
   warnStrip: 0xffe600,
   dangerUnder: 0xff1744,
   footGlow: 0xffb300,
+} as const;
+
+/**
+ * Pickup readability tuning: world-space scale + glow strength so power-ups,
+ * keys and rockets read from 30m+ away. Gameplay collection radii already
+ * cover these sizes — visuals only.
+ */
+export const PICKUP_VISUAL = {
+  pickupScale: 1.35,
+  pickupCoreEmissiveIntensity: 2.6,
+  pickupRingOpacity: 0.9,
+  keyScale: 1.4,
+  keyGoldEmissiveIntensity: 0.6,
+  keyGemEmissiveIntensity: 2.0,
+  keyHaloOpacity: 0.35,
+  rocketScale: 1.35,
+  rocketGlowEmissiveIntensity: 0.9,
+  rocketFlameOpacity: 0.9,
 } as const;
 
 export const MODEL_URL = "/models/robot_expressive.glb";

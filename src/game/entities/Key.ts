@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
+import { PICKUP_VISUAL } from "@/game/config/gameplay";
 
 /**
  * Life-Saver Key — the revive currency.
@@ -32,7 +33,7 @@ export class Key {
     this.age = Math.random() * 10;
     this.phase = Math.random() * Math.PI * 2;
     this.mesh.visible = true;
-    this.mesh.scale.setScalar(1);
+    this.mesh.scale.setScalar(PICKUP_VISUAL.keyScale);
     this.mesh.position.set(x, y, localZ);
     // random face so not all keys sync
     this.mesh.rotation.y = Math.random() * Math.PI * 2;
@@ -82,8 +83,8 @@ export class KeyFactory {
     this.goldMat = bag.mat(
       new THREE.MeshStandardMaterial({
         color: 0xfdd013,
-        emissive: 0x8c6a00,
-        emissiveIntensity: 0.18,
+        emissive: 0xa88400,
+        emissiveIntensity: PICKUP_VISUAL.keyGoldEmissiveIntensity,
         metalness: 0.68,
         roughness: 0.28,
       })
@@ -99,7 +100,7 @@ export class KeyFactory {
       new THREE.MeshStandardMaterial({
         color: 0x7efff5,
         emissive: 0x37d3e0,
-        emissiveIntensity: 1.2,
+        emissiveIntensity: PICKUP_VISUAL.keyGemEmissiveIntensity,
         roughness: 0.18,
         metalness: 0.15,
         transparent: true,
@@ -171,11 +172,11 @@ export class KeyFactory {
     spin.rotation.z = Math.PI * 0.08;
 
     // Light halo ring at feet for outdoor visibility
-    const haloGeo = new THREE.RingGeometry(0.22, 0.30, 18);
+    const haloGeo = new THREE.RingGeometry(0.3, 0.42, 18);
     const haloMat = new THREE.MeshBasicMaterial({
       color: 0xfdd013,
       transparent: true,
-      opacity: 0.18,
+      opacity: PICKUP_VISUAL.keyHaloOpacity,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
       depthWrite: false,

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
 import { POWERUP_DEFS } from "@/game/config/powerups";
+import { PICKUP_VISUAL } from "@/game/config/gameplay";
 import type { PowerUpType } from "@/types/game";
 
 /**
@@ -37,7 +38,7 @@ export class Pickup {
     (this.mesh.userData.ring as THREE.Mesh).material = kit.rings[type];
     this.mesh.visible = true;
     this.mesh.position.set(x, this.baseY, localZ);
-    this.mesh.scale.setScalar(1);
+    this.mesh.scale.setScalar(PICKUP_VISUAL.pickupScale);
   }
 
   updateVisual(delta: number): void {
@@ -52,11 +53,11 @@ export class Pickup {
 
   /** Scale-out pop on collection. Returns true when finished. */
   playCollection(delta: number): boolean {
-    const next = this.mesh.scale.x - delta * 5;
+    const next = this.mesh.scale.x - delta * 5 * PICKUP_VISUAL.pickupScale;
     if (next <= 0.02) {
       this.active = false;
       this.mesh.visible = false;
-      this.mesh.scale.setScalar(1);
+      this.mesh.scale.setScalar(PICKUP_VISUAL.pickupScale);
       return true;
     }
     this.mesh.scale.setScalar(next);
@@ -93,7 +94,7 @@ export class PickupFactory {
         new THREE.MeshStandardMaterial({
           color: new THREE.Color(def.colorHex).multiplyScalar(0.35),
           emissive: new THREE.Color(def.colorHex),
-          emissiveIntensity: 1.9,
+          emissiveIntensity: PICKUP_VISUAL.pickupCoreEmissiveIntensity,
           roughness: 0.25,
           metalness: 0.3,
         })
@@ -102,13 +103,13 @@ export class PickupFactory {
         new THREE.MeshBasicMaterial({
           color: new THREE.Color(def.colorHex),
           transparent: true,
-          opacity: 0.75,
+          opacity: PICKUP_VISUAL.pickupRingOpacity,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         })
       );
     }
-    this.ringGeometry = bag.geo(new THREE.TorusGeometry(0.62, 0.03, 8, 40));
+    this.ringGeometry = bag.geo(new THREE.TorusGeometry(0.72, 0.045, 8, 40));
     this.kit = { cores, rings };
   }
 
