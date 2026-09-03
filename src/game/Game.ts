@@ -1393,9 +1393,9 @@ function emptyTally(): RunTallyData {
 
 function powerUpColor(type: HudPowerUp["type"]): string {
   switch (type) {
-    case "magnet": return "#37d3e0";
+    case "magnet": return "#2e9bff";
     case "shield": return "#4f8dff";
     case "scoreMultiplier": return "#e8c96a";
-    case "turbo": return "#c06bff";
+    case "turbo": return "#ff2d2d";
   }
 }

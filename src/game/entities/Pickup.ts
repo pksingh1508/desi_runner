@@ -77,6 +77,19 @@ const CORE_BUILDERS = {
   turbo: () => new THREE.ConeGeometry(0.32, 0.78, 6),
 } as const;
 
+/**
+ * Vibrant 3D paint per pickup (blue/red/black arcade combo). UI chips keep
+ * the POWERUP_DEFS hex; these drive the in-world core + orbit ring only.
+ */
+const CORE_PAINT: Record<PowerUpType, { base: number; glow: number; ring: number }> = {
+  // Black crystal, electric-blue charge + halo.
+  magnet: { base: 0x0d1420, glow: 0x2e9bff, ring: 0x3fa9ff },
+  shield: { base: 0x0e1a30, glow: 0x4f8dff, ring: 0x4f8dff },
+  scoreMultiplier: { base: 0x2a1e05, glow: 0xe8c96a, ring: 0xe8c96a },
+  // Black dart, hot-red charge + halo.
+  turbo: { base: 0x140d12, glow: 0xff2d2d, ring: 0xff3b3b },
+};
+
 /** Builds shared geometries/materials once per Game session. */
 export class PickupFactory {
   private geometries = new Map<PowerUpType, THREE.BufferGeometry>();
@@ -90,18 +103,19 @@ export class PickupFactory {
       const geo = CORE_BUILDERS[def.type]();
       if (def.type === "turbo") geo.rotateX(Math.PI / 2);
       this.geometries.set(def.type, bag.geo(geo));
+      const paint = CORE_PAINT[def.type];
       cores[def.type] = bag.mat(
         new THREE.MeshStandardMaterial({
-          color: new THREE.Color(def.colorHex).multiplyScalar(0.35),
-          emissive: new THREE.Color(def.colorHex),
+          color: paint.base,
+          emissive: new THREE.Color(paint.glow),
           emissiveIntensity: PICKUP_VISUAL.pickupCoreEmissiveIntensity,
           roughness: 0.25,
-          metalness: 0.3,
+          metalness: 0.55,
         })
       );
       rings[def.type] = bag.mat(
         new THREE.MeshBasicMaterial({
-          color: new THREE.Color(def.colorHex),
+          color: new THREE.Color(paint.ring),
           transparent: true,
           opacity: PICKUP_VISUAL.pickupRingOpacity,
           blending: THREE.AdditiveBlending,

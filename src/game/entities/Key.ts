@@ -180,7 +180,7 @@ export class KeyFactory {
     // Light halo ring at feet for outdoor visibility
     const haloGeo = new THREE.RingGeometry(0.3, 0.42, 18);
     const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xfdd013,
+      color: 0x3fa9ff,
       transparent: true,
       opacity: PICKUP_VISUAL.keyHaloOpacity,
       side: THREE.DoubleSide,
