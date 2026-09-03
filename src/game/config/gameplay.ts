@@ -100,6 +100,20 @@ export const PATTERN = {
   /** First row offset from segment origin (segment extends toward -Z). */
   firstRowZ: -9,
   marginFromEdges: 5,
+  /**
+   * Fairness floor for consecutive obstacle rows at any speed: the required
+   * gap is max(minDistanceGap, speed * minTimeGap). Fixed-distance patterns
+   * feel fine at start speed but collapse in *reaction time* as the world
+   * accelerates (14m = 1.17s @12m/s but only 0.44s @32m/s — shorter than a
+   * jump/slide at 0.85s). WorldManager stretches rows apart to honor this.
+   */
+  minTimeGap: 0.62,
+  minDistanceGap: 13,
+  /** Stretched patterns are never pushed past this local z (segment budget). */
+  maxTailZ: -42,
+  /** Empty (breather) patterns get +this weight per difficulty tier so late
+   * runs keep recovery windows instead of wall-to-wall obstacles. */
+  breatherBonusPerTier: 0.9,
 } as const;
 
 export const COLORS = {
@@ -114,6 +128,39 @@ export const COLORS = {
   dangerRed: 0xe31902,
   buildingBody: 0xeae6da,
   roadBody: 0xe6ddc3,
+} as const;
+
+/**
+ * High-contrast obstacle paint: one instantly-readable hue per threat type
+ * (jump = red-orange, weave = magenta, wall = amber, duck = blue) with
+ * self-lit warning strips so obstacles pop against the bright daylight road
+ * instead of washing out. Emissive intensities survive the 3.15 sun.
+ */
+export const OBSTACLE_COLORS = {
+  /** Jump barriers: vivid safety red-orange body + dark legs. */
+  barrierBody: 0xff3d00,
+  barrierBodyEmissive: 0xff3d00,
+  barrierBodyEmissiveIntensity: 0.38,
+  barrierLeg: 0x2b2f36,
+  /** Weaving threats: electric magenta shell + dark skids. */
+  movingBody: 0xc81cff,
+  movingBodyEmissive: 0xc81cff,
+  movingBodyEmissiveIntensity: 0.45,
+  movingSkid: 0x23262e,
+  /** Tall walls: saturated amber crate + hot red core/edges. */
+  blockBody: 0xff9500,
+  blockBodyEmissive: 0xff6a00,
+  blockBodyEmissiveIntensity: 0.3,
+  blockEdge: 0xff1744,
+  /** Duck gates: saturated cobalt beam + dark posts. */
+  gateBeam: 0x2255ff,
+  gateBeamEmissive: 0x2255ff,
+  gateBeamEmissiveIntensity: 0.42,
+  gatePost: 0x1c2230,
+  /** Unlit warning glows (MeshBasicMaterial — always full-bright). */
+  warnStrip: 0xffe600,
+  dangerUnder: 0xff1744,
+  footGlow: 0xffb300,
 } as const;
 
 export const MODEL_URL = "/models/robot_expressive.glb";

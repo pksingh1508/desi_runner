@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
-import { COLORS } from "@/game/config/gameplay";
+import { OBSTACLE_COLORS } from "@/game/config/gameplay";
 
 export type ObstacleKind =
   | "barrier"
@@ -123,33 +123,69 @@ export function createObstacleMesh(
   const group = new THREE.Group();
   group.castShadow = true;
 
-  // Subway Surfers daylight palette — light, saturated train colors for
-  // maximum outdoor contrast (no more black-on-black in sunlight).
+  // High-visibility arcade palette — one saturated, self-lit hue per
+  // threat type so obstacles read instantly against the bright daylight
+  // road (pastel bodies washed out under the 3.15 sun). Bodies carry
+  // emissive so they glow instead of flattening; warning strips are unlit
+  // MeshBasicMaterial so they stay full-bright at any distance/fog.
   const barrierBodyMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0xf2f3f5, roughness: 0.55, metalness: 0.08 })
+    new THREE.MeshStandardMaterial({
+      color: OBSTACLE_COLORS.barrierBody,
+      emissive: OBSTACLE_COLORS.barrierBodyEmissive,
+      emissiveIntensity: OBSTACLE_COLORS.barrierBodyEmissiveIntensity,
+      roughness: 0.45,
+      metalness: 0.05,
+    })
   );
-  const trainBlueMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0x2eb5e5, roughness: 0.5, metalness: 0.12 })
+  const barrierLegMat = bag.mat(
+    new THREE.MeshStandardMaterial({ color: OBSTACLE_COLORS.barrierLeg, roughness: 0.6, metalness: 0.3 })
   );
-  const trainBlueDarkMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.6, metalness: 0.2 })
+  const movingBodyMat = bag.mat(
+    new THREE.MeshStandardMaterial({
+      color: OBSTACLE_COLORS.movingBody,
+      emissive: OBSTACLE_COLORS.movingBodyEmissive,
+      emissiveIntensity: OBSTACLE_COLORS.movingBodyEmissiveIntensity,
+      roughness: 0.42,
+      metalness: 0.1,
+    })
   );
-  const cargoYellowMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0xfdd013, roughness: 0.55, metalness: 0.08 })
+  const movingSkidMat = bag.mat(
+    new THREE.MeshStandardMaterial({ color: OBSTACLE_COLORS.movingSkid, roughness: 0.55, metalness: 0.35 })
   );
-  const gateBodyMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0xeaeff5, roughness: 0.52, metalness: 0.1 })
+  const blockBodyMat = bag.mat(
+    new THREE.MeshStandardMaterial({
+      color: OBSTACLE_COLORS.blockBody,
+      emissive: OBSTACLE_COLORS.blockBodyEmissive,
+      emissiveIntensity: OBSTACLE_COLORS.blockBodyEmissiveIntensity,
+      roughness: 0.5,
+      metalness: 0.05,
+    })
+  );
+  const gateBeamMat = bag.mat(
+    new THREE.MeshStandardMaterial({
+      color: OBSTACLE_COLORS.gateBeam,
+      emissive: OBSTACLE_COLORS.gateBeamEmissive,
+      emissiveIntensity: OBSTACLE_COLORS.gateBeamEmissiveIntensity,
+      roughness: 0.45,
+      metalness: 0.1,
+    })
   );
   const gatePostMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: 0xd8dde8, roughness: 0.58, metalness: 0.14 })
+    new THREE.MeshStandardMaterial({ color: OBSTACLE_COLORS.gatePost, roughness: 0.55, metalness: 0.3 })
   );
   const dangerGlow = bag.mat(
-    new THREE.MeshBasicMaterial({ color: COLORS.dangerRed })
+    new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.dangerUnder })
   );
   const warnGlow = bag.mat(
-    new THREE.MeshBasicMaterial({ color: COLORS.warnAmber })
+    new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.warnStrip })
   );
-  const stripeGlow = bag.mat(new THREE.MeshBasicMaterial({ color: COLORS.signalLime }));
+  const footGlow = bag.mat(
+    new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.footGlow })
+  );
+  const stripeGlow = bag.mat(new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.warnStrip }));
+  const blockEdgeMat = bag.mat(
+    new THREE.LineBasicMaterial({ color: OBSTACLE_COLORS.blockEdge })
+  );
 
   switch (kind) {
     case "barrier": {
@@ -159,24 +195,24 @@ export function createObstacleMesh(
       bar.castShadow = true;
       bar.receiveShadow = true;
       const stripGeo = bag.geo(new THREE.BoxGeometry(2.1, 0.08, 0.32));
-      const strip = new THREE.Mesh(stripGeo, dangerGlow);
+      const strip = new THREE.Mesh(stripGeo, warnGlow);
       strip.position.y = 0.72;
       const legGeo = bag.geo(new THREE.BoxGeometry(0.14, 0.62, 0.26));
-      const legL = new THREE.Mesh(legGeo, barrierBodyMat);
+      const legL = new THREE.Mesh(legGeo, barrierLegMat);
       legL.position.set(-0.85, 0.31, 0);
       legL.castShadow = true;
-      const legR = new THREE.Mesh(legGeo, barrierBodyMat);
+      const legR = new THREE.Mesh(legGeo, barrierLegMat);
       legR.position.set(0.85, 0.31, 0);
       legR.castShadow = true;
       const footGeo = bag.geo(new THREE.BoxGeometry(2.16, 0.06, 0.42));
-      const foot = new THREE.Mesh(footGeo, warnGlow);
+      const foot = new THREE.Mesh(footGeo, footGlow);
       foot.position.y = 0.03;
       group.add(bar, strip, legL, legR, foot);
       break;
     }
     case "moving": {
       const shellGeo = bag.geo(new THREE.BoxGeometry(2.0, 0.5, 0.34));
-      const shell = new THREE.Mesh(shellGeo, trainBlueMat);
+      const shell = new THREE.Mesh(shellGeo, movingBodyMat);
       shell.position.y = 0.62;
       shell.castShadow = true;
       shell.receiveShadow = true;
@@ -184,35 +220,37 @@ export function createObstacleMesh(
       const stripe = new THREE.Mesh(stripeGeo, stripeGlow);
       stripe.position.y = 0.62;
       const skidGeo = bag.geo(new THREE.BoxGeometry(0.5, 0.34, 0.3));
-      const skidL = new THREE.Mesh(skidGeo, trainBlueDarkMat);
+      const skidL = new THREE.Mesh(skidGeo, movingSkidMat);
       skidL.position.set(-0.65, 0.17, 0);
-      const skidR = new THREE.Mesh(skidGeo, trainBlueDarkMat);
+      const skidR = new THREE.Mesh(skidGeo, movingSkidMat);
       skidR.position.set(0.65, 0.17, 0);
       group.add(shell, stripe, skidL, skidR);
       break;
     }
     case "block": {
       const crateGeo = bag.geo(new THREE.BoxGeometry(2.2, 2.7, 2.1));
-      const crate = new THREE.Mesh(crateGeo, cargoYellowMat);
+      const crate = new THREE.Mesh(crateGeo, blockBodyMat);
       crate.position.y = 1.35;
       crate.castShadow = true;
       crate.receiveShadow = true;
-      const edgeMat = bag.mat(
-        new THREE.LineBasicMaterial({ color: COLORS.signalGreen })
-      );
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(crateGeo), edgeMat);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(crateGeo), blockEdgeMat);
       edges.position.y = 1.35;
       const coreGeo = bag.geo(new THREE.BoxGeometry(0.9, 0.9, 0.08));
       const core = new THREE.Mesh(coreGeo, dangerGlow);
       core.position.set(0, 1.5, -1.06);
-      group.add(crate, edges, core);
+      // Second warning core on the player-facing side — walls read as
+      // danger from the front, not just from behind.
+      const faceGeo = bag.geo(new THREE.BoxGeometry(0.9, 0.9, 0.08));
+      const face = new THREE.Mesh(faceGeo, warnGlow);
+      face.position.set(0, 1.5, 1.06);
+      group.add(crate, edges, core, face);
       break;
     }
     case "overhead1":
     case "overhead3": {
       const width = kind === "overhead3" ? 7.7 : 2.3;
       const beamGeo = bag.geo(new THREE.BoxGeometry(width, 0.86, 0.56));
-      const beam = new THREE.Mesh(beamGeo, gateBodyMat);
+      const beam = new THREE.Mesh(beamGeo, gateBeamMat);
       beam.position.y = 1.88;
       beam.castShadow = true;
       beam.receiveShadow = true;
