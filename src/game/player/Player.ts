@@ -1660,12 +1660,12 @@ export class Player {
       group.position.y = 0;
       group.scale.set(1, 1, 1);
       if (legs) {
-        // Limbs pivot at hip/shoulder joints now: a smaller angle already
-        // throws the feet well forward without floating them off the track.
-        legs[0].rotation.x = 0.65;
-        legs[1].rotation.x = 0.65;
-        legs[0].position.z = -0.1;
-        legs[1].position.z = -0.1;
+        // Limbs pivot at hip/shoulder joints now: thrown forward under the
+        // reclined torso so the feet spearhead the slide.
+        legs[0].rotation.x = 0.8;
+        legs[1].rotation.x = 0.8;
+        legs[0].position.z = -0.12;
+        legs[1].position.z = -0.12;
       }
       if (arms) {
         arms[0].rotation.x = -0.85;

@@ -64,9 +64,11 @@ export class CharacterAnimationController {
       run: findClip(clips, "running", "run"),
       walk: findClip(clips, "walking", "walk"),
       jump: findClip(clips, "jump"),
-      // RobotExpressive has no slide, but its short Sitting transition gives
-      // us a convincing bent-knee base pose for the procedural overlay.
-      slide: nativeSlide ?? findClip(clips, "sitting", "sit"),
+      // Only a purpose-built slide clip is used here. Falling back to
+      // "Sitting" made every slide read as sitting down — the procedural
+      // lay-back overlay below carries the pose instead, reclined over the
+      // run cycle like a powerslide with driving feet.
+      slide: nativeSlide,
       death: findClip(clips, "death"),
     };
 
@@ -132,10 +134,10 @@ export class CharacterAnimationController {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
     const holdUntil = duration - SLIDE_EXIT_TIME;
-    // Subway-style baseball slide: lean back about the feet (pivot origin),
-    // head toward +Z (backward, since forward is -Z), feet planted at y=0.
-    // Head height ≈ standingHeight * cos(lean) ≈ 1.25m — clears duck-gate
-    // beams (underside 1.45m) while reading unmistakably low and fast.
+    // Powerslide: recline hard about the feet (pivot origin), head up toward
+    // +Z (backward, since forward is -Z), feet planted at y=0 and leading.
+    // Head height ≈ standingHeight * cos(lean) ≈ slide collider height, so
+    // duck-gate beams (underside 1.45m) clear with room to spare.
     const tilt = new THREE.Quaternion();
     const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), PLAYER.slideLeanAngle);
     const identity = new THREE.Quaternion();

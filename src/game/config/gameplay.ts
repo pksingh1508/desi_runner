@@ -23,10 +23,11 @@ export const PLAYER = {
   /** Extra downward velocity when slide is requested mid-air. */
   fastFallVelocity: 30,
   slideDuration: 0.85,
-  /** Lean-back angle (radians) of the slide pose — a real track glide, not a squash. */
-  slideLeanAngle: 0.85,
+  /** Lean-back angle (radians) of the slide pose: a reclined feet-first
+   * powerslide (~62°), not an upright sit. Head lands ≈ slide height. */
+  slideLeanAngle: 1.08,
   /** Forward (-Z) shift of the rig while sliding so the feet lead. */
-  slideShiftZ: -0.2,
+  slideShiftZ: -0.3,
   /** Seconds a jump press stays buffered before landing. */
   jumpBufferTime: 0.12,
   /** Visual roll while switching lanes (radians per meter of offset). */
