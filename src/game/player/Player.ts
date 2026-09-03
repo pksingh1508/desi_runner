@@ -73,6 +73,9 @@ export class Player {
     this.root.add(this.pivot);
 
     this.fallbackBot = this.buildFallbackBot();
+    // Same yaw cancellation as procedural archetypes: faces are modeled at
+    // local -Z but modelHolder already turns PI for the GLB.
+    this.fallbackBot.rotation.y = Math.PI;
     this.modelHolder.add(this.fallbackBot);
 
     // Rocket jetpack (hidden until flight) — attached to modelHolder so it
@@ -477,6 +480,10 @@ export class Player {
       this.archetypeGroup = null;
     }
     this.archetypeGroup = this.buildArchetype(def.archetype, def.tintHex, def.accentHex);
+    // Builders model faces toward local -Z. modelHolder already yaws PI for
+    // the +Z-facing GLB, so procedural rigs need their own PI to cancel it —
+    // otherwise every non-VECTOR character runs facing the camera.
+    this.archetypeGroup.rotation.y = Math.PI;
     this.modelHolder.add(this.archetypeGroup);
     this.archetypeGroup.visible = true;
   }
@@ -501,6 +508,7 @@ export class Player {
         this.disposeGroup(this.archetypeGroup);
       }
       this.archetypeGroup = this.buildArchetype(this.currentArchetype, tintHex, accentHex);
+      this.archetypeGroup.rotation.y = Math.PI; // cancel modelHolder yaw (see applyCharacter)
       this.modelHolder.add(this.archetypeGroup);
     }
   }
@@ -1620,10 +1628,11 @@ export class Player {
       legs[0].rotation.x = 0.5;
       legs[1].rotation.x = -0.35;
       if (arms && arms.length >= 2) {
-        arms[0].rotation.x = 0.8;
-        arms[1].rotation.x = 0.8;
-        arms[0].rotation.z = 0;
-        arms[1].rotation.z = 0;
+        // Arms thrown up-back (classic jump silhouette from the rear camera).
+        arms[0].rotation.x = -2.2;
+        arms[1].rotation.x = -2.2;
+        arms[0].rotation.z = -0.25;
+        arms[1].rotation.z = 0.25;
       }
     } else if (this.sliding) {
       // Subway-style baseball slide ON the track surface: crouch low via
