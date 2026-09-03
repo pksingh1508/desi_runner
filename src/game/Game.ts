@@ -507,7 +507,16 @@ export class Game {
     this.sceneBundle.sun.castShadow = !on;
   }
 
-  equipCharacter(id: string): void {
+  /**
+   * Equips a character only when the player's level has unlocked it.
+   * Returns false (and changes nothing) for locked/unknown ids — the GEAR
+   * tab disables those cards, this is the engine-side enforcement so a
+   * locked runner can never reach the track.
+   */
+  equipCharacter(id: string): boolean {
+    const def = getCharacter(id);
+    if (def.id !== id) return false;
+    if (SaveService.get().progression.level < def.unlockLevel) return false;
     SaveService.update((s) => {
       s.customization.character = id;
     });
@@ -515,11 +524,20 @@ export class Game {
     this.audio.unlock();
     this.audio.playUnlock();
     this.store.bumpMetaVersion();
+    return true;
   }
 
   private applyCustomizationFromSave(): void {
     const save = SaveService.get();
-    const character = getCharacter(save.customization.character);
+    let character = getCharacter(save.customization.character);
+    // Self-heal: a save pointing at a locked runner (tampered or legacy)
+    // falls back to the default instead of leaking it onto the track.
+    if (save.progression.level < character.unlockLevel) {
+      character = getCharacter("vector");
+      SaveService.update((s) => {
+        s.customization.character = character.id;
+      });
+    }
     // Distinct 3D rig per archetype (robot GLB vs procedural rigs).
     this.player.applyCharacter(character);
   }

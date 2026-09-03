@@ -697,6 +697,50 @@ body {
   box-shadow: 0 0 18px rgba(253, 208, 19, 0.22), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
+/* Character cards sit over the bright live 3D scene, so they get an
+ * opaque-leaning panel plus outlined game type — no more washed-out text. */
+.character-card {
+  background: rgba(8, 14, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.gear-name {
+  font-family: var(--font-retro), monospace;
+  color: #ffffff;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+.gear-desc {
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.gear-lock-pill {
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(232, 201, 106, 0.65);
+  color: #e8c96a;
+  text-shadow: 0 0 8px rgba(232, 201, 106, 0.45);
+}
+
+.gear-lock-overlay {
+  background: rgba(4, 8, 18, 0.62);
+}
+
+.gear-lock-text {
+  font-family: var(--font-retro), monospace;
+  color: #ffffff;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.6),
+    0 0 14px rgba(255, 255, 255, 0.35);
+}
+
+.gear-section-sub {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
 .gear-dot {
   position: absolute;
   top: 0.5rem;

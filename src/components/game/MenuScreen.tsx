@@ -273,7 +273,7 @@ function GearTab({
   return (
     <div className="mx-auto max-w-3xl pb-2">
       <SectionTitle>CHARACTERS — {characters.length} UNIQUE RUNNERS</SectionTitle>
-      <p className="font-tech mb-2 text-center text-[8px] font-semibold tracking-[0.18em] text-white/80">
+      <p className="gear-section-sub font-tech mb-2 text-center text-[8px] font-semibold tracking-[0.18em]">
         STREET · ROBOTS · ALIENS · LEGENDS — EACH WITH A DISTINCT 3D MODEL
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -305,8 +305,8 @@ function CharacterGearCard({
     >
       {/* Gradient preview with large icon — this is the "character" thumbnail */}
       <div
-        className="relative mb-2.5 flex h-[68px] w-full items-center justify-center overflow-hidden rounded-md border border-white/10"
-        style={{ background: option.gradient, opacity: option.locked ? 0.55 : 1 }}
+        className="relative mb-2.5 flex h-[68px] w-full items-center justify-center overflow-hidden rounded-md border border-white/25"
+        style={{ background: option.gradient, opacity: option.locked ? 0.7 : 1 }}
       >
         {/* Subtle inner glow */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
@@ -321,30 +321,31 @@ function CharacterGearCard({
         <span
           className="absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 font-tech text-[7px] font-bold tracking-[0.14em] text-white shadow"
           style={{
-            background: "rgba(0,0,0,0.55)",
-            border: "1px solid rgba(255,255,255,0.18)",
+            background: "rgba(0,0,0,0.68)",
+            border: "1px solid rgba(255,255,255,0.3)",
             backdropFilter: "blur(4px)",
+            textShadow: "0 1px 2px rgba(0,0,0,0.9)",
           }}
         >
           {option.species}
         </span>
         {/* Lock overlay */}
         {option.locked && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/55 backdrop-blur-[0.5px]">
-            <span className="rounded-full bg-black/60 px-2 py-1 font-tech text-[10px] tracking-[0.16em] text-white/90">🔒 LOCKED</span>
+          <div className="gear-lock-overlay absolute inset-0 flex items-center justify-center backdrop-blur-[0.5px]">
+            <span className="gear-lock-text rounded-full bg-black/60 px-2.5 py-1 text-[10px] tracking-[0.16em]">🔒 LOCKED</span>
           </div>
         )}
       </div>
 
-      <div className="font-tech text-[11px] font-bold tracking-[0.18em] text-white">{option.name}</div>
-      <div className="font-tech mt-0.5 line-clamp-2 text-[9px] font-medium leading-snug tracking-wide text-white/85">{option.description}</div>
+      <div className="gear-name text-[13px] tracking-[0.12em]">{option.name}</div>
+      <div className="gear-desc font-tech mt-1 line-clamp-2 text-[9px] font-medium leading-snug tracking-wide">{option.description}</div>
       <div
         className={`font-tech mt-2 inline-flex items-center rounded-full px-2 py-1 text-[8px] font-bold tracking-[0.16em] ${
           option.locked
-            ? "bg-white/5 text-white/40"
+            ? "gear-lock-pill"
             : option.equipped
               ? "bg-[#e8c96a] text-[#241c05] shadow-[0_0_10px_rgba(232,201,106,0.45)]"
-              : "bg-white/10 text-white/70"
+              : "bg-white/10 text-white/85"
         }`}
       >
         {option.locked ? `🔒 ${option.unlockLabel}` : option.equipped ? "● EQUIPPED" : "READY — TAP TO EQUIP"}
