@@ -7,7 +7,8 @@ import type { Pickup } from "@/game/entities/Pickup";
 import type { Key } from "@/game/entities/Key";
 import type { Rocket } from "@/game/entities/Rocket";
 import { WORLD } from "@/game/config/gameplay";
-import { randRange } from "@/game/utils/math";
+import { BUILDINGS, SIDE_GROUND } from "@/game/config/buildings";
+import { RoadsideBuilding } from "./Buildings";
 
 const L = WORLD.segmentLength;
 
