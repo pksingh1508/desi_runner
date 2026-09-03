@@ -80,26 +80,30 @@ export class KeyFactory {
     this.toothB = bag.geo(new THREE.BoxGeometry(0.07, 0.07, 0.05));
     this.gemGeo = bag.geo(new THREE.OctahedronGeometry(0.065, 0));
 
+    // Black-chrome body with electric-blue edge glow (vibrant blue/black
+    // combo that pops on the bright road), hot-red gem core.
     this.goldMat = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0xfdd013,
-        emissive: 0xa88400,
+        color: 0x11141c,
+        emissive: 0x2255ff,
         emissiveIntensity: PICKUP_VISUAL.keyGoldEmissiveIntensity,
-        metalness: 0.68,
-        roughness: 0.28,
+        metalness: 0.85,
+        roughness: 0.3,
       })
     );
     this.darkGoldMat = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0xb47a00,
-        metalness: 0.62,
-        roughness: 0.34,
+        color: 0x0a0d14,
+        emissive: 0x2255ff,
+        emissiveIntensity: 0.9,
+        metalness: 0.8,
+        roughness: 0.32,
       })
     );
     this.gemMat = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0x7efff5,
-        emissive: 0x37d3e0,
+        color: 0xff4d4d,
+        emissive: 0xff1744,
         emissiveIntensity: PICKUP_VISUAL.keyGemEmissiveIntensity,
         roughness: 0.18,
         metalness: 0.15,
@@ -109,7 +113,9 @@ export class KeyFactory {
     );
     this.gemBackMat = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0x2eb5e5,
+        color: 0x5a0a12,
+        emissive: 0xff1744,
+        emissiveIntensity: 0.7,
         metalness: 0.2,
         roughness: 0.4,
       })

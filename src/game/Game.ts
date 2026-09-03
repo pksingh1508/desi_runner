@@ -49,7 +49,10 @@ const HIT_STOP_SCALE = 0.18;
 const REVIVE_TIME = 6;
 const REVIVE_INVULN = 2.4;
 const ROCKET_DURATION = 6.2;
-const ROCKET_INVULN_EXTRA = 0.6;
+/** Collision-free grace after touching back down — landing blind at 30m/s
+ * into a wall would feel unfair without a moment to re-orient. The shield
+ * bubble stays up for the whole window so safety reads visually. */
+const LANDING_SAFE_SECONDS = 3;
 
 /**
  * Authoritative game orchestrator: owns the render loop, the state machine
@@ -766,8 +769,8 @@ export class Game {
       this.store.setRocket(true, this.player.rocketRemaining);
     } else if (this.wasRocketFlying) {
       this.store.setRocket(false, 0);
-      this.reviveInvuln = ROCKET_INVULN_EXTRA;
-      this.feedback.push("LANDED!", "good");
+      this.reviveInvuln = LANDING_SAFE_SECONDS;
+      this.feedback.push("SAFE LANDING!", "good", "3s GRACE");
     }
     this.wasRocketFlying = this.player.isFlying;
 
