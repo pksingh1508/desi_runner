@@ -694,9 +694,12 @@ export class Player {
 
     // Street-runner backpack — the rear-view signature: body, front pocket,
     // top bedroll and shoulder straps.
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.2), jacketMat);
+    // Warm orange + slight emissive: flat rear faces go near-black under a
+    // high sun, so the pack carries its own light and never reads as a void.
+    const packMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.45, roughness: 0.6 });
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.2), packMat);
     pack.position.set(0, 1.06, 0.32);
-    const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.07), accentMat);
+    const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.07), jacketMat);
     packPocket.position.set(0, 0.98, 0.44);
     const packStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.05, 0.02), whiteMat);
     packStrip.position.set(0, 1.06, 0.48);
@@ -705,10 +708,10 @@ export class Player {
     bedroll.position.set(0, 1.32, 0.32);
     const strapGeo = new THREE.BoxGeometry(0.09, 0.34, 0.05);
     const strapL = new THREE.Mesh(strapGeo, accentMat);
-    strapL.position.set(-0.18, 1.24, -0.24);
+    strapL.position.set(-0.18, 1.24, -0.29);
     strapL.rotation.x = -0.12;
     const strapR = new THREE.Mesh(strapGeo, accentMat);
-    strapR.position.set(0.18, 1.24, -0.24);
+    strapR.position.set(0.18, 1.24, -0.29);
     strapR.rotation.x = -0.12;
     // Resting hood roll under the pack.
     const hood = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.055, 8, 14, Math.PI), jacketDark);
