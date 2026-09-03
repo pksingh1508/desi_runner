@@ -130,7 +130,9 @@ export class Player {
 
   requestJump(): void {
     if (this.dead || this.rocketFlying) return;
-    if (this.grounded && !this.sliding) {
+    if (this.grounded) {
+      // Slide-cancel jump (Subway Surfers behavior): pressing jump mid-slide
+      // launches immediately instead of being swallowed by the input buffer.
       this.launchJump();
     } else {
       this.jumpBufferLeft = PLAYER.jumpBufferTime;
@@ -563,7 +565,9 @@ export class Player {
     this.grounded = false;
     this.jumpStartAge = this.age;
     this.verticalVelocity = PLAYER.jumpVelocity;
-    this.animation?.forceFinishOneShot("slide");
+    // No hard stop of the slide overlay here: setState() crossfades the
+    // still-running overlay/action out (FADE_FAST), so a slide-cancel jump
+    // untilts smoothly instead of snapping upright for one frame.
     this.animation?.setState("jump");
   }
 
@@ -1240,7 +1244,15 @@ export class Player {
     return pack;
   }
 
-  private animateProcedural(): void {
+  /** Eases a procedural rig's crouch scale back to upright (slide-cancel). */
+  private relaxProceduralScale(group: THREE.Group, delta: number): void {
+    const s = group.scale;
+    s.x = damp(s.x, 1, 11, delta);
+    s.y = damp(s.y, 1, 11, delta);
+    s.z = damp(s.z, 1, 11, delta);
+  }
+
+  private animateProcedural(delta: number): void {
     const active = this.currentArchetype === "robot"
       ? (this.usingFallback ? this.fallbackBot : null)
       : this.archetypeGroup;
