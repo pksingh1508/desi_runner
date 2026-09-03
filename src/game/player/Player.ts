@@ -1649,8 +1649,8 @@ export class Player {
         legs[1].position.z = -0.1;
       }
       if (arms) {
-        arms[0].rotation.x = -0.55;
-        arms[1].rotation.x = -0.55;
+        arms[0].rotation.x = -0.85;
+        arms[1].rotation.x = -0.85;
         arms[0].rotation.z = -0.45;
         arms[1].rotation.z = 0.45;
       }
