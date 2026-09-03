@@ -607,6 +607,18 @@ export class Player {
 
   // -------------------------------------------------------- archetype visuals
 
+  /** Enables cast shadows on every opaque mesh of a procedural rig. */
+  private shadowify(group: THREE.Group): void {
+    group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      const materials = Array.isArray(material) ? material : material ? [material] : [];
+      if (materials.some((m) => m.transparent)) return;
+      mesh.castShadow = true;
+    });
+  }
+
   private buildArchetype(archetype: CharacterArchetype, tintHex: string, accentHex: string): THREE.Group {
     switch (archetype) {
       case "boy":
@@ -635,60 +647,121 @@ export class Player {
     const group = new THREE.Group();
     group.name = "Boy";
 
-    const jacketMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.65, metalness: 0.18 });
-    const accentMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.2, roughness: 0.45 });
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf0c8a8, roughness: 0.7 });
+    const jacketMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.6, metalness: 0.15 });
+    const jacketDark = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.7, metalness: 0.1 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.1, roughness: 0.45 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf0c8a8, roughness: 0.65 });
     const pantsMat = new THREE.MeshStandardMaterial({ color: 0x22345a, roughness: 0.8 });
-    const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a2436, roughness: 0.75 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.5 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 0.85 });
 
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.58, 4, 12), jacketMat);
     torso.position.y = 1.02;
-    torso.castShadow = true;
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), skinMat);
+    // Open jacket: dark inner shirt panel on the chest + jacket hem.
+    const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.42, 0.08), darkMat);
+    shirt.position.set(0, 1.0, -0.24);
+    const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.3, 0.1, 12), jacketDark);
+    hem.position.set(0, 0.62, 0);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), skinMat);
     head.position.set(0, 1.58, -0.02);
-    head.castShadow = true;
 
-    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.08, 12), accentMat);
-    capTop.position.set(0, 1.78, -0.02);
-    const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.22), accentMat);
-    capBrim.position.set(0, 1.72, -0.2);
+    // Cap readable from the rear camera: full dome + back strap + button.
+    const capDome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.28, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.52),
+      jacketMat
+    );
+    capDome.position.set(0, 1.6, -0.02);
+    const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.045, 0.26), accentMat);
+    capBrim.position.set(0, 1.68, -0.24);
+    capBrim.rotation.x = 0.08;
+    const capStrap = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.06), accentMat);
+    capStrap.position.set(0, 1.62, 0.24);
+    const capButton = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), accentMat);
+    capButton.position.set(0, 1.88, -0.02);
+    // Hair fringe at the nape, below the cap line.
+    const nape = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.1), hairMat);
+    nape.position.set(0, 1.42, 0.16);
 
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.08), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.2 }));
-    visor.position.set(0, 1.5, -0.2);
+    // Runner shades.
+    const shades = new THREE.Mesh(
+      new THREE.BoxGeometry(0.36, 0.09, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x0a0e14, roughness: 0.15, metalness: 0.4 })
+    );
+    shades.position.set(0, 1.56, -0.22);
 
-    const shoulderGeo = new THREE.SphereGeometry(0.11, 10, 8);
-    const leftShoulder = new THREE.Mesh(shoulderGeo, jacketMat);
-    leftShoulder.position.set(-0.38, 1.32, 0);
-    const rightShoulder = new THREE.Mesh(shoulderGeo, jacketMat);
-    rightShoulder.position.set(0.38, 1.32, 0);
+    // Street-runner backpack — the rear-view signature: body, front pocket,
+    // top bedroll and shoulder straps.
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.2), darkMat);
+    pack.position.set(0, 1.06, 0.32);
+    const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.07), accentMat);
+    packPocket.position.set(0, 0.98, 0.44);
+    const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.34, 10), jacketDark);
+    bedroll.rotation.z = Math.PI / 2;
+    bedroll.position.set(0, 1.32, 0.32);
+    const strapGeo = new THREE.BoxGeometry(0.09, 0.34, 0.05);
+    const strapL = new THREE.Mesh(strapGeo, accentMat);
+    strapL.position.set(-0.18, 1.24, -0.24);
+    strapL.rotation.x = -0.12;
+    const strapR = new THREE.Mesh(strapGeo, accentMat);
+    strapR.position.set(0.18, 1.24, -0.24);
+    strapR.rotation.x = -0.12;
+    // Resting hood roll under the pack.
+    const hood = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.055, 8, 14, Math.PI), jacketDark);
+    hood.position.set(0, 0.78, 0.2);
+    hood.rotation.x = Math.PI * 0.1;
 
-    const armGeo = new THREE.CapsuleGeometry(0.08, 0.28, 4, 8);
-    const armL = new THREE.Mesh(armGeo, skinMat);
-    armL.position.set(-0.38, 1.05, 0);
-    const armR = new THREE.Mesh(armGeo, skinMat);
-    armR.position.set(0.38, 1.05, 0);
+    // Arms pivot at the shoulder so sleeves + hands swing together.
+    const buildArm = (side: -1 | 1): THREE.Group => {
+      const arm = new THREE.Group();
+      arm.position.set(side * 0.38, 1.32, 0);
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), jacketMat);
+      arm.add(pad);
+      const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.2, 4, 8), jacketMat);
+      sleeve.position.y = -0.2;
+      arm.add(sleeve);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.05, 10), accentMat);
+      cuff.position.y = -0.34;
+      arm.add(cuff);
+      const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.14, 4, 8), skinMat);
+      forearm.position.y = -0.44;
+      arm.add(forearm);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), skinMat);
+      hand.position.y = -0.56;
+      arm.add(hand);
+      return arm;
+    };
+    const armL = buildArm(-1);
+    const armR = buildArm(1);
 
-    const legGeo = new THREE.CapsuleGeometry(0.12, 0.42, 4, 8);
-    const legL = new THREE.Mesh(legGeo, pantsMat);
-    legL.position.set(-0.16, 0.32, 0);
-    legL.castShadow = true;
-    const legR = new THREE.Mesh(legGeo, pantsMat);
-    legR.position.set(0.16, 0.32, 0);
-    legR.castShadow = true;
+    // Legs pivot at the hip so sneakers swing with the run cycle.
+    const buildLeg = (side: -1 | 1): THREE.Group => {
+      const leg = new THREE.Group();
+      leg.position.set(side * 0.16, 0.72, 0);
+      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.34, 4, 8), pantsMat);
+      thigh.position.y = -0.32;
+      leg.add(thigh);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.3, 0.03), accentMat);
+      stripe.position.set(side * 0.12, -0.34, 0);
+      leg.add(stripe);
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.3), whiteMat);
+      shoe.position.set(0, -0.64, -0.05);
+      leg.add(shoe);
+      const sole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.31), accentMat);
+      sole.position.set(0, -0.695, -0.05);
+      leg.add(sole);
+      return leg;
+    };
+    const legL = buildLeg(-1);
+    const legR = buildLeg(1);
 
-    const shoeGeo = new THREE.BoxGeometry(0.16, 0.09, 0.24);
-    const shoeL = new THREE.Mesh(shoeGeo, shoeMat);
-    shoeL.position.set(-0.16, 0.07, -0.04);
-    const shoeR = new THREE.Mesh(shoeGeo, shoeMat);
-    shoeR.position.set(0.16, 0.07, -0.04);
-
-    // Small backpack / hood detail using accent
-    const hood = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.05, 8, 14, Math.PI), accentMat);
-    hood.position.set(0, 1.22, 0.18);
-    hood.rotation.x = Math.PI * 0.15;
-
-    group.add(torso, head, capTop, capBrim, visor, leftShoulder, rightShoulder, armL, armR, legL, legR, shoeL, shoeR, hood);
+    group.add(
+      torso, shirt, hem, head, capDome, capBrim, capStrap, capButton, nape, shades,
+      pack, packPocket, bedroll, strapL, strapR, hood, armL, armR, legL, legR
+    );
+    this.shadowify(group);
     group.userData.legs = [legL, legR];
     group.userData.arms = [armL, armR];
     return group;
