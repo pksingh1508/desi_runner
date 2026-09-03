@@ -35,9 +35,12 @@ export function GameCanvas() {
     const game = new Game(host, store);
     gameRef.current = game;
     game.init();
+    // TEMPORARY visual-audit hook (removed before finishing).
+    (window as unknown as { __desiGame?: Game }).__desiGame = game;
     return () => {
       game.dispose();
       gameRef.current = null;
+      (window as unknown as { __desiGame?: Game }).__desiGame = undefined;
     };
   }, [store]);
 
