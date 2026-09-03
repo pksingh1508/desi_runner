@@ -17,7 +17,14 @@ export type CharacterArchetype =
   | "boy"
   | "girl"
   | "alien_slim"
-  | "alien_brute";
+  | "alien_brute"
+  | "ninja"
+  | "pilot"
+  | "pirate"
+  | "astronaut"
+  | "voltbot"
+  | "jackal"
+  | "pharaoh";
 export type CharacterSpecies = "ROBOT" | "HUMAN" | "ALIEN";
 
 export interface CharacterDefinition {
@@ -132,6 +139,90 @@ export const CHARACTERS: CharacterDefinition[] = [
     species: "ALIEN",
     icon: "👾",
     description: "Brute · Horns & bulk",
+  },
+  {
+    id: "shadow",
+    name: "SHADOW",
+    unlockLevel: 4,
+    tintHex: "#23262e",
+    accentHex: "#ff3b5c",
+    gradient: "linear-gradient(135deg,#0d0f16,#ff3b5c)",
+    archetype: "ninja",
+    species: "HUMAN",
+    icon: "🥷",
+    description: "Shadow clan · Hood & scarf",
+  },
+  {
+    id: "ace",
+    name: "ACE",
+    unlockLevel: 7,
+    tintHex: "#6b4a2f",
+    accentHex: "#ffd27a",
+    gradient: "linear-gradient(135deg,#2a1c10,#ffd27a)",
+    archetype: "pilot",
+    species: "HUMAN",
+    icon: "✈️",
+    description: "Sky captain · Goggles & scarf",
+  },
+  {
+    id: "corsair",
+    name: "CORSAIR",
+    unlockLevel: 9,
+    tintHex: "#7a2a2a",
+    accentHex: "#ffd27a",
+    gradient: "linear-gradient(135deg,#260f14,#ffd27a)",
+    archetype: "pirate",
+    species: "HUMAN",
+    icon: "🏴‍☠️",
+    description: "Sea rogue · Tricorn & coat",
+  },
+  {
+    id: "orbit",
+    name: "ORBIT",
+    unlockLevel: 11,
+    tintHex: "#dfe6ee",
+    accentHex: "#ffb84f",
+    gradient: "linear-gradient(135deg,#1a2a3a,#ffb84f)",
+    archetype: "astronaut",
+    species: "HUMAN",
+    icon: "🧑‍🚀",
+    description: "Star walker · Helmet & pack",
+  },
+  {
+    id: "volt",
+    name: "VOLT",
+    unlockLevel: 12,
+    tintHex: "#1c2230",
+    accentHex: "#37d3e0",
+    gradient: "linear-gradient(135deg,#0a1420,#37d3e0)",
+    archetype: "voltbot",
+    species: "ROBOT",
+    icon: "🎧",
+    description: "Speaker unit · Bass boost",
+  },
+  {
+    id: "anubis",
+    name: "ANUBIS",
+    unlockLevel: 13,
+    tintHex: "#1a1512",
+    accentHex: "#ffd27a",
+    gradient: "linear-gradient(135deg,#14100a,#ffd27a)",
+    archetype: "jackal",
+    species: "ALIEN",
+    icon: "🐺",
+    description: "Jackal guide · Ears & tail",
+  },
+  {
+    id: "ramses",
+    name: "RAMSES",
+    unlockLevel: 16,
+    tintHex: "#c99700",
+    accentHex: "#3fa9ff",
+    gradient: "linear-gradient(135deg,#2a1e05,#c99700)",
+    archetype: "pharaoh",
+    species: "HUMAN",
+    icon: "👑",
+    description: "Gold king · Nemes & cape",
   },
 ];
 
