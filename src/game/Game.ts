@@ -10,7 +10,6 @@ import { SaveService } from "./core/SaveService";
 import { Player } from "./player/Player";
 import { CharacterAnimationController } from "./player/CharacterAnimationController";
 import { PlayerFX } from "./player/PlayerFX";
-import { TrailRenderer } from "./player/TrailRenderer";
 import { InputSystem } from "./systems/InputSystem";
 import { CollisionSystem, type ColliderLike } from "./systems/CollisionSystem";
 import { ScoreSystem } from "./systems/ScoreSystem";
@@ -37,7 +36,7 @@ import type { Drone } from "./systems/RunEventSystem";
 import { MODEL_URL, ROCKET_FLIGHT, SPEED } from "./config/gameplay";
 import { MAGNET, TURBO } from "./config/powerups";
 import { BIOMES } from "./config/biomes";
-import { getCharacter, getTrail } from "./config/characters";
+import { getCharacter } from "./config/characters";
 import { clamp } from "./utils/math";
 
 const COUNTDOWN_STEP = 0.8;
@@ -68,7 +67,6 @@ export class Game {
   private playerFX = new PlayerFX();
   private world!: WorldManager;
   private biomeManager: BiomeManager | null = null;
-  private trail: TrailRenderer | null = null;
   private input: InputSystem | null = null;
   private collision = new CollisionSystem();
   private score = new ScoreSystem();
@@ -167,7 +165,6 @@ export class Game {
     };
 
     this.particles = new ParticleSystem(bundle.scene, this.bag);
-    this.trail = new TrailRenderer(bundle.scene, this.bag);
     bundle.scene.add(this.player.root);
     this.player.root.add(this.playerFX.root);
 
@@ -377,7 +374,6 @@ export class Game {
     this.world.reset();
     this.player.reset();
     this.particles?.clear();
-    this.trail?.clear();
     this.powerups.reset();
     this.combo.lifetimeBest = SaveService.get().stats.highestCombo;
     this.combo.reset();
@@ -433,7 +429,6 @@ export class Game {
     this.world.reset();
     this.player.reset();
     this.particles?.clear();
-    this.trail?.clear();
     this.powerups.reset();
     this.overdrive.reset();
     this.feedback.clear();
@@ -522,22 +517,11 @@ export class Game {
     this.store.bumpMetaVersion();
   }
 
-  equipTrail(id: string): void {
-    SaveService.update((s) => {
-      s.customization.trail = id;
-    });
-    this.applyCustomizationFromSave();
-    this.audio.unlock();
-    this.audio.playUnlock();
-    this.store.bumpMetaVersion();
-  }
-
   private applyCustomizationFromSave(): void {
     const save = SaveService.get();
     const character = getCharacter(save.customization.character);
-    // Distinct 3D rig per archetype (robot GLB vs boy/girl/alien procedurals).
+    // Distinct 3D rig per archetype (robot GLB vs procedural rigs).
     this.player.applyCharacter(character);
-    this.trail?.setTrail(save.customization.trail);
   }
 
   getDebugInfo() {
@@ -633,7 +617,6 @@ export class Game {
   private updateAmbient(delta: number, speed: number): void {
     this.world.update(delta, speed, 0, 0);
     this.particles?.update(delta, speed, 0);
-    this.trail?.update(delta, this.player.positionX, 0, speed, false);
     this.playerFX.update(delta);
     this.player.update(delta, 0);
     this.syncLights();
@@ -656,7 +639,6 @@ export class Game {
     this.difficulty.overrideSpeed(speed);
     this.player.update(delta, SPEED.countdownFactor);
     this.particles?.update(delta, speed, 0.15);
-    this.trail?.update(delta, this.player.positionX, 0, speed, false);
     this.playerFX.update(delta);
     this.syncLights();
     this.cameraRig!.updatePlaying(delta, this.player, 0.12, true);
@@ -745,7 +727,7 @@ export class Game {
     this.gatherNearbyKeys();
     this.gatherNearbyRockets();
     this.applyMagnet(delta);
-    // At flight height the trail sits just above the rig (y + ~0.05), so the
+    // At flight height the air coins sit just above the rig (y + ~0.05), so the
     // window centers there; on the ground it stays chest-centered as before.
     const collectHeight = this.player.isSliding ? 0.95 : this.player.isFlying ? 0.6 : 1.9;
     this.collision.collectCoins(
@@ -782,12 +764,9 @@ export class Game {
     if (this.player.isFlying) this.playerFX.setOverdrive(0.9);
     this.playerFX.update(delta);
 
-    // ---- camera/audio/trail channels driven by ramped intensities
+    // ---- camera/audio channels driven by ramped intensities
     const rocketFov = this.player.isFlying ? 7 : 0;
-    const rocketTrail = this.player.isFlying ? 1.7 : 0;
     this.cameraRig!.setFovBoost(this.powerups.turboFovBoost + OVERDRIVE_CFG.fovBoost * this.overdrive.ramp + rocketFov);
-    this.trail?.setIntensityBoost(this.overdrive.ramp * 1.6 + this.powerups.turboRamp * 1.1 + rocketTrail);
-    this.trail?.update(delta, this.player.positionX, this.player.positionY, effectiveSpeed, true);
 
     // Coin collection shrink animation.
     this.animateCollectingCoins(delta);
@@ -850,7 +829,6 @@ export class Game {
     this.animateCollectingCoins(delta);
     this.player.update(delta, 0);
     this.particles?.update(delta, this.deathSpeed, 0);
-    this.trail?.update(delta, this.player.positionX, 0, this.deathSpeed, false);
     this.playerFX.update(delta);
     this.syncLights();
     this.cameraRig!.updatePlaying(delta, this.player, 0, false);
@@ -1034,9 +1012,8 @@ export class Game {
     this.audio.playOverdriveActivate();
     this.particles?.emitBurst(this.player.positionX, 2.2, 0, 0xff4f4f, 0.55, 0.18, 22, 1.3);
     this.cameraRig?.addShake(0.32);
-    // FOV + trail boost for flight feel
+    // FOV boost for flight feel
     this.cameraRig?.setFovBoost(6);
-    this.trail?.setIntensityBoost(1.4);
   }
 
   private activatePowerUp(type: HudPowerUp["type"], x: number, y: number): void {
@@ -1369,7 +1346,6 @@ export class Game {
       this.rendererHandle.renderer.setAnimationLoop(null);
     }
     if (this.world && this.sceneBundle) this.world.dispose(this.sceneBundle.scene);
-    this.trail?.dispose(this.sceneBundle?.scene ?? new THREE.Scene());
     this.particles?.dispose(this.sceneBundle?.scene ?? new THREE.Scene());
     if (this.sceneBundle) disposeObjectTree(this.sceneBundle.scene);
     this.bag.dispose();
