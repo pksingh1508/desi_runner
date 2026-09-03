@@ -118,6 +118,10 @@ export const PATTERN = {
   /** Empty (breather) patterns get +this weight per difficulty tier so late
    * runs keep recovery windows instead of wall-to-wall obstacles. */
   breatherBonusPerTier: 0.9,
+  /** Jump-arc coins grow by up to +this fraction (height and span) from start
+   * to max speed, tracking the longer/faster jump trajectory so high-speed
+   * arcs stay collectible instead of flat and out of reach. */
+  arcSpeedBoost: 0.35,
 } as const;
 
 export const COLORS = {

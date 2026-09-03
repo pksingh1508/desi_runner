@@ -42,7 +42,7 @@ function arc(lane: number, zCenter: number, peak = 2.7, count = 7, span = 12): P
     const t = count === 1 ? 0.5 : i / (count - 1);
     const z = zCenter + span / 2 - t * span;
     const y = 0.75 + Math.sin(t * Math.PI) * peak;
-    out.push({ x: LANES[lane], z, y });
+    out.push({ x: LANES[lane], z, y, arc: true });
   }
   return out;
 }

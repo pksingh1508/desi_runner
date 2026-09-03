@@ -22,7 +22,7 @@ import {
 } from "@/game/config/powerups";
 import { PATTERN, ROCKET_TRAIL, SPEED, WORLD } from "@/game/config/gameplay";
 import type { PowerUpType } from "@/types/game";
-import { weightedIndex } from "@/game/utils/math";
+import { weightedIndex, clamp } from "@/game/utils/math";
 
 /**
  * Owns the recycled segment ring plus obstacle/coin/pickup pools.
@@ -483,6 +483,32 @@ export class WorldManager {
     };
     applyShifts();
 
+    // Speed-scaled jump arcs: at higher speed the runner's jump carries much
+    // farther, so arc coins rise higher and spread wider around their lane's
+    // obstacle (1.0× at start speed → 1+arcSpeedBoost at max). Ground coin
+    // lines are untouched.
+    const arcK =
+      1 +
+      clamp((speed - SPEED.start) / (SPEED.max - SPEED.start), 0, 1) * PATTERN.arcSpeedBoost;
+    if (arcK > 1.01) {
+      for (const c of coins) {
+        if (!c.arc || c.y === undefined) continue;
+        let anchor: number | null = null;
+        let bestDz = 9;
+        for (const o of obstacles) {
+          if (Math.abs(laneIndexToX(o.lane) - c.x) > 0.01) continue;
+          const dz = Math.abs(o.z - c.z);
+          if (dz < bestDz) {
+            bestDz = dz;
+            anchor = o.z;
+          }
+        }
+        if (anchor === null) continue;
+        c.z = anchor + (c.z - anchor) * arcK;
+        c.y = ARC_BASE_Y + (c.y - ARC_BASE_Y) * arcK;
+      }
+    }
+
     // Segment budget: never push the tail past maxTailZ. If stretching
     // overflowed, drop farthest rows (coins stay — free rewards, no threat)
     // until the pattern fits; the nearest row always fits (heads ≥ -12).
@@ -678,3 +704,6 @@ export class WorldManager {
 export function laneIndexToX(lane: number): number {
   return -2.5 + lane * 2.5;
 }
+
+/** Ground level the authored jump arcs rise from (see patterns.ts arc()). */
+const ARC_BASE_Y = 0.75;
