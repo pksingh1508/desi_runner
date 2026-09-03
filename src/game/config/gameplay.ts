@@ -185,4 +185,20 @@ export const PICKUP_VISUAL = {
   rocketFlameOpacity: 0.9,
 } as const;
 
+/**
+ * Rocket-flight coin trail: coins arrive in ~1s bursts separated by ~1s gaps
+ * (each burst holds one lane so the player weaves between paydays) instead
+ * of one endless line. Distances derive from flight speed × time so the trail
+ * always covers the whole flight.
+ */
+export const ROCKET_TRAIL = {
+  coinY: 4.45,
+  leadDistance: 10,
+  burstSeconds: 1.0,
+  gapSeconds: 1.0,
+  coinSpacing: 3.0,
+  /** Trail covers the flight plus this buffer (speed keeps ramping mid-flight). */
+  extraSeconds: 1.4,
+} as const;
+
 export const MODEL_URL = "/models/robot_expressive.glb";

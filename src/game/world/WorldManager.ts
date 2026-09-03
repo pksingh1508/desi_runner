@@ -20,7 +20,7 @@ import {
   POWERUP_DEFS,
   POWERUP_SPAWN,
 } from "@/game/config/powerups";
-import { PATTERN, SPEED, WORLD } from "@/game/config/gameplay";
+import { PATTERN, ROCKET_TRAIL, SPEED, WORLD } from "@/game/config/gameplay";
 import type { PowerUpType } from "@/types/game";
 import { weightedIndex } from "@/game/utils/math";
 
@@ -101,21 +101,33 @@ export class WorldManager {
     }
   }
 
-  /** Spawn a high coin trail for rocket flight (elevated, lane-weaving). */
-  spawnRocketCoinTrail(zStart: number): void {
-    const y = 4.45;
-    // 22 coins weaving across lanes, ~2.8m spacing => ~60m trail
-    for (let i = 0; i < 22; i++) {
-      const lane = i % 3;
+  /** High coin trail for rocket flight: ~1s single-lane bursts with ~1s
+   * gaps (weave between paydays) spanning the whole flight plus a buffer.
+   * @param flightSeconds expected flight duration @param speed world speed now
+   */
+  spawnRocketCoinTrail(zStart: number, flightSeconds: number, speed: number): void {
+    const burstLen = ROCKET_TRAIL.burstSeconds * speed;
+    const gapLen = ROCKET_TRAIL.gapSeconds * speed;
+    const totalLen = speed * (flightSeconds + ROCKET_TRAIL.extraSeconds);
+    let distance = ROCKET_TRAIL.leadDistance;
+    let prevLane = -1;
+    while (distance < totalLen) {
+      // One lane per burst; never repeat the previous lane back-to-back so
+      // every gap ends in a visible, rewarding lane change.
+      let lane = Math.floor(Math.random() * 3);
+      if (lane === prevLane) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
+      prevLane = lane;
       const x = -2.5 + lane * 2.5;
-      // Slight wave: stagger every 3rd coin center to reward lane changes
-      const z = zStart - i * 2.9 - (i % 2) * 0.6;
-      const coin = this.acquireCoin();
-      coin.place(x, z, y);
-      // Make air coins slightly larger / brighter for emphasis
-      coin.mesh.scale.setScalar(1.12);
-      this.root.add(coin.mesh);
-      this.dynamicCoins.push(coin);
+      const burstEnd = Math.min(distance + burstLen, totalLen);
+      for (let d = distance; d < burstEnd; d += ROCKET_TRAIL.coinSpacing) {
+        const coin = this.acquireCoin();
+        coin.place(x, zStart - d, ROCKET_TRAIL.coinY);
+        // Air coins read slightly larger/brighter at flight height.
+        coin.mesh.scale.setScalar(1.12);
+        this.root.add(coin.mesh);
+        this.dynamicCoins.push(coin);
+      }
+      distance = burstEnd + gapLen;
     }
   }
 
