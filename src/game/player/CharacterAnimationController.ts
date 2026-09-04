@@ -4,9 +4,6 @@ import { PLAYER } from "@/game/config/gameplay";
 
 const FADE_FAST = 0.14;
 const FADE_DEATH = 0.1;
-const SLIDE_BLEND_TIME = 0.06;
-const SLIDE_ENTER_TIME = 0.18;
-const SLIDE_EXIT_TIME = 0.14;
 /** Expected jump airtime from gameplay constants (v/g * 2). */
 const EXPECTED_AIRTIME = (2 * PLAYER.jumpVelocity) / PLAYER.gravity;
 
@@ -96,7 +93,7 @@ export class CharacterAnimationController {
     if (mapping.slide) {
       const slideTimeScale = nativeSlide
         ? mapping.slide.duration / PLAYER.slideDuration
-        : mapping.slide.duration / SLIDE_ENTER_TIME;
+        : mapping.slide.duration / PLAYER.slideEnterTime;
       register("slide", mapping.slide, THREE.LoopOnce, slideTimeScale);
     }
     register("death", mapping.death ?? mapping.idle, THREE.LoopOnce);
@@ -133,9 +130,9 @@ export class CharacterAnimationController {
   private buildSlideOverlay(): void {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
-    const holdUntil = duration - SLIDE_EXIT_TIME;
-    const entryEaseTime = SLIDE_ENTER_TIME * 0.42;
-    const exitEaseTime = duration - SLIDE_EXIT_TIME * 0.42;
+    const holdUntil = duration - PLAYER.slideExitTime;
+    const entryEaseTime = PLAYER.slideEnterTime * 0.42;
+    const exitEaseTime = duration - PLAYER.slideExitTime * 0.42;
     const makePose = (weight: number): THREE.Quaternion => new THREE.Quaternion().setFromEuler(
       new THREE.Euler(
         PLAYER.slidePitchAngle * weight,
@@ -151,7 +148,7 @@ export class CharacterAnimationController {
 
     const quaternionTrack = new THREE.QuaternionKeyframeTrack(
       "SlidePivot.quaternion",
-      [0, entryEaseTime, SLIDE_ENTER_TIME, holdUntil, exitEaseTime, duration],
+      [0, entryEaseTime, PLAYER.slideEnterTime, holdUntil, exitEaseTime, duration],
       [
         identity.x, identity.y, identity.z, identity.w,
         entryEaseQ.x, entryEaseQ.y, entryEaseQ.z, entryEaseQ.w,
@@ -167,7 +164,7 @@ export class CharacterAnimationController {
     const exitShift = PLAYER.slideShiftZ * 0.28;
     const shiftTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
-      [0, entryEaseTime, SLIDE_ENTER_TIME, holdUntil, exitEaseTime, duration],
+      [0, entryEaseTime, PLAYER.slideEnterTime, holdUntil, exitEaseTime, duration],
       [
         0, 0, 0,
         0, easedLift, easedShift,
@@ -223,7 +220,7 @@ export class CharacterAnimationController {
     next.reset(); // restart clip; also clears any stale fades/warps
     if (state === "run") next.timeScale = this.currentRunTimeScale();
     next.setEffectiveWeight(1);
-    const fadeDuration = state === "slide" ? SLIDE_BLEND_TIME : FADE_FAST;
+    const fadeDuration = state === "slide" ? PLAYER.slideBlendTime : FADE_FAST;
     next.fadeIn(fadeDuration);
     next.play();
 

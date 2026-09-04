@@ -2357,19 +2357,24 @@ export class Player {
       // full scale so it reads as a rotation, never a vertical squash.
       group.position.y = 0;
       group.scale.set(1, 1, 1);
+      const slideElapsed = PLAYER.slideDuration - this.slideTimeLeft;
+      const enterWeight = clamp(slideElapsed / PLAYER.slideEnterTime, 0, 1);
+      const exitWeight = clamp(this.slideTimeLeft / PLAYER.slideExitTime, 0, 1);
+      const poseWeight = Math.min(enterWeight, exitWeight);
+      const limbDamp = 18;
       if (legs) {
-        legs[0].rotation.x = 0.95;
-        legs[1].rotation.x = 0.38;
-        legs[0].rotation.z = -0.12;
-        legs[1].rotation.z = 0.28;
-        legs[0].position.z = -0.14;
-        legs[1].position.z = -0.04;
+        legs[0].rotation.x = damp(legs[0].rotation.x, 0.95 * poseWeight, limbDamp, delta);
+        legs[1].rotation.x = damp(legs[1].rotation.x, 0.38 * poseWeight, limbDamp, delta);
+        legs[0].rotation.z = damp(legs[0].rotation.z, -0.12 * poseWeight, limbDamp, delta);
+        legs[1].rotation.z = damp(legs[1].rotation.z, 0.28 * poseWeight, limbDamp, delta);
+        legs[0].position.z = damp(legs[0].position.z, -0.14 * poseWeight, limbDamp, delta);
+        legs[1].position.z = damp(legs[1].position.z, -0.04 * poseWeight, limbDamp, delta);
       }
       if (arms && arms.length >= 2) {
-        arms[0].rotation.x = -0.38;
-        arms[1].rotation.x = -0.72;
-        arms[0].rotation.z = -1.12;
-        arms[1].rotation.z = 0.3;
+        arms[0].rotation.x = damp(arms[0].rotation.x, -0.38 * poseWeight, limbDamp, delta);
+        arms[1].rotation.x = damp(arms[1].rotation.x, -0.72 * poseWeight, limbDamp, delta);
+        arms[0].rotation.z = damp(arms[0].rotation.z, -1.12 * poseWeight, limbDamp, delta);
+        arms[1].rotation.z = damp(arms[1].rotation.z, 0.3 * poseWeight, limbDamp, delta);
       }
     } else {
       group.scale.set(1, 1, 1);

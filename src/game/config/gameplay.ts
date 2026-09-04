@@ -23,6 +23,11 @@ export const PLAYER = {
   /** Extra downward velocity when slide is requested mid-air. */
   fastFallVelocity: 30,
   slideDuration: 0.85,
+  /** Time to roll fully into and recover from the low slide pose. */
+  slideEnterTime: 0.18,
+  slideExitTime: 0.14,
+  /** Short mixer blend removes a hard cut while keeping the input immediate. */
+  slideBlendTime: 0.06,
   /** Side roll (radians) used by the reference-style shoulder slide. The
    * negative sign drops the runner onto their right side from the rear view. */
   slideRollAngle: -1.34,
