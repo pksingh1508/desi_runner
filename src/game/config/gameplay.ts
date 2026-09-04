@@ -23,11 +23,16 @@ export const PLAYER = {
   /** Extra downward velocity when slide is requested mid-air. */
   fastFallVelocity: 30,
   slideDuration: 0.85,
-  /** Lean-back angle (radians) of the slide pose: a reclined feet-first
-   * powerslide (~62°), not an upright sit. Head lands ≈ slide height. */
-  slideLeanAngle: 1.08,
-  /** Forward (-Z) shift of the rig while sliding so the feet lead. */
-  slideShiftZ: -0.3,
+  /** Side roll (radians) used by the reference-style shoulder slide. The
+   * negative sign drops the runner onto their right side from the rear view. */
+  slideRollAngle: -1.34,
+  /** Small backward pitch keeps the pose dimensional instead of reading as
+   * a flat sprite rotated across the track. */
+  slidePitchAngle: 0.12,
+  /** Lift prevents the downhill hand/foot from clipping through the road. */
+  slideVisualLift: 0.1,
+  /** Slight forward (-Z) drive gives the low pose a committed glide. */
+  slideShiftZ: -0.18,
   /** Seconds a jump press stays buffered before landing. */
   jumpBufferTime: 0.12,
   /** Visual roll while switching lanes (radians per meter of offset). */

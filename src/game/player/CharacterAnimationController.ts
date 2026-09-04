@@ -4,8 +4,9 @@ import { PLAYER } from "@/game/config/gameplay";
 
 const FADE_FAST = 0.14;
 const FADE_DEATH = 0.1;
-const SLIDE_ENTER_TIME = 0.14;
-const SLIDE_EXIT_TIME = 0.16;
+const SLIDE_BLEND_TIME = 0.06;
+const SLIDE_ENTER_TIME = 0.18;
+const SLIDE_EXIT_TIME = 0.14;
 /** Expected jump airtime from gameplay constants (v/g * 2). */
 const EXPECTED_AIRTIME = (2 * PLAYER.jumpVelocity) / PLAYER.gravity;
 
@@ -65,9 +66,8 @@ export class CharacterAnimationController {
       walk: findClip(clips, "walking", "walk"),
       jump: findClip(clips, "jump"),
       // Only a purpose-built slide clip is used here. Falling back to
-      // "Sitting" made every slide read as sitting down — the procedural
-      // lay-back overlay below carries the pose instead, reclined over the
-      // run cycle like a powerslide with driving feet.
+      // "Sitting" made every slide read as sitting down. The model-independent
+      // overlay below supplies the reference video's right-side shoulder roll.
       slide: nativeSlide,
       death: findClip(clips, "death"),
     };
@@ -106,8 +106,8 @@ export class CharacterAnimationController {
       this.mixer.addEventListener("finished", this.handleFinished);
     }
 
-    // A native slide already owns the full body pose. Otherwise layer a
-    // model-independent low/forward transform over Sitting (or use it alone).
+    // A native slide already owns the full body pose. Otherwise use a
+    // model-independent low right-side transform around the whole character.
     if (!nativeSlide) this.buildSlideOverlay();
 
     // Start from Idle; every other state is entered via setState() crossfades.
@@ -119,12 +119,12 @@ export class CharacterAnimationController {
   }
 
   /**
-   * Procedural keyframe overlay (Vector/Quaternion tracks) that poses the
-   * visible character as a real track glide: torso leaned BACK (head up,
-   * feet leading forward), pivoting about the feet so nothing sinks under
-   * the road. Most GLB characters ship no dedicated slide animation, so this
-   * is layered over a crouched skeletal pose when one is available. Final
-   * keys return to identity so interruptions and unclamping are seamless.
+   * Procedural keyframe overlay (Vector/Quaternion tracks) matching the
+   * reference's shoulder slide: the runner drops quickly onto their right
+   * hip/shoulder, stays almost horizontal beneath the gate, then rolls back
+   * to their feet. It pivots around the planted feet and lifts just enough to
+   * keep the downhill limbs above the road. Final keys return to identity so
+   * interruptions and unclamping are seamless.
    *
    * Deliberately no scale squash: scaling Y read as "shrink into the ground"
    * instead of sliding, and it stacked with the procedural rig's own crouch
@@ -134,30 +134,48 @@ export class CharacterAnimationController {
     if (!this.mixer) return;
     const duration = PLAYER.slideDuration;
     const holdUntil = duration - SLIDE_EXIT_TIME;
-    // Powerslide: recline hard about the feet (pivot origin), head up toward
-    // +Z (backward, since forward is -Z), feet planted at y=0 and leading.
-    // Head height ≈ standingHeight * cos(lean) ≈ slide collider height, so
-    // duck-gate beams (underside 1.45m) clear with room to spare.
-    const tilt = new THREE.Quaternion();
-    const tiltQ = tilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0), PLAYER.slideLeanAngle);
+    const entryEaseTime = SLIDE_ENTER_TIME * 0.42;
+    const exitEaseTime = duration - SLIDE_EXIT_TIME * 0.42;
+    const makePose = (weight: number): THREE.Quaternion => new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(
+        PLAYER.slidePitchAngle * weight,
+        0,
+        PLAYER.slideRollAngle * weight,
+        "XYZ"
+      )
+    );
     const identity = new THREE.Quaternion();
+    const entryEaseQ = makePose(0.24);
+    const slideQ = makePose(1);
+    const exitEaseQ = makePose(0.28);
 
     const quaternionTrack = new THREE.QuaternionKeyframeTrack(
       "SlidePivot.quaternion",
-      [0, SLIDE_ENTER_TIME, holdUntil, duration],
+      [0, entryEaseTime, SLIDE_ENTER_TIME, holdUntil, exitEaseTime, duration],
       [
         identity.x, identity.y, identity.z, identity.w,
-        tiltQ.x, tiltQ.y, tiltQ.z, tiltQ.w,
-        tiltQ.x, tiltQ.y, tiltQ.z, tiltQ.w,
+        entryEaseQ.x, entryEaseQ.y, entryEaseQ.z, entryEaseQ.w,
+        slideQ.x, slideQ.y, slideQ.z, slideQ.w,
+        slideQ.x, slideQ.y, slideQ.z, slideQ.w,
+        exitEaseQ.x, exitEaseQ.y, exitEaseQ.z, exitEaseQ.w,
         identity.x, identity.y, identity.z, identity.w,
       ]
     );
-    // Feet stay planted at y=0 (never below the track); the rig shifts
-    // forward (-Z) so the feet lead the slide under the collider.
+    const easedLift = PLAYER.slideVisualLift * 0.24;
+    const easedShift = PLAYER.slideShiftZ * 0.24;
+    const exitLift = PLAYER.slideVisualLift * 0.28;
+    const exitShift = PLAYER.slideShiftZ * 0.28;
     const shiftTrack = new THREE.VectorKeyframeTrack(
       "SlidePivot.position",
-      [0, SLIDE_ENTER_TIME, holdUntil, duration],
-      [0, 0, 0, 0, 0, PLAYER.slideShiftZ, 0, 0, PLAYER.slideShiftZ, 0, 0, 0]
+      [0, entryEaseTime, SLIDE_ENTER_TIME, holdUntil, exitEaseTime, duration],
+      [
+        0, 0, 0,
+        0, easedLift, easedShift,
+        0, PLAYER.slideVisualLift, PLAYER.slideShiftZ,
+        0, PLAYER.slideVisualLift, PLAYER.slideShiftZ,
+        0, exitLift, exitShift,
+        0, 0, 0,
+      ]
     );
     const clip = new THREE.AnimationClip("NeonSlideOverlay", duration, [
       quaternionTrack,
@@ -205,7 +223,8 @@ export class CharacterAnimationController {
     next.reset(); // restart clip; also clears any stale fades/warps
     if (state === "run") next.timeScale = this.currentRunTimeScale();
     next.setEffectiveWeight(1);
-    next.fadeIn(isLooping ? FADE_FAST : FADE_FAST);
+    const fadeDuration = state === "slide" ? SLIDE_BLEND_TIME : FADE_FAST;
+    next.fadeIn(fadeDuration);
     next.play();
 
     if (state === "slide" && this.slideOverlayAction && this.slideOverlayAction !== next) {
@@ -216,7 +235,7 @@ export class CharacterAnimationController {
     }
 
     if (prev && prev !== next && prev.isRunning()) {
-      prev.fadeOut(state === "death" ? FADE_DEATH : FADE_FAST);
+      prev.fadeOut(state === "death" ? FADE_DEATH : fadeDuration);
     } else if (prev && prev !== next) {
       prev.stop();
     }
@@ -264,6 +283,11 @@ export class CharacterAnimationController {
 
   get state(): PlayerAnimationState | null {
     return this.currentState;
+  }
+
+  /** True when this controller owns SlidePivot's transform during a slide. */
+  get ownsSlidePivot(): boolean {
+    return this.slideOverlayAction !== null;
   }
 
   dispose(): void {

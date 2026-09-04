@@ -222,25 +222,35 @@ export class Player {
       this.animation?.setRunSpeedRatio(speedRatio * 1.15);
       return;
     } else {
-      // Reset lay-down lean when not flying. While sliding, the lean-back
-      // pose is owned by the mixer's slide overlay — except before the GLB
-      // loads (or if it failed), when no overlay exists and the pivot is
-      // eased manually so the fallback rig still glides instead of squashing.
+      // Reset the whole-character pose when not flying. While sliding, the
+      // right-side roll is owned by the mixer's overlay — except before the
+      // GLB loads (or if it failed), when the same pose is eased manually.
+      const mixerOwnsSlidePivot = this.sliding && Boolean(this.animation?.ownsSlidePivot);
       const manualSlide = this.sliding && !this.animation?.hasClips;
-      this.pivot.rotation.x = damp(
-        this.pivot.rotation.x,
-        manualSlide ? PLAYER.slideLeanAngle : 0,
-        manualSlide ? 12 : 8,
-        delta
-      );
-      // The overlay overwrites position while it runs; easing here only
-      // takes effect when it is idle, pulling stale offsets back to center.
-      this.pivot.position.z = damp(
-        this.pivot.position.z,
-        manualSlide ? PLAYER.slideShiftZ : 0,
-        10,
-        delta
-      );
+      // AnimationMixer assumes exclusive ownership of a bound property. Do
+      // not touch the pivot while its keyframe action is holding a pose: the
+      // mixer's unchanged-output cache would otherwise let these damped
+      // values leak through and slowly collapse the side roll.
+      if (!mixerOwnsSlidePivot) {
+        this.pivot.rotation.x = damp(
+          this.pivot.rotation.x,
+          manualSlide ? PLAYER.slidePitchAngle : 0,
+          manualSlide ? 14 : 8,
+          delta
+        );
+        this.pivot.position.y = damp(
+          this.pivot.position.y,
+          manualSlide ? PLAYER.slideVisualLift : 0,
+          manualSlide ? 14 : 10,
+          delta
+        );
+        this.pivot.position.z = damp(
+          this.pivot.position.z,
+          manualSlide ? PLAYER.slideShiftZ : 0,
+          10,
+          delta
+        );
+      }
       this.modelHolder.rotation.x = damp(this.modelHolder.rotation.x, 0, 9, delta);
       this.modelHolder.position.z = damp(this.modelHolder.position.z, 0, 9, delta);
       this.modelHolder.position.y = damp(this.modelHolder.position.y, 0, 9, delta);
@@ -300,8 +310,18 @@ export class Player {
 
     // Visual polish.
     const lateralOffset = targetX - this.root.position.x;
-    const targetRoll = -lateralOffset * PLAYER.laneRollFactor;
-    this.pivot.rotation.z = damp(this.pivot.rotation.z, targetRoll, 12, delta);
+    const laneRoll = -lateralOffset * PLAYER.laneRollFactor;
+    const mixerOwnsSlidePivot = this.sliding && Boolean(this.animation?.ownsSlidePivot);
+    const manualSlide = this.sliding && !this.animation?.hasClips;
+    const targetRoll = manualSlide ? PLAYER.slideRollAngle : laneRoll;
+    if (!mixerOwnsSlidePivot) {
+      this.pivot.rotation.z = damp(
+        this.pivot.rotation.z,
+        targetRoll,
+        manualSlide ? 15 : 12,
+        delta
+      );
+    }
 
     if (this.grounded && !this.sliding) {
       this.runPhase += delta * (6 + speedRatio * 9);
@@ -2287,6 +2307,8 @@ export class Player {
       this.relaxProceduralScale(group, delta);
       legs[0].rotation.x = 0.05;
       legs[1].rotation.x = 0.05;
+      legs[0].rotation.z = 0;
+      legs[1].rotation.z = 0;
       if (arms && arms.length >= 2) {
         arms[0].rotation.x = -0.15;
         arms[0].rotation.z = -0.25;
@@ -2302,6 +2324,8 @@ export class Player {
       group.scale.set(1, 1, 1);
       legs[0].rotation.x = swing * 0.9;
       legs[1].rotation.x = -swing * 0.9;
+      legs[0].rotation.z = 0;
+      legs[1].rotation.z = 0;
       legs[0].position.z = 0;
       legs[1].position.z = 0;
       if (arms && arms.length >= 2) {
@@ -2317,6 +2341,8 @@ export class Player {
       legs[1].position.z = 0;
       legs[0].rotation.x = 0.5;
       legs[1].rotation.x = -0.35;
+      legs[0].rotation.z = 0;
+      legs[1].rotation.z = 0;
       if (arms && arms.length >= 2) {
         // Arms thrown up-back (classic jump silhouette from the rear camera).
         arms[0].rotation.x = -2.2;
@@ -2325,32 +2351,33 @@ export class Player {
         arms[1].rotation.z = 0.25;
       }
     } else if (this.sliding) {
-      // Subway-style baseball slide ON the track surface: the lean-back tilt
-      // comes from the SlidePivot (mixer overlay, or the manual lean below),
-      // so the rig itself stays at full scale — squashing here stacked with
-      // the pivot into a "shrink into the ground" pancake. Limbs just strike
-      // the pose: legs kicked forward (-Z), arms swept back for balance.
+      // Match the reference's asymmetric shoulder slide. SlidePivot rolls the
+      // whole runner onto the right side; the upper arm reaches outward while
+      // one leg drives forward and the other tucks slightly. The rig remains
+      // full scale so it reads as a rotation, never a vertical squash.
       group.position.y = 0;
       group.scale.set(1, 1, 1);
       if (legs) {
-        // Limbs pivot at hip/shoulder joints now: thrown forward under the
-        // reclined torso so the feet spearhead the slide.
-        legs[0].rotation.x = 0.8;
-        legs[1].rotation.x = 0.8;
-        legs[0].position.z = -0.12;
-        legs[1].position.z = -0.12;
+        legs[0].rotation.x = 0.95;
+        legs[1].rotation.x = 0.38;
+        legs[0].rotation.z = -0.12;
+        legs[1].rotation.z = 0.28;
+        legs[0].position.z = -0.14;
+        legs[1].position.z = -0.04;
       }
-      if (arms) {
-        arms[0].rotation.x = -0.85;
-        arms[1].rotation.x = -0.85;
-        arms[0].rotation.z = -0.45;
-        arms[1].rotation.z = 0.45;
+      if (arms && arms.length >= 2) {
+        arms[0].rotation.x = -0.38;
+        arms[1].rotation.x = -0.72;
+        arms[0].rotation.z = -1.12;
+        arms[1].rotation.z = 0.3;
       }
     } else {
       group.scale.set(1, 1, 1);
       if (legs) {
         legs[0].position.z = 0;
         legs[1].position.z = 0;
+        legs[0].rotation.z = 0;
+        legs[1].rotation.z = 0;
       }
       if (arms && arms.length >= 2) {
         arms[0].rotation.z = 0;
