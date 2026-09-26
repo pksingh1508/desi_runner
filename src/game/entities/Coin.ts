@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
-import { COIN, COLORS } from "@/game/config/gameplay";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { COIN } from "@/game/config/gameplay";
 
 /**
  * Collectible energy token. Visuals are code-driven (spin + bob); collection
@@ -14,6 +15,8 @@ export class Coin {
   collected = false;
   /** When magnetized, visual bobbing is suspended so attraction stays smooth. */
   attracted = false;
+  /** Seconds spent homing (drives the chase acceleration). */
+  magnetTime = 0;
 
   localZ = 0;
   baseY: number = COIN.baseY;
@@ -41,6 +44,7 @@ export class Coin {
     this.active = true;
     this.collected = false;
     this.attracted = false;
+    this.magnetTime = 0;
     this.age = Math.random() * 10;
     this.phase = Math.random() * Math.PI * 2;
     this.mesh.visible = true;
@@ -68,6 +72,31 @@ export class Coin {
     this.mesh.rotation.y += COIN.spinSpeed * 2.2 * delta;
   }
 
+  /**
+   * Magnet homing in WORLD space: moves toward (targetX, targetY, z=0) at
+   * `chaseSpeed` (+ acceleration over time), compensating for the parent
+   * segment's scroll so the pursuit is exact. Never overshoots the target.
+   */
+  home(targetX: number, targetY: number, chaseSpeed: number, accel: number, delta: number): void {
+    this.magnetTime += delta;
+    const parentZ = this.mesh.parent?.position.z ?? 0;
+    const p = this.mesh.position;
+    const worldZ = this.localZ + parentZ;
+    const dx = targetX - p.x;
+    const dy = targetY - p.y;
+    const dz = -worldZ;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist > 1e-4) {
+      const speed = chaseSpeed + this.magnetTime * accel;
+      const step = Math.min(dist, speed * delta) / dist;
+      p.x += dx * step;
+      p.y += dy * step;
+      this.localZ = worldZ + dz * step - parentZ;
+      p.z = this.localZ;
+    }
+    this.mesh.rotation.y += COIN.spinSpeed * 3 * delta;
+  }
+
   /** Quick scale-out pop when collected; returns true once shrink finished. */
   playCollection(delta: number): boolean {
     const next = this.mesh.scale.x - delta * 6;
@@ -83,96 +112,61 @@ export class Coin {
   }
 }
 
-/** Shares geometries/materials across every coin instance for a Game session. */
+/**
+ * Shares ONE merged geometry + material across every coin: rim, both faces
+ * and the bright edge ring are baked into a single vertex-colored mesh, so a
+ * coin costs one draw call (plus one in the shadow pass) instead of four.
+ */
 export class CoinFactory {
-  private sideGeometry: THREE.CylinderGeometry;
-  private capGeometry: THREE.CircleGeometry;
-  private edgeGeometry: THREE.TorusGeometry;
-  private sideMaterial: THREE.MeshStandardMaterial;
-  private capMaterial: THREE.MeshStandardMaterial;
-  private capMaterialBack: THREE.MeshStandardMaterial;
-  private edgeMaterial: THREE.MeshStandardMaterial;
-  private capOffset: number;
+  private geometry: THREE.BufferGeometry;
+  private material: THREE.MeshStandardMaterial;
 
   constructor(bag: ResourceBag) {
-    // Pure-gold disc — slightly larger than the old token for readability.
+    // Pure-gold disc — large and sign-free for outdoor readability.
     const r = COIN.radius;
     const half = COIN.thickness / 2;
-    this.sideGeometry = bag.geo(new THREE.CylinderGeometry(r, r, COIN.thickness, 26));
-    this.capGeometry = bag.geo(new THREE.CircleGeometry(r - 0.015, 26));
-    this.edgeGeometry = bag.geo(new THREE.TorusGeometry(r, 0.02, 10, 28));
-    this.capOffset = half + 0.001;
-
-    // Solid gold, no texture/emblem: bright face that survives daylight.
-    this.sideMaterial = bag.mat(
+    const paint = (geometry: THREE.BufferGeometry, hex: number): THREE.BufferGeometry => {
+      const color = new THREE.Color(hex);
+      const count = geometry.getAttribute("position").count;
+      const colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      return geometry;
+    };
+    const side = paint(new THREE.CylinderGeometry(r, r, COIN.thickness, 26, 1, true), 0xd99a00);
+    side.rotateX(Math.PI / 2); // axis → Z: the disc faces the runner
+    const front = paint(new THREE.CircleGeometry(r - 0.015, 26), 0xfdd013);
+    front.translate(0, 0, half + 0.001);
+    const back = paint(new THREE.CircleGeometry(r - 0.015, 26), 0xf5c400);
+    back.rotateY(Math.PI);
+    back.translate(0, 0, -(half + 0.001));
+    const edge = paint(new THREE.TorusGeometry(r, 0.02, 10, 28), 0xffe27a);
+    const parts = [side, front, back, edge];
+    const merged = mergeGeometries(parts, false);
+    for (const part of parts) part.dispose();
+    if (!merged) throw new Error("[DESI RUN] coin geometry merge failed");
+    this.geometry = bag.geo(merged);
+    this.material = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0xd99a00,
-        emissive: 0x6b4a00,
-        emissiveIntensity: 0.35,
-        metalness: 0.75,
-        roughness: 0.3,
-      })
-    );
-    this.capMaterial = bag.mat(
-      new THREE.MeshStandardMaterial({
-        color: 0xfdd013,
-        emissive: 0x7a5c00,
-        emissiveIntensity: 0.35,
-        metalness: 0.7,
-        roughness: 0.26,
-      })
-    );
-    this.capMaterialBack = bag.mat(
-      new THREE.MeshStandardMaterial({
-        color: 0xfdd013,
-        emissive: 0x7a5c00,
-        emissiveIntensity: 0.35,
-        metalness: 0.7,
-        roughness: 0.26,
-      })
-    );
-    this.edgeMaterial = bag.mat(
-      new THREE.MeshStandardMaterial({
-        color: 0xffe27a,
-        emissive: 0x8c6a00,
-        emissiveIntensity: 0.4,
-        metalness: 0.65,
-        roughness: 0.3,
+        vertexColors: true,
+        emissive: 0x6f4f00,
+        emissiveIntensity: 0.36,
+        metalness: 0.72,
+        roughness: 0.28,
       })
     );
   }
 
   create(): THREE.Group {
     const group = new THREE.Group();
-
-    const rim = new THREE.Mesh(this.sideGeometry, this.sideMaterial);
-    // Cylinder default axis is Y — rotate to face the camera (axis -> Z)
-    rim.rotation.x = Math.PI / 2;
-    rim.castShadow = true;
-    rim.receiveShadow = true;
-    group.add(rim);
-
-    const top = new THREE.Mesh(this.capGeometry, this.capMaterial);
-    top.position.z = this.capOffset;
-    // Circle faces +Z by default — no rotation needed
-    top.castShadow = true;
-    top.receiveShadow = true;
-    group.add(top);
-
-    const bottom = new THREE.Mesh(this.capGeometry, this.capMaterialBack);
-    bottom.position.z = -this.capOffset;
-    bottom.rotation.y = Math.PI;
-    group.add(bottom);
-
-    // Bright outer rim torus for extra outdoor edge contrast (ring in XY)
-    const edge = new THREE.Mesh(this.edgeGeometry, this.edgeMaterial);
-    // Torus already lies in XY, perfect for a vertical disc facing Z
-    group.add(edge);
-
-    // Coins face the runner; group rotates around world Y for spin, but
-    // keep the cylinder axis aligned to camera (layout matches original
-    // rotateX(PI/2) → now handled by orientation of rim/top).
-    // Keep group upright; WorldManager places via position only.
+    const mesh = new THREE.Mesh(this.geometry, this.material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = false;
+    group.add(mesh);
     return group;
   }
 }

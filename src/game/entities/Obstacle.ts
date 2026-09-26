@@ -1,6 +1,14 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
-import { OBSTACLE_COLORS } from "@/game/config/gameplay";
+import {
+  MOVER_ANIM,
+  type ApproachCue,
+  type ObstacleColliderDims,
+  type ObstacleVariantId,
+} from "@/game/config/obstacles";
+import { ObstacleKit, rigFor, type ObstacleRig, type VariantRig } from "./obstacles/ObstacleKit";
+import type { VariantAnimState } from "./obstacles/types";
+import { damp } from "@/game/utils/math";
 
 export type ObstacleKind =
   | "barrier"
@@ -18,7 +26,14 @@ export interface ObstacleCollider {
   maxZ: number;
 }
 
-/** Gameplay metadata + pooled mesh for one obstacle instance. */
+/**
+ * Gameplay metadata + pooled mesh for one obstacle instance.
+ *
+ * The mesh is a rig holding every Indian-street variant of its kind (cow /
+ * cycle-rickshaw, truck / chai tapri …). `prepareSpawn` picks one per
+ * placement — zero allocation, just visibility — and the collider box comes
+ * from that variant so what the runner sees is exactly what it hits.
+ */
 export class Obstacle {
   readonly mesh: THREE.Group;
   readonly kind: ObstacleKind;
@@ -37,25 +52,40 @@ export class Obstacle {
   jumpSkim = false;
   slideUnder = false;
 
+  /**
+   * Optional audio cue when this obstacle approaches the runner
+   * (auto-rickshaw honk, cow moo, cycle bell). Set per visual variant.
+   */
+  approachCue: ApproachCue | null = null;
+  /** Game plays the approach cue once per spawn. */
+  cuePlayed = false;
+  /** Visual variant shown for the current spawn (null for rig-less meshes). */
+  variantId: ObstacleVariantId | null = null;
+
   /** Moving obstacles oscillate around localX. */
   private baseX = 0;
   private amplitude = 0;
   private phase = 0;
   private angularSpeed = 0;
 
+  private readonly rig: ObstacleRig | null;
+  private variant: VariantRig | null = null;
+  private dims: ObstacleColliderDims;
+  /** Mover facing (0 = +X, -π = -X); turns through facing the runner. */
+  private yaw = 0;
+  private snapYaw = true;
+  private readonly anim: VariantAnimState = { time: 0, delta: 0, speed: 0, travel: 0 };
+
   /** World-space AABB, refreshed every frame by the WorldManager. */
   readonly collider: ObstacleCollider = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
 
-  // Half extents by kind [x, yCenter, yHalf, zHalf]
-  private static readonly DIMENSIONS: Record<
-    ObstacleKind,
-    { hx: number; cy: number; hy: number; hz: number }
-  > = {
-    barrier: { hx: 1.05, cy: 0.48, hy: 0.48, hz: 0.22 },
-    moving: { hx: 1.0, cy: 0.52, hy: 0.52, hz: 0.24 },
-    block: { hx: 1.1, cy: 1.35, hy: 1.35, hz: 1.05 },
-    overhead1: { hx: 1.15, cy: 1.88, hy: 0.43, hz: 0.28 },
-    overhead3: { hx: 3.85, cy: 1.88, hy: 0.43, hz: 0.28 },
+  /** Fallback boxes for meshes built without a variant rig. */
+  private static readonly DIMENSIONS: Record<ObstacleKind, ObstacleColliderDims> = {
+    barrier: { hx: 1.05, minY: 0, maxY: 0.96, hz: 0.22 },
+    moving: { hx: 1.0, minY: 0, maxY: 1.04, hz: 0.24 },
+    block: { hx: 1.1, minY: 0, maxY: 2.7, hz: 1.05 },
+    overhead1: { hx: 1.15, minY: 1.45, maxY: 2.31, hz: 0.28 },
+    overhead3: { hx: 3.85, minY: 1.45, maxY: 2.31, hz: 0.28 },
   };
 
   constructor(kind: ObstacleKind, mesh: THREE.Group) {
@@ -63,6 +93,30 @@ export class Obstacle {
     this.mesh = mesh;
     // Reinforced full-width gates cannot be smashed; everything else can.
     this.destructible = kind !== "overhead3";
+    this.dims = Obstacle.DIMENSIONS[kind];
+    this.rig = rigFor(mesh);
+    if (this.rig) this.applyVariant(this.rig.variants[0]);
+  }
+
+  /**
+   * Called by WorldManager right after the obstacle is acquired for a new
+   * row. Visual variants (cow vs auto, barricade vs thela…) are chosen here.
+   * @param biomeIndex dominant biome (BIOMES index) for themed variants
+   * @param variantHint optional authored variant (patterns may request one)
+   */
+  prepareSpawn(biomeIndex: number, variantHint?: ObstacleVariantId): void {
+    this.cuePlayed = false;
+    this.snapYaw = true;
+    this.anim.time = Math.random() * 20;
+    this.anim.travel = Math.random() * 3;
+    this.anim.speed = 0;
+    const rig = this.rig;
+    if (!rig) return;
+    const chosen = rig.kit.pick(rig, biomeIndex, variantHint);
+    this.applyVariant(chosen);
+    chosen.spec.spawn?.(chosen.parts, biomeIndex);
+    // Mirrored props for free variety (colliders are symmetric in x).
+    if (chosen.def.mirrorable && Math.random() < 0.5) chosen.root.scale.x = -1;
   }
 
   resetRuntimeFlags(): void {
@@ -88,192 +142,76 @@ export class Obstacle {
     this.angularSpeed = speed;
     this.phase = Math.random() * Math.PI * 2;
     this.baseX = this.localX;
+    this.snapYaw = true;
   }
 
   /**
-   * Sync world-space collider + moving-obstacle motion.
+   * Sync world-space collider, moving-obstacle motion and variant animation.
+   * Allocation-free; runs for every pooled obstacle on the track each frame.
    * @param segmentOriginZ world z of the owning segment's origin
    */
   refresh(delta: number, segmentOriginZ: number): void {
+    const d = this.dims;
+    const anim = this.anim;
+    anim.delta = delta;
+    anim.time += delta;
+    let hx = d.hx;
+    let hz = d.hz;
+
     if (this.kind === "moving") {
       this.phase += this.angularSpeed * delta;
       this.mesh.position.x = this.baseX + Math.sin(this.phase) * this.amplitude;
+      const velocity = Math.cos(this.phase) * this.amplitude * this.angularSpeed;
+      anim.speed = Math.abs(velocity);
+      anim.travel += anim.speed * delta;
+      // Face the travel direction; turning passes through facing the runner.
+      const target = velocity >= 0 ? 0 : -Math.PI;
+      if (this.snapYaw) {
+        this.yaw = target;
+        this.snapYaw = false;
+      } else {
+        this.yaw = damp(this.yaw, target, MOVER_ANIM.turnLambda, delta);
+      }
+      if (this.variant) this.variant.root.rotation.y = this.yaw;
+      // Re-project the body box (length along facing) into world axes.
+      const c = Math.abs(Math.cos(this.yaw));
+      const s = Math.abs(Math.sin(this.yaw));
+      hx = c * d.hx + s * d.hz;
+      hz = s * d.hx + c * d.hz;
     }
-    const d = Obstacle.DIMENSIONS[this.kind];
+
+    const variant = this.variant;
+    if (variant && variant.spec.animate) variant.spec.animate(variant.parts, anim);
+
     const cx = this.mesh.position.x;
     const cz = segmentOriginZ + this.localZ;
-    this.collider.minX = cx - d.hx;
-    this.collider.maxX = cx + d.hx;
-    this.collider.minY = d.cy - d.hy;
-    this.collider.maxY = d.cy + d.hy;
-    this.collider.minZ = cz - d.hz;
-    this.collider.maxZ = cz + d.hz;
+    this.collider.minX = cx - hx;
+    this.collider.maxX = cx + hx;
+    this.collider.minY = d.minY;
+    this.collider.maxY = d.maxY;
+    this.collider.minZ = cz - hz;
+    this.collider.maxZ = cz + hz;
+  }
+
+  private applyVariant(chosen: VariantRig): void {
+    const rig = this.rig;
+    if (rig) {
+      for (const v of rig.variants) v.root.visible = v === chosen;
+    }
+    this.variant = chosen;
+    this.variantId = chosen.def.id;
+    this.dims = chosen.def.dims;
+    this.approachCue = chosen.def.cue;
+    chosen.root.rotation.set(0, 0, 0);
+    chosen.root.scale.set(1, 1, 1);
+    this.yaw = 0;
   }
 }
 
-export interface SharedMats {
-  bag: ResourceBag;
-}
-
-/** Builds the visual mesh for an obstacle kind. Geometries/materials are shared via the bag. */
-export function createObstacleMesh(
-  kind: ObstacleKind,
-  bag: ResourceBag
-): THREE.Group {
-  const group = new THREE.Group();
-  group.castShadow = true;
-
-  // High-visibility arcade palette — one saturated, self-lit hue per
-  // threat type so obstacles read instantly against the bright daylight
-  // road (pastel bodies washed out under the 3.15 sun). Bodies carry
-  // emissive so they glow instead of flattening; warning strips are unlit
-  // MeshBasicMaterial so they stay full-bright at any distance/fog.
-  const barrierBodyMat = bag.mat(
-    new THREE.MeshStandardMaterial({
-      color: OBSTACLE_COLORS.barrierBody,
-      emissive: OBSTACLE_COLORS.barrierBodyEmissive,
-      emissiveIntensity: OBSTACLE_COLORS.barrierBodyEmissiveIntensity,
-      roughness: 0.45,
-      metalness: 0.05,
-    })
-  );
-  const barrierLegMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: OBSTACLE_COLORS.barrierLeg, roughness: 0.6, metalness: 0.3 })
-  );
-  const movingBodyMat = bag.mat(
-    new THREE.MeshStandardMaterial({
-      color: OBSTACLE_COLORS.movingBody,
-      emissive: OBSTACLE_COLORS.movingBodyEmissive,
-      emissiveIntensity: OBSTACLE_COLORS.movingBodyEmissiveIntensity,
-      roughness: 0.42,
-      metalness: 0.1,
-    })
-  );
-  const movingSkidMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: OBSTACLE_COLORS.movingSkid, roughness: 0.55, metalness: 0.35 })
-  );
-  const blockBodyMat = bag.mat(
-    new THREE.MeshStandardMaterial({
-      color: OBSTACLE_COLORS.blockBody,
-      emissive: OBSTACLE_COLORS.blockBodyEmissive,
-      emissiveIntensity: OBSTACLE_COLORS.blockBodyEmissiveIntensity,
-      roughness: 0.5,
-      metalness: 0.05,
-    })
-  );
-  const gateBeamMat = bag.mat(
-    new THREE.MeshStandardMaterial({
-      color: OBSTACLE_COLORS.gateBeam,
-      emissive: OBSTACLE_COLORS.gateBeamEmissive,
-      emissiveIntensity: OBSTACLE_COLORS.gateBeamEmissiveIntensity,
-      roughness: 0.45,
-      metalness: 0.1,
-    })
-  );
-  const gatePostMat = bag.mat(
-    new THREE.MeshStandardMaterial({ color: OBSTACLE_COLORS.gatePost, roughness: 0.55, metalness: 0.3 })
-  );
-  const dangerGlow = bag.mat(
-    new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.dangerUnder })
-  );
-  const warnGlow = bag.mat(
-    new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.warnStrip })
-  );
-  const footGlow = bag.mat(
-    new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.footGlow })
-  );
-  const stripeGlow = bag.mat(new THREE.MeshBasicMaterial({ color: OBSTACLE_COLORS.warnStrip }));
-  const blockEdgeMat = bag.mat(
-    new THREE.LineBasicMaterial({ color: OBSTACLE_COLORS.blockEdge })
-  );
-
-  switch (kind) {
-    case "barrier": {
-      const barGeo = bag.geo(new THREE.BoxGeometry(2.1, 0.34, 0.3));
-      const bar = new THREE.Mesh(barGeo, barrierBodyMat);
-      bar.position.y = 0.72;
-      bar.castShadow = true;
-      bar.receiveShadow = true;
-      const stripGeo = bag.geo(new THREE.BoxGeometry(2.1, 0.08, 0.32));
-      const strip = new THREE.Mesh(stripGeo, warnGlow);
-      strip.position.y = 0.72;
-      const legGeo = bag.geo(new THREE.BoxGeometry(0.14, 0.62, 0.26));
-      const legL = new THREE.Mesh(legGeo, barrierLegMat);
-      legL.position.set(-0.85, 0.31, 0);
-      legL.castShadow = true;
-      const legR = new THREE.Mesh(legGeo, barrierLegMat);
-      legR.position.set(0.85, 0.31, 0);
-      legR.castShadow = true;
-      const footGeo = bag.geo(new THREE.BoxGeometry(2.16, 0.06, 0.42));
-      const foot = new THREE.Mesh(footGeo, footGlow);
-      foot.position.y = 0.03;
-      group.add(bar, strip, legL, legR, foot);
-      break;
-    }
-    case "moving": {
-      const shellGeo = bag.geo(new THREE.BoxGeometry(2.0, 0.5, 0.34));
-      const shell = new THREE.Mesh(shellGeo, movingBodyMat);
-      shell.position.y = 0.62;
-      shell.castShadow = true;
-      shell.receiveShadow = true;
-      const stripeGeo = bag.geo(new THREE.BoxGeometry(2.02, 0.12, 0.36));
-      const stripe = new THREE.Mesh(stripeGeo, stripeGlow);
-      stripe.position.y = 0.62;
-      const skidGeo = bag.geo(new THREE.BoxGeometry(0.5, 0.34, 0.3));
-      const skidL = new THREE.Mesh(skidGeo, movingSkidMat);
-      skidL.position.set(-0.65, 0.17, 0);
-      const skidR = new THREE.Mesh(skidGeo, movingSkidMat);
-      skidR.position.set(0.65, 0.17, 0);
-      group.add(shell, stripe, skidL, skidR);
-      break;
-    }
-    case "block": {
-      const crateGeo = bag.geo(new THREE.BoxGeometry(2.2, 2.7, 2.1));
-      const crate = new THREE.Mesh(crateGeo, blockBodyMat);
-      crate.position.y = 1.35;
-      crate.castShadow = true;
-      crate.receiveShadow = true;
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(crateGeo), blockEdgeMat);
-      edges.position.y = 1.35;
-      const coreGeo = bag.geo(new THREE.BoxGeometry(0.9, 0.9, 0.08));
-      const core = new THREE.Mesh(coreGeo, dangerGlow);
-      core.position.set(0, 1.5, -1.06);
-      // Second warning core on the player-facing side — walls read as
-      // danger from the front, not just from behind.
-      const faceGeo = bag.geo(new THREE.BoxGeometry(0.9, 0.9, 0.08));
-      const face = new THREE.Mesh(faceGeo, warnGlow);
-      face.position.set(0, 1.5, 1.06);
-      group.add(crate, edges, core, face);
-      break;
-    }
-    case "overhead1":
-    case "overhead3": {
-      const width = kind === "overhead3" ? 7.7 : 2.3;
-      const beamGeo = bag.geo(new THREE.BoxGeometry(width, 0.86, 0.56));
-      const beam = new THREE.Mesh(beamGeo, gateBeamMat);
-      beam.position.y = 1.88;
-      beam.castShadow = true;
-      beam.receiveShadow = true;
-      const warnGeo = bag.geo(new THREE.BoxGeometry(width * 0.96, 0.14, 0.58));
-      const warn = new THREE.Mesh(warnGeo, warnGlow);
-      warn.position.y = 1.52;
-      const underGeo = bag.geo(new THREE.BoxGeometry(width * 0.98, 0.06, 0.5));
-      const under = new THREE.Mesh(underGeo, dangerGlow);
-      under.position.y = 1.46;
-      group.add(beam, warn, under);
-      if (kind === "overhead3") {
-        const postGeo = bag.geo(new THREE.BoxGeometry(0.28, 2.32, 0.34));
-        const postL = new THREE.Mesh(postGeo, gatePostMat);
-        postL.position.set(-3.75, 1.16, 0);
-        postL.castShadow = true;
-        const postR = new THREE.Mesh(postGeo, gatePostMat);
-        postR.position.set(3.75, 1.16, 0);
-        postR.castShadow = true;
-        group.add(postL, postR);
-      }
-      break;
-    }
-  }
-
-  return group;
+/**
+ * Builds the pooled visual for an obstacle kind: a rig with every street
+ * variant of that kind (merged, shared geometries + shared materials).
+ */
+export function createObstacleMesh(kind: ObstacleKind, bag: ResourceBag): THREE.Group {
+  return ObstacleKit.for(bag).createRig(kind).group;
 }

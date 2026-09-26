@@ -15,12 +15,18 @@ export interface SettingsData {
   music: boolean;
   sound: boolean;
   performanceMode: boolean;
+  /** Desi meme voice lines ("FAAAH!", "Arre bhai bhai bhai!"…). */
+  voice: boolean;
 }
 
 export interface CustomizationData {
   character: string;
   unlockedCharacters: string[];
   badges: string[];
+  /** Set once the legacy default runner was swapped for the desi default. */
+  desiMigrated?: boolean;
+  /** Set once any classic pick was swapped for the realistic desi default. */
+  desiRunnerV1?: boolean;
 }
 
 export interface MissionsSave {
@@ -87,9 +93,11 @@ export function defaultSave(): SaveDataV2 {
     missions: { date: "", entries: [], progress: {}, completed: [] },
     achievements: { completed: [] },
     customization: {
-      character: "vector",
-      unlockedCharacters: ["vector"],
+      character: "raju",
+      unlockedCharacters: ["raju"],
       badges: [],
+      desiMigrated: true,
+      desiRunnerV1: true,
     },
     settings: {
       muted: false,
@@ -97,6 +105,7 @@ export function defaultSave(): SaveDataV2 {
       music: true,
       sound: true,
       performanceMode: false,
+      voice: true,
     },
     keys: 2,
   };
@@ -169,6 +178,8 @@ function clampIntoDefaults(raw: unknown): SaveDataV2 {
         ? data.customization.unlockedCharacters
         : base.customization.unlockedCharacters,
       badges: Array.isArray(data.customization?.badges) ? data.customization.badges : [],
+      desiMigrated: data.customization?.desiMigrated === true,
+      desiRunnerV1: data.customization?.desiRunnerV1 === true,
     },
     settings: { ...base.settings, ...(data.settings ?? {}) },
     keys: Number.isFinite((data as { keys?: unknown }).keys) ? Math.max(0, Math.floor((data as { keys: number }).keys)) : base.keys,

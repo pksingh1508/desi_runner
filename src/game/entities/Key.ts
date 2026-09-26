@@ -16,9 +16,12 @@ export class Key {
 
   private age = Math.random() * 10;
   private phase = Math.random() * Math.PI * 2;
+  /** Cached wobble group (no per-frame scene-graph lookups). */
+  private readonly spin: THREE.Object3D | null;
 
   constructor(mesh: THREE.Group) {
     this.mesh = mesh;
+    this.spin = mesh.getObjectByName("keySpin") ?? null;
   }
 
   get worldZ(): number {
@@ -50,8 +53,7 @@ export class Key {
     this.mesh.rotation.y += 1.8 * delta;
     this.mesh.position.y = this.baseY + Math.sin(this.age * 2.2 + this.phase) * 0.14;
     // gentle wobble
-    const inner = this.mesh.getObjectByName("keySpin") as THREE.Group | null;
-    if (inner) inner.rotation.z = Math.sin(this.age * 1.6 + this.phase) * 0.12;
+    if (this.spin) this.spin.rotation.z = Math.sin(this.age * 1.6 + this.phase) * 0.12;
   }
 
   pullTowards(targetX: number, targetY: number, lambda: number, delta: number): void {
@@ -67,6 +69,9 @@ export class KeyFactory {
   private toothA: THREE.BoxGeometry;
   private toothB: THREE.BoxGeometry;
   private gemGeo: THREE.OctahedronGeometry;
+  private collarGeo: THREE.CylinderGeometry;
+  private haloGeo: THREE.RingGeometry;
+  private haloMat: THREE.MeshBasicMaterial;
 
   private goldMat: THREE.MeshStandardMaterial;
   private darkGoldMat: THREE.MeshStandardMaterial;
@@ -79,6 +84,18 @@ export class KeyFactory {
     this.toothA = bag.geo(new THREE.BoxGeometry(0.07, 0.07, 0.08));
     this.toothB = bag.geo(new THREE.BoxGeometry(0.07, 0.07, 0.05));
     this.gemGeo = bag.geo(new THREE.OctahedronGeometry(0.065, 0));
+    this.collarGeo = bag.geo(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 12));
+    this.haloGeo = bag.geo(new THREE.RingGeometry(0.3, 0.42, 18));
+    this.haloMat = bag.mat(
+      new THREE.MeshBasicMaterial({
+        color: 0x3fa9ff,
+        transparent: true,
+        opacity: PICKUP_VISUAL.keyHaloOpacity,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
 
     // Black-chrome body with electric-blue edge glow (vibrant blue/black
     // combo that pops on the bright road), hot-red gem core.
@@ -154,9 +171,7 @@ export class KeyFactory {
     spin.add(shaft);
 
     // Collar ring where bow meets shaft
-    const collarGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.03, 12);
-    // not pooled — small per-instance leak acceptable (<80 keys)
-    const collar = new THREE.Mesh(collarGeo, this.darkGoldMat);
+    const collar = new THREE.Mesh(this.collarGeo, this.darkGoldMat);
     collar.rotation.x = Math.PI / 2;
     collar.position.set(0, 0.12, -0.02);
     spin.add(collar);
@@ -178,16 +193,7 @@ export class KeyFactory {
     spin.rotation.z = Math.PI * 0.08;
 
     // Light halo ring at feet for outdoor visibility
-    const haloGeo = new THREE.RingGeometry(0.3, 0.42, 18);
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0x3fa9ff,
-      transparent: true,
-      opacity: PICKUP_VISUAL.keyHaloOpacity,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const halo = new THREE.Mesh(haloGeo, haloMat);
+    const halo = new THREE.Mesh(this.haloGeo, this.haloMat);
     halo.rotation.x = -Math.PI / 2;
     halo.position.set(0, -0.92, 0);
     root.add(halo);

@@ -1,403 +1,381 @@
+import type { MemeEvent } from "@/types/game";
+import { buildAudioGraph, type AudioGraph } from "@/game/audio/AudioGraph";
+import { DesiMusic, type BeatTiming } from "@/game/audio/DesiMusic";
+import { DesiSfx } from "@/game/audio/DesiSfx";
+import { MemeClips } from "@/game/audio/MemeClips";
+import { MemeVoice } from "@/game/audio/MemeVoice";
+import { SpeechVoice } from "@/game/audio/SpeechVoice";
+import { MEME_TIMING } from "@/game/config/memes";
+import { MUSIC_MIX, MUSIC_THEMES } from "@/game/config/music";
+
+export type { BeatTiming } from "@/game/audio/DesiMusic";
+
+const SFX_LEVEL = 0.9;
+const VOICE_LEVEL = 1;
+/** Time constant for toggle fades (click-free on/off). */
+const TOGGLE_TIME = 0.04;
+/** No update() for this long = game loop frozen (pause / hidden tab). */
+const FREEZE_AFTER_MS = 300;
+const WATCHDOG_MS = 250;
+/** Thrust loop auto-stops if setRocketThrust(true) goes unasserted this long. */
+const THRUST_SAFETY_MS = 12000;
+
 /**
- * Procedural WebAudio: all SFX and the music loop are synthesized at runtime,
- * so the project ships zero audio assets (and zero licensing questions).
- * The context is created lazily on first user gesture to satisfy autoplay
- * policies.
+ * Desi soundtrack facade. Everything is synthesized at runtime — dhol /
+ * tabla grooves, shehnai / bansuri leads, street SFX and the FAAAH shout —
+ * and meme catchphrases are spoken by the player's own device (Web Speech),
+ * so the game ships zero third-party audio. Optional user clips can be
+ * dropped into public/sounds/memes (see README there).
+ *
+ * The AudioContext is created lazily in unlock() (first user gesture);
+ * nothing here touches browser APIs during SSR. Every method is a safe
+ * no-op before unlock and after dispose.
  */
 export class AudioSystem {
   private ctx: AudioContext | null = null;
-  private master: GainNode | null = null;
-  private sfxBus: GainNode | null = null;
-  private musicBus: GainNode | null = null;
-  private noiseBuffer: AudioBuffer | null = null;
+  private graph: AudioGraph | null = null;
+  private sfx: DesiSfx | null = null;
+  private music: DesiMusic | null = null;
+  private memes: MemeVoice | null = null;
+  private readonly speech = new SpeechVoice();
+  private readonly clips = new MemeClips();
+
   private muted = false;
+  private musicEnabled = true;
+  private sfxEnabled = true;
+  private voiceEnabled = true;
+  private musicTheme = 0;
+  private thrustWanted = false;
+  private thrustAssertedAt = 0;
+  private lastUpdateAt = 0;
+  private frozen = false;
+  private watchdog: number | null = null;
 
-  // Music scheduler state
-  private musicPlaying = false;
-  private nextStepTime = 0;
-  private stepIndex = 0;
-
-  private static readonly BASS_PATTERN = [55, 0, 55, 65.41, 55, 0, 49, 82.41];
-  private static readonly LEAD_NOTES = [220, 261.63, 329.63, 392, 440];
+  /** Game shows meme subtitles in the HUD through this hook. */
+  onMemeCaption: ((caption: string, sub?: string) => void) | null = null;
 
   unlock(): void {
+    if (typeof window === "undefined") return;
     if (this.ctx) {
-      if (this.ctx.state === "suspended") void this.ctx.resume();
+      if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => undefined);
       return;
     }
     const Ctor =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
-    this.ctx = new Ctor();
-    this.master = this.ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 1;
-    this.master.connect(this.ctx.destination);
+    let ctx: AudioContext;
+    try {
+      ctx = new Ctor({ latencyHint: "interactive" });
+    } catch {
+      try {
+        ctx = new Ctor();
+      } catch {
+        return;
+      }
+    }
+    this.ctx = ctx;
+    const graph = buildAudioGraph(ctx);
+    this.graph = graph;
+    this.sfx = new DesiSfx(graph);
+    this.music = new DesiMusic(graph);
+    this.music.setTheme(this.musicTheme);
+    this.speech.init();
+    this.memes = new MemeVoice(graph, this.sfx, this.speech, this.clips, this.setDucked);
+    this.memes.onCaption = (caption, sub) => this.onMemeCaption?.(caption, sub);
+    this.applyLevels(true);
+    this.clips.load(ctx);
 
-    this.sfxBus = this.ctx.createGain();
-    this.sfxBus.gain.value = 0.9;
-    this.sfxBus.connect(this.master);
+    // Old iOS needs a sound started inside the gesture to fully unlock.
+    const blip = ctx.createBufferSource();
+    blip.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    blip.connect(ctx.destination);
+    blip.start(0);
+    if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
 
-    this.musicBus = this.ctx.createGain();
-    this.musicBus.gain.value = 0.32;
-    this.musicBus.connect(this.master);
-
-    const length = this.ctx.sampleRate;
-    this.noiseBuffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
-    const data = this.noiseBuffer.getChannelData(0);
-    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    this.lastUpdateAt = performance.now();
+    this.watchdog = window.setInterval(this.checkFrozen, WATCHDOG_MS);
   }
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (this.master && this.ctx) {
-      this.master.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.03);
-    }
+    this.applyLevels(false);
   }
 
   // ------------------------------------------------------------------- SFX
 
   playCoin(): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.sfxBus) return;
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, t);
-    osc.frequency.exponentialRampToValueAtTime(1420, t + 0.09);
-    gain.gain.setValueAtTime(0.16, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-    osc.connect(gain).connect(this.sfxBus);
-    osc.start(t);
-    osc.stop(t + 0.15);
+    this.sfx?.coin();
   }
 
   playJump(): void {
-    this.chirp("square", 240, 520, 0.16, 0.09);
+    this.sfx?.jump();
   }
 
   playLand(): void {
-    this.thud(0.06, 120);
+    this.sfx?.land();
   }
 
   playSlide(): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.sfxBus || !this.noiseBuffer) return;
-    const t = ctx.currentTime;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.setValueAtTime(1600, t);
-    filter.frequency.exponentialRampToValueAtTime(320, t + 0.28);
-    filter.Q.value = 0.9;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.12, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-    src.connect(filter).connect(gain).connect(this.sfxBus);
-    src.start(t);
-    src.stop(t + 0.32);
+    this.sfx?.slide();
   }
 
   playCrash(): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.sfxBus || !this.noiseBuffer) return;
-    const t = ctx.currentTime;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(2600, t);
-    filter.frequency.exponentialRampToValueAtTime(180, t + 0.5);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.4, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-    src.connect(filter).connect(gain).connect(this.sfxBus);
-    src.start(t);
-    src.stop(t + 0.6);
-    this.thud(0.35, 60);
+    this.sfx?.crash();
   }
 
   playClick(): void {
-    this.chirp("triangle", 900, 620, 0.07, 0.07);
+    this.sfx?.click();
   }
 
+  /** 3-2-1 = rising tabla + dhol taps; `final` (GO!) = big dhol "DHA". */
   playCountdownBeep(final: boolean): void {
-    this.chirp("sine", final ? 880 : 440, final ? 880 : 440, final ? 0.4 : 0.12, 0.12);
+    this.sfx?.countdown(final);
   }
 
   // ------------------------------------------------------------- V2 SFX hooks
 
-  /** Rising arpeggio for power-up pickup. */
+  /** Rising bell sparkle for power-up pickup. */
   playPowerup(): void {
-    this.chirp("square", 420, 980, 0.18, 0.12);
-    this.chirpAt("sine", 700, 1400, 0.22, 0.08, 0.05);
+    this.sfx?.powerup();
   }
 
-  /** Glassy burst + low thump for shield break. */
+  /** Glassy shatter + thump for the nimbu-mirchi shield breaking. */
   playShieldBreak(): void {
-    this.chirp("sawtooth", 1200, 220, 0.3, 0.14);
-    this.thud(0.28, 70);
+    this.sfx?.shieldBreak();
   }
 
-  /** Soft whoosh for near miss. */
+  /** Stereo whoosh for near miss. */
   playNearMiss(): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.sfxBus || !this.noiseBuffer) return;
-    const t = ctx.currentTime;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.setValueAtTime(2400, t);
-    filter.frequency.exponentialRampToValueAtTime(500, t + 0.16);
-    filter.Q.value = 1.4;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.09, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    src.connect(filter).connect(gain).connect(this.sfxBus);
-    src.start(t);
-    src.stop(t + 0.2);
+    this.sfx?.nearMiss();
   }
 
-  /** Bright tick for perfect actions. */
+  /** Bright bell tick for perfect actions. */
   playPerfect(): void {
-    this.chirp("sine", 1320, 1760, 0.1, 0.1);
+    this.sfx?.perfect();
   }
 
-  /** Combo milestone: two quick ascending blips; pitch rises with combo tier. */
+  /** Combo milestone: bells rise with the combo tier. */
   playComboMilestone(tier: number): void {
-    const base = 520 + Math.min(tier, 4) * 90;
-    this.chirp("triangle", base, base * 1.25, 0.09, 0.1);
-    this.chirpAt("triangle", base * 1.5, base * 1.8, 0.11, 0.09, 0.07);
+    this.sfx?.comboMilestone(tier);
   }
 
-  /** Overdrive ready: urgent rising pair. */
+  /** JOSH meter full: dhol pair + shehnai rise. */
   playOverdriveReady(): void {
-    this.chirp("square", 300, 600, 0.16, 0.1);
-    this.chirpAt("square", 450, 900, 0.2, 0.1, 0.12);
+    this.sfx?.overdriveReady();
   }
 
-  /** Overdrive activation: big sweep + sub drop. */
+  /** JOSH activation: double dhol + sweep. */
   playOverdriveActivate(): void {
-    this.chirp("sawtooth", 160, 720, 0.45, 0.16);
-    this.thud(0.32, 55);
+    this.sfx?.overdriveActivate();
   }
 
-  /** Metal smash for destroyed obstacles. */
+  /** Crunch for destroyed obstacles. */
   playSmash(): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.sfxBus || !this.noiseBuffer) return;
-    const t = ctx.currentTime;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(3200, t);
-    filter.frequency.exponentialRampToValueAtTime(400, t + 0.22);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.26, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
-    src.connect(filter).connect(gain).connect(this.sfxBus);
-    src.start(t);
-    src.stop(t + 0.26);
-    this.thud(0.2, 80);
+    this.sfx?.smash();
   }
 
   playLevelUp(): void {
-    this.chirp("triangle", 520, 780, 0.14, 0.12);
-    this.chirpAt("triangle", 660, 1040, 0.18, 0.12, 0.1);
-    this.chirpAt("triangle", 880, 1320, 0.24, 0.1, 0.2);
+    this.sfx?.levelUp();
   }
 
   playMissionComplete(): void {
-    this.chirp("sine", 700, 1050, 0.13, 0.11);
-    this.chirpAt("sine", 1050, 1400, 0.16, 0.1, 0.09);
+    this.sfx?.missionComplete();
   }
 
   playUnlock(): void {
-    this.chirp("triangle", 840, 1260, 0.16, 0.1);
+    this.sfx?.unlock();
   }
 
   playBiomeShift(): void {
-    this.chirp("sine", 260, 520, 0.5, 0.06);
+    this.sfx?.biomeShift();
   }
 
-  /** Warning stinger for drone/laser events. */
+  /** Warning stinger for drone / laser events. */
   playWarn(): void {
-    this.chirp("square", 220, 180, 0.14, 0.09);
-    this.chirpAt("square", 220, 180, 0.14, 0.09, 0.2);
+    this.sfx?.warn();
+  }
+
+  // ------------------------------------------------- desi hooks (engine contract)
+
+  /**
+   * Plays a desi meme voice line for a gameplay moment. Owns its own
+   * cooldowns / chances / priorities, so the engine may report every moment.
+   * Returns true when the line was accepted (playing, or queued right behind
+   * another high-priority line). With master mute on, the caption and
+   * pacing still happen silently; with voice lines off it returns false.
+   */
+  playMeme(event: MemeEvent): boolean {
+    return this.memes?.play(event) ?? false;
+  }
+
+  /** Voice-line toggle: gates TTS, the synthesized FAAAH and user clips. */
+  setVoiceEnabled(enabled: boolean): void {
+    this.voiceEnabled = enabled;
+    this.applyLevels(false);
+  }
+
+  /** Diwali-rocket ignition: fuse hiss → FWOOSH + whistle + crackle. */
+  playRocketLaunch(): void {
+    this.sfx?.rocketLaunch();
+  }
+
+  /**
+   * Continuous thrust loop while flying. Idempotent: safe to call every
+   * frame with `player.isFlying`. Auto-stops if not re-asserted for 12 s.
+   */
+  setRocketThrust(on: boolean): void {
+    if (on) this.thrustAssertedAt = performance.now();
+    if (on === this.thrustWanted) return;
+    this.thrustWanted = on;
+    this.sfx?.setThrust(on);
+  }
+
+  playRocketLand(): void {
+    this.sfx?.rocketLand();
+  }
+
+  /** Magnet (chumbak) switched on: resonant "vwooom". */
+  playMagnetOn(): void {
+    this.sfx?.magnetOn();
+  }
+
+  /** Auto-rickshaw bulb horn "pom-pom" (approaching vehicles). */
+  playHonk(): void {
+    this.sfx?.honk();
+  }
+
+  /** Cow moo (approaching cows). */
+  playMoo(): void {
+    this.sfx?.moo();
+  }
+
+  /** Bicycle / cycle-rickshaw bell "tring-tring". */
+  playBell(): void {
+    this.sfx?.bell();
+  }
+
+  /**
+   * Biome-driven music flavour (index into BIOMES): 0 Chandni Chowk,
+   * 1 Pink City, 2 Mumbai Monsoon, 3 Diwali Night. While playing, the switch
+   * lands on the next bar after a drum fill.
+   */
+  setMusicTheme(themeIndex: number): void {
+    const count = MUSIC_THEMES.length;
+    const index = Number.isFinite(themeIndex) ? ((Math.floor(themeIndex) % count) + count) % count : 0;
+    this.musicTheme = index;
+    this.music?.setTheme(index);
+  }
+
+  /**
+   * Where the groove is right now, as heard (output latency compensated):
+   * `phase` 0 = on the beat (dhol hit) → 1 just before the next. Null while
+   * the music isn't running. Allocation-free: returns one reused object.
+   */
+  getBeatTiming(): BeatTiming | null {
+    const ctx = this.ctx;
+    if (!ctx || !this.music) return null;
+    const latency = ctx.outputLatency || ctx.baseLatency || 0;
+    return this.music.beatTiming(ctx.currentTime - latency);
   }
 
   // ------------------------------------------------------------ channel toggles
 
   setMusicEnabled(enabled: boolean): void {
-    if (this.musicBus && this.ctx) {
-      this.musicBus.gain.setTargetAtTime(enabled ? 0.32 : 0, this.ctx.currentTime, 0.04);
-    }
+    this.musicEnabled = enabled;
+    this.applyLevels(false);
   }
 
   setSfxEnabled(enabled: boolean): void {
-    if (this.sfxBus && this.ctx) {
-      this.sfxBus.gain.setTargetAtTime(enabled ? 0.9 : 0, this.ctx.currentTime, 0.04);
-    }
+    this.sfxEnabled = enabled;
+    this.applyLevels(false);
   }
 
   // ----------------------------------------------------------------- music
 
   startMusic(): void {
-    if (!this.ctx || this.musicPlaying) return;
-    this.musicPlaying = true;
-    this.nextStepTime = this.ctx.currentTime + 0.08;
-    this.stepIndex = 0;
+    this.music?.start();
   }
 
   stopMusic(): void {
-    this.musicPlaying = false;
+    this.music?.stop();
   }
 
-  /** Called every frame; schedules synth notes slightly ahead of playback. */
+  /** Called every frame; schedules the groove slightly ahead of playback. */
   update(speedRatio: number): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.musicPlaying || !this.musicBus) return;
-    const bpm = 112 + speedRatio * 38;
-    const stepDur = 60 / bpm / 2;
-    while (this.nextStepTime < ctx.currentTime + 0.18) {
-      this.scheduleStep(this.stepIndex % 8, this.nextStepTime, stepDur, speedRatio);
-      this.stepIndex++;
-      this.nextStepTime += stepDur;
-    }
+    this.lastUpdateAt = performance.now();
+    if (this.frozen) this.setFrozen(false);
+    this.music?.update(speedRatio);
   }
 
   dispose(): void {
-    this.stopMusic();
+    if (this.watchdog !== null) {
+      window.clearInterval(this.watchdog);
+      this.watchdog = null;
+    }
+    this.memes?.dispose();
+    this.memes = null;
+    this.speech.dispose();
+    this.clips.dispose();
+    this.music?.dispose();
+    this.music = null;
+    this.sfx?.dispose();
+    this.sfx = null;
+    this.thrustWanted = false;
     if (this.ctx) {
       void this.ctx.close().catch(() => undefined);
       this.ctx = null;
-      this.master = null;
-      this.sfxBus = null;
-      this.musicBus = null;
+      this.graph = null;
     }
   }
 
   // ------------------------------------------------------------------ intern
 
-  private scheduleStep(step: number, time: number, stepDur: number, ratio: number): void {
-    const ctx = this.ctx!;
-    const bus = this.musicBus!;
-
-    // Kick on quarters
-    if (step % 2 === 0) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(130, time);
-      osc.frequency.exponentialRampToValueAtTime(42, time + 0.11);
-      gain.gain.setValueAtTime(0.5, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
-      osc.connect(gain).connect(bus);
-      osc.start(time);
-      osc.stop(time + 0.15);
-    }
-
-    // Bass line
-    const bassNote = AudioSystem.BASS_PATTERN[step];
-    if (bassNote > 0) {
-      const osc = ctx.createOscillator();
-      const filter = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.value = bassNote;
-      filter.type = "lowpass";
-      filter.frequency.value = 260 + ratio * 900;
-      filter.Q.value = 6;
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(0.24, time + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 0.95);
-      osc.connect(filter).connect(gain).connect(bus);
-      osc.start(time);
-      osc.stop(time + stepDur);
-    }
-
-    // Hats on offbeats
-    if (step % 2 === 1 && this.noiseBuffer) {
-      const src = ctx.createBufferSource();
-      src.buffer = this.noiseBuffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = "highpass";
-      filter.frequency.value = 6500;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.05, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-      src.connect(filter).connect(gain).connect(bus);
-      src.start(time);
-      src.stop(time + 0.06);
-    }
-
-    // Sparse lead pluck
-    if ((step === 3 || step === 7) && Math.random() < 0.75) {
-      const freq = AudioSystem.LEAD_NOTES[Math.floor(Math.random() * AudioSystem.LEAD_NOTES.length)];
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(0.1, time + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
-      osc.connect(gain).connect(bus);
-      osc.start(time);
-      osc.stop(time + 0.25);
-    }
-  }
-
-  private chirp(
-    type: OscillatorType,
-    from: number,
-    to: number,
-    duration: number,
-    volume: number
-  ): void {
-    this.chirpAt(type, from, to, duration, volume, 0);
-  }
-
-  private chirpAt(
-    type: OscillatorType,
-    from: number,
-    to: number,
-    duration: number,
-    volume: number,
-    delaySeconds: number
-  ): void {
+  /** Pushes mute / toggle state into the graph and the sub-systems. */
+  private applyLevels(immediate: boolean): void {
+    const graph = this.graph;
     const ctx = this.ctx;
-    if (!ctx || !this.sfxBus) return;
-    const t = ctx.currentTime + delaySeconds;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(from, t);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(to, 1), t + duration);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.001), t + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-    osc.connect(gain).connect(this.sfxBus);
-    osc.start(t);
-    osc.stop(t + duration + 0.02);
-  }
-
-  private thud(volume: number, frequency: number): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.sfxBus) return;
+    if (!graph || !ctx) return;
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(frequency, t);
-    osc.frequency.exponentialRampToValueAtTime(38, t + 0.16);
-    gain.gain.setValueAtTime(volume, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    osc.connect(gain).connect(this.sfxBus);
-    osc.start(t);
-    osc.stop(t + 0.22);
+    const set = (param: AudioParam, value: number) => {
+      if (immediate) param.setValueAtTime(value, t);
+      else param.setTargetAtTime(value, t, TOGGLE_TIME);
+    };
+    set(graph.master.gain, this.muted ? 0 : 1);
+    set(graph.sfxBus.gain, this.sfxEnabled ? SFX_LEVEL : 0);
+    set(graph.musicBus.gain, this.musicEnabled ? MUSIC_MIX.busGain : 0);
+    set(graph.voiceBus.gain, this.voiceEnabled ? VOICE_LEVEL : 0);
+    this.sfx?.setEnabled(this.sfxEnabled && !this.muted);
+    this.music?.setAudible(this.musicEnabled && !this.muted);
+    this.memes?.setEnabled(this.voiceEnabled);
+    this.memes?.setMuted(this.muted);
+  }
+
+  /** Music ducks under voice lines (TTS can't be routed through Web Audio). */
+  private setDucked = (on: boolean): void => {
+    const graph = this.graph;
+    if (!graph) return;
+    const t = graph.ctx.currentTime;
+    const gain = graph.musicDuck.gain;
+    gain.cancelScheduledValues(t);
+    gain.setTargetAtTime(
+      on ? MEME_TIMING.duckGain : 1,
+      t,
+      on ? MEME_TIMING.duckAttack : MEME_TIMING.duckRelease
+    );
+  };
+
+  /** Watchdog: silence loops while the game loop is frozen; thrust safety. */
+  private checkFrozen = (): void => {
+    const now = performance.now();
+    if (this.thrustWanted && now - this.thrustAssertedAt > THRUST_SAFETY_MS) this.setRocketThrust(false);
+    const frozen = now - this.lastUpdateAt > FREEZE_AFTER_MS;
+    if (frozen !== this.frozen) this.setFrozen(frozen);
+  };
+
+  private setFrozen(frozen: boolean): void {
+    this.frozen = frozen;
+    this.music?.freeze(frozen);
+    this.sfx?.freezeThrust(frozen);
   }
 }

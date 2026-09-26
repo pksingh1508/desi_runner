@@ -43,8 +43,12 @@ export const LEVEL_REWARDS: Record<number, Reward[]> = {
     { kind: "character", id: "ryder", label: "RYDER — STREET RUNNER" },
     { kind: "coins", amount: 100, label: "100 COINS" },
   ],
-  3: [{ kind: "character", id: "ember", label: "EMBER UNIT" }],
+  3: [
+    { kind: "character", id: "jassi", label: "JASSI — BALLE BALLE SPRINTER" },
+    { kind: "character", id: "ember", label: "EMBER UNIT" },
+  ],
   4: [
+    { kind: "character", id: "meera", label: "MEERA — METRO QUEEN" },
     { kind: "character", id: "shadow", label: "SHADOW — NIGHT NINJA" },
     { kind: "coins", amount: 150, label: "150 COINS" },
   ],
@@ -52,19 +56,29 @@ export const LEVEL_REWARDS: Record<number, Reward[]> = {
     { kind: "character", id: "nova", label: "NOVA — NEON STRIKER" },
     { kind: "coins", amount: 250, label: "250 COINS" },
   ],
-  6: [{ kind: "character", id: "wraith", label: "WRAITH UNIT" }],
+  6: [
+    { kind: "character", id: "inspector", label: "INSPECTOR — KHAKI WALA HERO" },
+    { kind: "character", id: "wraith", label: "WRAITH UNIT" },
+  ],
   7: [
     { kind: "character", id: "ace", label: "ACE — SKY CAPTAIN" },
     { kind: "coins", amount: 200, label: "200 COINS" },
   ],
-  8: [{ kind: "character", id: "xeno", label: "XENO — ALIEN SCOUT" }],
+  8: [
+    { kind: "character", id: "hero", label: "HERO — FILMY HERO NO. 1" },
+    { kind: "character", id: "xeno", label: "XENO — ALIEN SCOUT" },
+  ],
   9: [
     { kind: "badge", id: "spark", label: "SPARK BADGE" },
     { kind: "character", id: "corsair", label: "CORSAIR — SEA ROGUE" },
   ],
-  10: [{ kind: "character", id: "aurora", label: "AURORA UNIT" }],
+  10: [
+    { kind: "character", id: "babli", label: "BABLI — PATIALA POWER" },
+    { kind: "character", id: "aurora", label: "AURORA UNIT" },
+  ],
   11: [{ kind: "character", id: "orbit", label: "ORBIT — STAR WALKER" }],
   12: [
+    { kind: "character", id: "shera", label: "SHERA — AKHAADE KA SHER" },
     { kind: "character", id: "volt", label: "VOLT — SPEAKER UNIT" },
     { kind: "coins", amount: 300, label: "300 COINS" },
   ],

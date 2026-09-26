@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 interface DebugInfo {
   fps: number;
@@ -17,36 +17,51 @@ interface DebugInfo {
 
 type GetDebug = () => DebugInfo | null;
 
+const SMALL_SCREEN = "(max-width: 900px), (max-height: 520px)";
+
 /**
  * Development-only diagnostics overlay. Renders nothing in production builds.
+ * Collapses to a small FPS chip (default on small screens) so it never hides
+ * the game UI; tap to expand again.
  */
 export function DebugPanel({ getDebug }: { getDebug: GetDebug }) {
   const isDev = process.env.NODE_ENV === "development";
   const [info, setInfo] = useState<DebugInfo | null>(null);
-  const [open, setOpen] = useState(true);
+  const [expanded, setExpanded] = useState(
+    () => typeof window !== "undefined" && !window.matchMedia(SMALL_SCREEN).matches
+  );
+
+  // getDebug is a fresh closure every parent render (10 Hz in play); an
+  // Effect Event keeps the interval stable instead of resetting it.
+  const readDebug = useEffectEvent(() => setInfo(getDebug()));
 
   useEffect(() => {
     if (!isDev) return;
-    const id = window.setInterval(() => {
-      if (!open) return;
-      setInfo(getDebug());
-    }, 300);
+    const id = window.setInterval(readDebug, expanded ? 300 : 1000);
     return () => window.clearInterval(id);
-  }, [getDebug, isDev, open]);
+  }, [isDev, expanded]);
 
-  if (!isDev || !info || !open) return null;
+  if (!isDev || !info) return null;
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        className="debug-chip"
+        onClick={() => setExpanded(true)}
+        aria-label="Show debug panel"
+      >
+        DBG {info.fps}
+      </button>
+    );
+  }
 
   return (
-    <div className="absolute bottom-3 left-3 z-50 rounded border border-[#d9de7a]/20 bg-black/70 p-2.5 font-tech text-[10px] leading-relaxed text-[#d9de7a]/80 backdrop-blur-sm">
-      <div className="mb-1 flex items-center justify-between gap-6">
-        <span className="tracking-[0.25em] text-[#9fca7d]">DEBUG</span>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-white/40 hover:text-white"
-          aria-label="Close debug panel"
-        >
-          ✕
+    <div className="debug-panel">
+      <div className="debug-panel__head">
+        <span>DEBUG</span>
+        <button type="button" onClick={() => setExpanded(false)} aria-label="Collapse debug panel">
+          –
         </button>
       </div>
       <Row k="FPS" v={String(info.fps)} />
@@ -65,8 +80,8 @@ export function DebugPanel({ getDebug }: { getDebug: GetDebug }) {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex justify-between gap-5">
-      <span className="text-white/40">{k}</span>
+    <div className="debug-panel__row">
+      <span>{k}</span>
       <span>{v}</span>
     </div>
   );

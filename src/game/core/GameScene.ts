@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
-import { COLORS, WORLD } from "@/game/config/gameplay";
+import { CAMERA_CFG } from "@/game/config/gameplay";
+import { BIOMES } from "@/game/config/biomes";
+import { Atmosphere } from "@/game/world/atmosphere/Atmosphere";
 
 export interface SceneBundle {
   scene: THREE.Scene;
@@ -9,29 +11,33 @@ export interface SceneBundle {
   hemi: THREE.HemisphereLight;
   rim: THREE.DirectionalLight;
   playerGlow: THREE.PointLight;
-  starsMaterial: THREE.PointsMaterial;
+  /** Sky dome, far skyline, ground, ambient sky life, per-biome IBL. */
+  atmosphere: Atmosphere;
   resize(aspect: number): void;
 }
 
 /**
- * Builds scene, fog, lights and camera.
- * The distant skyline / star field live on recycled track segments instead,
- * so everything visible here is global atmosphere only.
+ * Builds scene, fog, lights, camera and the global atmosphere (sky,
+ * skyline, kites/birds/fireworks/rain, environment maps). Street decor lives
+ * on the recycled track segments; colors are driven by the BiomeManager.
  */
-export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
+export function createSceneAndCamera(bag: ResourceBag, renderer: THREE.WebGLRenderer): SceneBundle {
+  const first = BIOMES[0];
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(WORLD.backgroundColor);
-  scene.fog = new THREE.Fog(WORLD.backgroundColor, WORLD.fogNear, WORLD.fogFar);
+  scene.background = new THREE.Color(first.fog);
+  scene.fog = new THREE.Fog(first.fog, first.fogNear, first.fogFar);
 
-  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 600);
-  camera.position.set(0, 4.7, 8.2);
-  camera.lookAt(0, 1.5, -7.5);
+  // Near 0.2 keeps depth precision for flat street decals; the sky dome
+  // (r = 480) sits inside the far plane.
+  const camera = new THREE.PerspectiveCamera(CAMERA_CFG.fovNormal, 1, 0.2, 700);
+  camera.position.set(CAMERA_CFG.offset.x, CAMERA_CFG.offset.y, CAMERA_CFG.offset.z);
+  camera.lookAt(CAMERA_CFG.lookOffset.x, CAMERA_CFG.lookOffset.y, CAMERA_CFG.lookOffset.z);
 
-  const hemi = new THREE.HemisphereLight(0xd6f0ff, 0xfff2cc, 1.42);
+  const hemi = new THREE.HemisphereLight(first.hemiSky, first.hemiGround, first.hemiIntensity);
   scene.add(hemi);
 
-  // Key light: bright daylight sun (Subway Surfers outdoor style).
-  const sun = new THREE.DirectionalLight(0xfffdf5, 3.15);
+  // Key light: the single shadow caster, framed tightly around the runner.
+  const sun = new THREE.DirectionalLight(first.sunColor, first.sunIntensity);
   sun.position.set(7, 18, 6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -42,21 +48,23 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
   sun.shadow.camera.top = 32;
   sun.shadow.camera.bottom = -52;
   sun.shadow.bias = -0.0003;
-  // Crisp daylight shadows for high outdoor readability.
+  sun.shadow.normalBias = 0.02;
   scene.add(sun);
   scene.add(sun.target);
 
-  // Soft cyan sky rim from behind-left to separate the runner from the road.
-  const rim = new THREE.DirectionalLight(0x6aeefd, 0.52);
+  // Rim / backlight from ahead-left: golden-hour sun, festival glow at night.
+  const rim = new THREE.DirectionalLight(first.rimColor, first.rimIntensity);
   rim.position.set(-6, 5, -8);
   scene.add(rim);
 
   // Warm glow that follows the player (position synced by Game each frame).
-  const playerGlow = new THREE.PointLight(COLORS.signalLime, 10, 12, 1.8);
+  const playerGlow = new THREE.PointLight(first.glowColor, first.glowIntensity, 12, 1.8);
   playerGlow.position.set(0, 3, 1.5);
   scene.add(playerGlow);
 
-  buildStars(scene, bag);
+  const atmosphere = new Atmosphere(scene, bag, renderer);
+  scene.environment = atmosphere.envMaps[0];
+  scene.environmentIntensity = first.envIntensity;
 
   return {
     scene,
@@ -65,44 +73,10 @@ export function createSceneAndCamera(bag: ResourceBag): SceneBundle {
     hemi,
     rim,
     playerGlow,
-    starsMaterial: starsMaterialRef!,
+    atmosphere,
     resize(aspect: number) {
       camera.aspect = aspect;
       camera.updateProjectionMatrix();
     },
   };
-}
-
-let starsMaterialRef: THREE.PointsMaterial | null = null;
-
-function buildStars(scene: THREE.Scene, bag: ResourceBag): void {
-  const count = 280;
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    // Upper hemisphere shell — kept very sparse for daylight; opacity stays ~0.05.
-    const radius = 260 + Math.random() * 140;
-    const theta = Math.random() * Math.PI * 2;
-    const elevation = 0.18 + Math.random() * 1.2;
-    positions[i * 3] = Math.cos(theta) * Math.cos(elevation) * radius;
-    positions[i * 3 + 1] = Math.sin(elevation) * radius;
-    positions[i * 3 + 2] = Math.sin(theta) * Math.cos(elevation) * radius;
-  }
-  const geometry = bag.geo(new THREE.BufferGeometry());
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  const material = bag.mat(
-    new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 1.35,
-      sizeAttenuation: false,
-      transparent: true,
-      opacity: 0.06,
-      depthWrite: false,
-      fog: false,
-      blending: THREE.AdditiveBlending,
-    })
-  );
-  starsMaterialRef = material;
-  const stars = new THREE.Points(geometry, material);
-  stars.frustumCulled = false;
-  scene.add(stars);
 }

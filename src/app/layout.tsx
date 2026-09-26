@@ -1,44 +1,58 @@
 import type { Metadata, Viewport } from "next";
-import { Press_Start_2P, Share_Tech_Mono } from "next/font/google";
+import { Baloo_2, Poppins, Yatra_One } from "next/font/google";
+// Tailwind + @theme first, then the UI partials in cascade order.
 import "./globals.css";
+import "@/components/ui/styles/tokens.css";
+import "@/components/ui/styles/motion.css";
+import "@/components/ui/styles/primitives.css";
+import "@/components/ui/styles/menu.css";
+import "@/components/ui/styles/hud.css";
+import "@/components/ui/styles/overlays.css";
+import "@/components/ui/styles/reduced-motion.css";
 
-/** Chunky retro display face — titles, buttons, countdown numbers. */
-const retro = Press_Start_2P({
-  variable: "--font-retro",
-  weight: "400",
+/** Chunky rounded display face (Latin + Devanagari) — titles, numbers, buttons. */
+const baloo = Baloo_2({
+  variable: "--font-baloo",
   subsets: ["latin"],
+  display: "swap",
 });
 
- /** Tactical terminal mono — HUD stats, labels, body copy. */
-const techMono = Share_Tech_Mono({
-  variable: "--font-tech",
-  weight: "400",
+/** Clean UI face (Latin + Devanagari) — labels, body copy, descriptions. */
+const poppins = Poppins({
+  variable: "--font-poppins",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
+  display: "swap",
+});
+
+/** Decorative Devanagari face — the "देसी रन" logo and Hindi accents. */
+const yatra = Yatra_One({
+  variable: "--font-yatra",
+  weight: "400",
+  subsets: ["devanagari"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "DESI RUN — Futuristic 3D Endless Runner",
+  title: "DESI RUN · देसी रन — 3D Indian Street Runner",
   description:
-    "Sprint through an infinite neon grid. Dodge, jump, slide and collect energy tokens in this browser-based 3D endless runner built with Next.js and Three.js.",
-  icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
-  },
+    "Bhaago through Chandni Chowk, the Pink City, Mumbai monsoon and Diwali night. Dodge cows, autos and chai stalls, grab CHUMBAK and CHAI BOOST, fill your JOSH meter and ride the Diwali rocket in this browser 3D endless runner.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070b09",
+  themeColor: "#1a1440",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${retro.variable} ${techMono.variable} h-full antialiased`}
+      className={`${baloo.variable} ${poppins.variable} ${yatra.variable} h-full antialiased`}
     >
       <body className="min-h-full overflow-hidden">{children}</body>
     </html>

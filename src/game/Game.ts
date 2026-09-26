@@ -1,14 +1,14 @@
 import * as THREE from "three";
-import type { GameAction, GameState, HudPowerUp, RunTallyData, SkillEventKind } from "@/types/game";
+import type { GameAction, GameState, HudPowerUp, MenuFocus, RunTallyData, SkillEventKind } from "@/types/game";
 import { GameStore } from "./GameStore";
 import { ResourceBag, disposeObjectTree } from "./utils/dispose";
 import { createRenderer, type RendererHandle } from "./core/Renderer";
 import { createSceneAndCamera, type SceneBundle } from "./core/GameScene";
 import { CameraRig } from "./core/CameraRig";
-import { AssetManager } from "./core/AssetManager";
+import { PostFX } from "./core/PostFX";
 import { SaveService } from "./core/SaveService";
 import { Player } from "./player/Player";
-import { CharacterAnimationController } from "./player/CharacterAnimationController";
+import { RunnerWardrobe } from "./player/RunnerWardrobe";
 import { PlayerFX } from "./player/PlayerFX";
 import { InputSystem } from "./systems/InputSystem";
 import { CollisionSystem, type ColliderLike } from "./systems/CollisionSystem";
@@ -33,8 +33,8 @@ import type { Key } from "./entities/Key";
 import type { Rocket } from "./entities/Rocket";
 import type { Obstacle } from "./entities/Obstacle";
 import type { Drone } from "./systems/RunEventSystem";
-import { MODEL_URL, ROCKET_FLIGHT, SPEED } from "./config/gameplay";
-import { MAGNET, TURBO } from "./config/powerups";
+import { DESI_BONUS, POST_FX, REVIVE, ROCKET_FLIGHT, ROCKET_RIDE, SPEED, TAAL } from "./config/gameplay";
+import { MAGNET, POWERUP_DEFS, TURBO } from "./config/powerups";
 import { BIOMES } from "./config/biomes";
 import { getCharacter } from "./config/characters";
 import { clamp } from "./utils/math";
@@ -45,12 +45,11 @@ const HUD_INTERVAL = 0.1;
 const MISSION_SYNC_INTERVAL = 2;
 /** Perceived impact freeze for smashes/shield breaks (simulation scaled). */
 const HIT_STOP_SCALE = 0.18;
-const REVIVE_TIME = 6;
-const REVIVE_INVULN = 2.4;
-/** Collision-free grace after touching back down — landing blind at 30m/s
- * into a wall would feel unfair without a moment to re-orient. The shield
- * bubble stays up for the whole window so safety reads visually. */
-const LANDING_SAFE_SECONDS = 3;
+/** The idling menu runner dances every this-many seconds. */
+const MENU_FLOURISH_SECONDS = 14;
+/** Approach cues (honks, moos) fire when an obstacle enters this z window. */
+const APPROACH_CUE_FAR_Z = -46;
+const APPROACH_CUE_NEAR_Z = -30;
 
 /**
  * Authoritative game orchestrator: owns the render loop, the state machine
@@ -62,9 +61,12 @@ export class Game {
   private rendererHandle: RendererHandle | null = null;
   private sceneBundle: SceneBundle | null = null;
   private cameraRig: CameraRig | null = null;
+  private postFX: PostFX | null = null;
 
   private player = new Player();
   private playerFX = new PlayerFX();
+  /** Equipped-runner resolution, lazy rig assets, equip + GEAR previews. */
+  private wardrobe = new RunnerWardrobe(this.player);
   private world!: WorldManager;
   private biomeManager: BiomeManager | null = null;
   private input: InputSystem | null = null;
@@ -97,7 +99,13 @@ export class Game {
   private disposed = false;
   private reviveCountdown = 0;
   private reviveInvuln = 0;
-  private wasRocketFlying = false;
+  /** Rocket HUD timer pushes at ~10 Hz (never per frame). */
+  private rocketHudTimer = 0;
+  /** Seconds until the idling menu runner breaks into a dance flourish. */
+  private menuFlourishTimer = MENU_FLOURISH_SECONDS;
+  /** Consecutive on-beat jumps and the last TAAL toast time. */
+  private taalStreak = 0;
+  private lastTaalToast = -10;
 
   // Run bookkeeping
   private runTime = 0;
@@ -144,9 +152,11 @@ export class Game {
     }
     this.rendererHandle = rendererHandle;
 
-    const bundle = createSceneAndCamera(this.bag);
+    rendererHandle.renderer.info.autoReset = false;
+    const bundle = createSceneAndCamera(this.bag, rendererHandle.renderer);
     this.sceneBundle = bundle;
     this.cameraRig = new CameraRig(bundle.camera);
+    this.postFX = new PostFX(rendererHandle.renderer, bundle.scene, bundle.camera);
 
     const save = SaveService.get();
     this.cameraRig.shakeEnabled = save.settings.screenShake;
@@ -154,6 +164,11 @@ export class Game {
     this.audio.setMuted(save.settings.muted);
     this.audio.setMusicEnabled(save.settings.music);
     this.audio.setSfxEnabled(save.settings.sound);
+    this.audio.setVoiceEnabled(save.settings.voice);
+    this.audio.onMemeCaption = (caption, sub) => {
+      this.feedback.push(caption, "meme", sub);
+      this.store.setFeedback(this.feedback.snapshot(), this.feedback.banner);
+    };
     this.store.setKeys(save.keys);
 
     const shared = new SharedAssets(this.bag, BIOMES.map((b) => b.billboardHues));
@@ -162,6 +177,7 @@ export class Game {
     this.biomeManager.onBiomeShift = (name) => {
       this.feedback.push(`ENTERING ${name}`, "good");
       this.audio.playBiomeShift();
+      if (this.biomeManager) this.audio.setMusicTheme(this.biomeManager.billboardSetIndex);
     };
 
     this.particles = new ParticleSystem(bundle.scene, this.bag);
@@ -171,6 +187,7 @@ export class Game {
     this.events = new RunEventSystem(this.world, this.bag, this.feedback, this.audio);
 
     this.input = new InputSystem(this.host, (action) => this.handleAction(action));
+    this.player.onRocketLanded = this.handleRocketLanded;
     this.player.onLand = (impact) => {
       if (this.particles) this.particles.emitDust(this.player.positionX, 0, Math.round(clamp(impact / 4, 2, 8)));
       this.audio.playLand();
@@ -180,24 +197,25 @@ export class Game {
     this.combo.onMilestone = (count, mult) => {
       this.feedback.push(`COMBO ×${count}`, "combo", `×${mult} SCORE`);
       this.audio.playComboMilestone(Math.round(mult));
+      this.audio.playMeme("combo");
       this.overdrive.gain(OVERDRIVE_CFG.gainComboMilestone);
     };
     this.overdrive.onReady = () => {
-      this.feedback.push("⚡ OVERDRIVE READY ⚡", "epic", "PRESS E / DOUBLE-TAP");
+      this.feedback.push("⚡ JOSH IS HIGH ⚡", "epic", "PRESS E / DOUBLE-TAP");
       this.audio.playOverdriveReady();
     };
     this.overdrive.onActivated = () => {
       this.tally.overdrives += 1;
-      this.feedback.push("OVERDRIVE!", "epic", "SMASH THROUGH");
+      this.feedback.push("FULL JOSH!", "epic", "SMASH THROUGH");
       this.audio.playOverdriveActivate();
+      this.audio.playMeme("overdrive");
       this.cameraRig?.addShake(0.22);
     };
     this.overdrive.onEnded = () => {
-      this.feedback.push("OVERDRIVE SPENT", "good");
+      this.feedback.push("JOSH COOLED", "good");
     };
 
     this.missions.ensureToday();
-    this.applyCustomizationFromSave();
     this.biomeManager.update(0, 0);
 
     this.resizeObserver = new ResizeObserver(() => this.handleResize());
@@ -217,21 +235,9 @@ export class Game {
   }
 
   private async loadCharacter(): Promise<void> {
-    const manager = new AssetManager((ratio, label) => this.store.setLoading(ratio, label));
-    try {
-      const assets = await manager.loadAll({ character: MODEL_URL });
-      if (this.disposed) return;
-      this.player.attachModel(assets.character);
-      const controller = new CharacterAnimationController(
-        this.player.root,
-        assets.character.animations
-      );
-      this.player.setAnimationController(controller);
-      this.applyCustomizationFromSave();
-    } catch (error) {
-      // Model failed but the procedural fallback keeps the game playable.
-      console.error("[DESI RUN] character load failed:", error);
-    }
+    await this.wardrobe.loadInitial((ratio) => this.store.setLoading(ratio * 0.97, "LOADING RUNNER"));
+    if (this.disposed) return;
+    this.player.setLocomotion("idle");
     this.store.setLoading(1, "READY");
     this.store.setState("menu");
     this.store.setHud({
@@ -239,7 +245,7 @@ export class Game {
       distance: 0,
       coins: 0,
       speedRatio: 0,
-      tierName: "WARM-UP",
+      tierName: "CHALTA HAI",
       tierLabel: "I",
     });
   }
@@ -250,6 +256,7 @@ export class Game {
     const height = this.host.clientHeight || window.innerHeight;
     this.rendererHandle.resize(width, height);
     this.sceneBundle.resize(width / Math.max(height, 1));
+    this.postFX?.setSize(width, height, this.rendererHandle.renderer.getPixelRatio());
   }
 
   private onVisibilityChange = (): void => {
@@ -276,7 +283,7 @@ export class Game {
             this.player.requestLane(1);
             break;
           case "jump":
-            this.player.requestJump();
+            if (this.player.requestJump()) this.judgeTaal();
             this.audio.playJump();
             break;
           case "slide":
@@ -285,7 +292,7 @@ export class Game {
             break;
           case "overdrive":
             if (!this.overdrive.tryActivate()) {
-              this.feedback.push("OVERDRIVE NOT READY", "warn");
+              this.feedback.push("JOSH NOT READY", "warn");
             }
             break;
           case "pause":
@@ -324,7 +331,7 @@ export class Game {
     this.store.setKeys(SaveService.get().keys);
     this.store.setReviveCountdown(0);
     this.reviveCountdown = 0;
-    this.reviveInvuln = REVIVE_INVULN;
+    this.reviveInvuln = REVIVE.invulnerableSeconds;
     this.world.clearObstaclesAhead(this.player.positionX, 2.8);
     // Also sweep drones from the immediate area
     if (this.events) {
@@ -344,6 +351,7 @@ export class Game {
     this.cameraRig?.addShake(0.28);
     this.feedback.push("LIFE SAVER!", "epic", "CONTINUE!");
     this.audio.playPowerup();
+    this.audio.playMeme("revive");
     this.audio.startMusic();
     this.particles?.emitBurst(this.player.positionX, 1.1, 0, 0.98, 0.82, 0.18, 20, 1.2);
     this.setState("playing");
@@ -368,9 +376,14 @@ export class Game {
   startRun(): void {
     this.audio.unlock();
     this.audio.playClick();
+    // A GEAR preview may be showing — always run as the equipped runner.
+    this.wardrobe.applyEquipped();
     this.runEpoch++;
     this.score.reset();
     this.difficulty.reset();
+    // Biome first: the world re-decorates for the biome it is told about.
+    this.biomeManager?.reset();
+    if (this.biomeManager) this.world.setBillboardSet(this.biomeManager.upcomingBiomeIndex);
     this.world.reset();
     this.player.reset();
     this.particles?.clear();
@@ -386,6 +399,8 @@ export class Game {
     this.progression.resetRunState();
     this.runTime = 0;
     this.tally = emptyTally();
+    this.taalStreak = 0;
+    this.lastTaalToast = -10;
     this.lastCoinAt = -10;
     this.coinStreak = 0;
     this.missionSyncTimer = 0;
@@ -393,7 +408,9 @@ export class Game {
     this.hitStopTimer = 0;
     this.reviveCountdown = 0;
     this.reviveInvuln = 0;
-    this.wasRocketFlying = false;
+    this.rocketHudTimer = 0;
+    this.audio.setRocketThrust(false);
+    this.audio.setMusicTheme(0);
     this.store.setReviveCountdown(0);
     this.store.setRunKeys(0);
     this.store.setKeys(SaveService.get().keys);
@@ -405,18 +422,21 @@ export class Game {
     this.store.clearRunResult();
     this.pushHud(true);
     this.setState("countdown");
-    this.player.animation?.setState("run");
+    this.player.setLocomotion("run");
+    this.cameraRig?.beginRunTransition(this.player.positionX);
   }
 
   pause(): void {
     if (this.store.getSnapshot().gameState !== "playing") return;
     this.audio.playClick();
+    this.audio.setRocketThrust(false);
     this.setState("paused");
   }
 
   resume(): void {
     if (this.store.getSnapshot().gameState !== "paused") return;
     this.audio.playClick();
+    this.audio.setRocketThrust(this.player.isFlying);
     this.setState("playing");
   }
 
@@ -426,6 +446,8 @@ export class Game {
     this.audio.playClick();
     this.score.reset();
     this.difficulty.reset();
+    this.biomeManager?.reset();
+    if (this.biomeManager) this.world.setBillboardSet(this.biomeManager.upcomingBiomeIndex);
     this.world.reset();
     this.player.reset();
     this.particles?.clear();
@@ -434,20 +456,22 @@ export class Game {
     this.feedback.clear();
     this.store.setFeedback([], null);
     this.events?.reset();
-    this.biomeManager?.reset();
+    this.postFX?.setBloomStrength(POST_FX.bloomStrength);
     this.cameraRig?.setFovBoost(0);
     this.deathSpeed = 0;
     this.hitStopTimer = 0;
     this.reviveCountdown = 0;
     this.reviveInvuln = 0;
-    this.wasRocketFlying = false;
+    this.rocketHudTimer = 0;
+    this.audio.setRocketThrust(false);
+    this.audio.setMusicTheme(0);
     this.store.setReviveCountdown(0);
     this.store.setKeys(SaveService.get().keys);
     this.store.setRocket(false, 0);
     this.store.clearRunResult();
     this.pushHud(true);
     this.setState("menu");
-    this.player.animation?.setState("idle");
+    this.player.setLocomotion("idle");
   }
 
   // ------------------------------------------------------- settings / gear
@@ -478,6 +502,35 @@ export class Game {
     return next;
   }
 
+  toggleVoice(): boolean {
+    const next = !SaveService.get().settings.voice;
+    SaveService.update((s) => {
+      s.settings.voice = next;
+    });
+    this.audio.unlock();
+    this.audio.setVoiceEnabled(next);
+    this.store.bumpMetaVersion();
+    return next;
+  }
+
+  /**
+   * Menu-only 3D preview of any runner (locked ones included) without
+   * equipping it. `null` restores the equipped runner.
+   */
+  previewCharacter(id: string | null): void {
+    if (this.store.getSnapshot().gameState !== "menu") return;
+    if (id === null) this.wardrobe.applyEquipped();
+    else this.wardrobe.preview(id);
+  }
+
+  /**
+   * Menu camera framing per tab (GEAR zooms onto the runner for a closer
+   * look at the equipped character).
+   */
+  setMenuFocus(focus: MenuFocus): void {
+    this.cameraRig?.setMenuFocus(focus);
+  }
+
   toggleSound(): boolean {
     const next = !SaveService.get().settings.sound;
     SaveService.update((s) => {
@@ -505,6 +558,10 @@ export class Game {
     renderer.setPixelRatio(on ? 1 : Math.min(window.devicePixelRatio || 1, baseCap));
     renderer.shadowMap.enabled = !on;
     this.sceneBundle.sun.castShadow = !on;
+    // Bloom/MSAA post chain only on capable (fine-pointer) devices.
+    const coarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    this.postFX?.setEnabled(!on && !coarse);
+    this.handleResize();
   }
 
   /**
@@ -520,26 +577,11 @@ export class Game {
     SaveService.update((s) => {
       s.customization.character = id;
     });
-    this.applyCustomizationFromSave();
+    this.wardrobe.applyEquipped(true);
     this.audio.unlock();
     this.audio.playUnlock();
     this.store.bumpMetaVersion();
     return true;
-  }
-
-  private applyCustomizationFromSave(): void {
-    const save = SaveService.get();
-    let character = getCharacter(save.customization.character);
-    // Self-heal: a save pointing at a locked runner (tampered or legacy)
-    // falls back to the default instead of leaking it onto the track.
-    if (save.progression.level < character.unlockLevel) {
-      character = getCharacter("vector");
-      SaveService.update((s) => {
-        s.customization.character = character.id;
-      });
-    }
-    // Distinct 3D rig per archetype (robot GLB vs procedural rigs).
-    this.player.applyCharacter(character);
   }
 
   getDebugInfo() {
@@ -629,16 +671,46 @@ export class Game {
         break;
     }
 
-    this.rendererHandle!.renderer.render(this.sceneBundle!.scene, this.sceneBundle!.camera);
+    if (state !== "paused" && state !== "loading") {
+      this.biomeManager?.updateAmbient(delta, this.currentWorldSpeed(state));
+    }
+
+    // Stats accumulate across every pass of the frame (post chain included).
+    const renderer = this.rendererHandle!.renderer;
+    renderer.info.reset();
+    if (this.postFX) this.postFX.render(this.sceneBundle.scene, this.sceneBundle.camera, delta);
+    else renderer.render(this.sceneBundle.scene, this.sceneBundle.camera);
+  }
+
+  /** World scroll speed for ambient effects in the given state. */
+  private currentWorldSpeed(state: GameState): number {
+    switch (state) {
+      case "menu":
+        return SPEED.menuSpeed;
+      case "countdown":
+        return SPEED.start * SPEED.countdownFactor;
+      case "playing":
+        return this.lastEffectiveSpeed;
+      case "gameover":
+        return this.deathSpeed;
+      default:
+        return 0;
+    }
   }
 
   private updateAmbient(delta: number, speed: number): void {
+    this.menuFlourishTimer -= delta;
+    if (this.menuFlourishTimer <= 0) {
+      this.menuFlourishTimer = MENU_FLOURISH_SECONDS;
+      this.player.celebrate(2.6);
+    }
     this.world.update(delta, speed, 0, 0);
     this.particles?.update(delta, speed, 0);
     this.playerFX.update(delta);
+    this.player.setWorldSpeed(speed);
     this.player.update(delta, 0);
     this.syncLights();
-    this.cameraRig!.updateMenu(delta);
+    this.cameraRig!.updateMenu(delta, this.player.positionX);
     this.audio.update(0);
   }
 
@@ -655,6 +727,7 @@ export class Game {
     const speed = SPEED.start * SPEED.countdownFactor;
     this.world.update(delta, speed, 0, 0);
     this.difficulty.overrideSpeed(speed);
+    this.player.setWorldSpeed(speed);
     this.player.update(delta, SPEED.countdownFactor);
     this.particles?.update(delta, speed, 0.15);
     this.playerFX.update(delta);
@@ -666,6 +739,7 @@ export class Game {
       this.store.setCountdown(0); // GO!
       this.audio.playCountdownBeep(true);
       this.audio.startMusic();
+      this.audio.playMeme("start");
       this.setState("playing");
     }
   }
@@ -692,7 +766,16 @@ export class Game {
 
     this.world.update(delta, effectiveSpeed, this.difficulty.tier.index, this.score.distance);
     this.biomeManager?.update(delta, this.score.distance);
+    if (this.biomeManager) {
+      // Recycled segments sit ~400 m ahead: decorate them (and pick obstacle
+      // variants) for the biome the runner will actually reach there.
+      this.world.setBillboardSet(this.biomeManager.upcomingBiomeIndex);
+      // Diwali Night (biome 3) glows harder.
+      const current = this.biomeManager.billboardSetIndex;
+      this.postFX?.setBloomStrength(current === 3 ? POST_FX.nightBloomStrength : POST_FX.bloomStrength);
+    }
     this.events?.update(delta, this.score.distance, effectiveSpeed, this.difficulty.tier.index);
+    this.player.setWorldSpeed(effectiveSpeed);
     this.player.update(delta, ratio);
 
     // ---- skill evaluation runs just before collision resolution
@@ -714,7 +797,7 @@ export class Game {
       if (!event.kind) continue;
       const sideSign =
         event.obstacle && event.obstacle.centerX > this.player.positionX ? -1 : 1;
-      this.processSkillAward(event.kind, sideSign);
+      this.processSkillAward(event.kind, sideSign, event.obstacle);
     }
 
     // ---- collision resolution (obstacles + event drones)
@@ -722,7 +805,8 @@ export class Game {
     let hit: ColliderLike | null = null;
     if (this.reviveInvuln <= 0 && !this.player.isFlying) {
       this.nearColliders.length = 0;
-      this.nearColliders.push(...nearList, ...(this.events?.drones ?? []));
+      for (const obstacle of nearList) this.nearColliders.push(obstacle);
+      if (this.events) for (const drone of this.events.drones) this.nearColliders.push(drone);
       hit = this.collision.findHit(
         {
           minX: bounds.min.x,
@@ -741,7 +825,7 @@ export class Game {
     }
 
     // ---- coins & keys & rockets: magnet pull + collection
-    this.gatherNearbyCoins();
+    this.gatherNearbyCoins(this.magnetFieldActive() ? -(MAGNET.reachMax + 4) : -30);
     this.gatherNearbyKeys();
     this.gatherNearbyRockets();
     this.applyMagnet(delta);
@@ -763,23 +847,21 @@ export class Game {
     this.powerups.update(delta);
     this.combo.update(delta);
     this.overdrive.update(delta);
-    // Rocket HUD sync (must run every frame while flying for countdown)
+    // Thrust loop is idempotent and self-stops if not re-asserted.
+    this.audio.setRocketThrust(this.player.isFlying);
+    // Rocket HUD timer at ~10 Hz — the HUD eases between pushes with CSS.
     if (this.player.isFlying) {
-      this.store.setRocket(true, this.player.rocketRemaining);
-    } else if (this.wasRocketFlying) {
-      this.store.setRocket(false, 0);
-      this.reviveInvuln = LANDING_SAFE_SECONDS;
-      this.feedback.push("SAFE LANDING!", "good", "3s GRACE");
+      this.rocketHudTimer -= delta;
+      if (this.rocketHudTimer <= 0) {
+        this.rocketHudTimer = ROCKET_RIDE.hudInterval;
+        this.store.setRocket(true, this.player.rocketRemaining);
+      }
     }
-    this.wasRocketFlying = this.player.isFlying;
 
-    this.playerFX.setShield(this.powerups.hasShield() || this.reviveInvuln > 0 || this.player.isFlying);
-    this.playerFX.setMagnet(
-      this.powerups.isActive("magnet") || this.overdrive.active || this.powerups.turboProtects || this.player.isFlying
-    );
+    const hasShield = this.powerups.hasShield();
+    this.playerFX.setShield(hasShield || this.reviveInvuln > 0, !hasShield && this.reviveInvuln > 0);
+    this.playerFX.setMagnet(this.powerups.isActive("magnet") || this.overdrive.active);
     this.playerFX.setOverdrive(this.overdrive.ramp);
-    // Extra flight aura when rocket active
-    if (this.player.isFlying) this.playerFX.setOverdrive(0.9);
     this.playerFX.update(delta);
 
     // ---- camera/audio channels driven by ramped intensities
@@ -822,17 +904,31 @@ export class Game {
 
   private nearObstacles(): Obstacle[] {
     this.nearObstacleScratch.length = 0;
-    this.world.forEachObstacle((obstacle) => {
-      if (
-        obstacle.active &&
-        obstacle.collider.maxZ > -14 &&
-        obstacle.collider.minZ < 6
-      ) {
-        this.nearObstacleScratch.push(obstacle);
-      }
-    });
+    this.world.forEachObstacle(this.visitObstacle);
     return this.nearObstacleScratch;
   }
+
+  /** Bound once — collects nearby colliders and fires approach cues. */
+  private visitObstacle = (obstacle: Obstacle): void => {
+    if (!obstacle.active) return;
+    const c = obstacle.collider;
+    if (c.maxZ > -14 && c.minZ < 6) this.nearObstacleScratch.push(obstacle);
+    // Honk / moo / bell once as a vehicle or animal comes into view.
+    if (obstacle.approachCue && !obstacle.cuePlayed && c.minZ > APPROACH_CUE_FAR_Z && c.minZ < APPROACH_CUE_NEAR_Z) {
+      obstacle.cuePlayed = true;
+      switch (obstacle.approachCue) {
+        case "honk":
+          this.audio.playHonk();
+          break;
+        case "moo":
+          this.audio.playMoo();
+          break;
+        case "bell":
+          this.audio.playBell();
+          break;
+      }
+    }
+  };
 
   /** Coin pop animation tick (scale-out), run over pooled instances. */
   private animateCollectingCoins(delta: number): void {
@@ -845,6 +941,7 @@ export class Game {
     this.deathSpeed = Math.max(0, this.deathSpeed - SPEED.deathDeceleration * delta);
     this.world.update(delta, this.deathSpeed, this.difficulty.tier.index, this.score.distance);
     this.animateCollectingCoins(delta);
+    this.player.setWorldSpeed(this.deathSpeed);
     this.player.update(delta, 0);
     this.particles?.update(delta, this.deathSpeed, 0);
     this.playerFX.update(delta);
@@ -861,6 +958,7 @@ export class Game {
     }
     // Keep rendering the frozen death moment (gentle drift)
     this.world.update(delta * 0.12, 0, this.difficulty.tier.index, this.score.distance);
+    this.player.setWorldSpeed(0);
     this.player.update(delta, 0);
     this.playerFX.update(delta);
     this.syncLights();
@@ -872,13 +970,25 @@ export class Game {
 
   // ------------------------------------------------------------ coin flow
 
-  private gatherNearbyCoins(): void {
+  /** Coins gathered this frame live within (coinGatherFarZ, 6). */
+  private coinGatherFarZ = -30;
+
+  /** Bound visitor — avoids allocating a closure every frame. */
+  private gatherCoin = (coin: Coin): void => {
+    if (!coin.active || coin.collected) return;
+    const z = coin.worldZ;
+    if (z > this.coinGatherFarZ && z < 6) this.frameCoins.push(coin);
+  };
+
+  private gatherNearbyCoins(farZ: number): void {
     this.frameCoins.length = 0;
-    this.world.forEachCoin((coin) => {
-      if (coin.active && !coin.collected && coin.worldZ > -30 && coin.worldZ < 6) {
-        this.frameCoins.push(coin);
-      }
-    }, 0);
+    this.coinGatherFarZ = farZ;
+    this.world.forEachCoin(this.gatherCoin, 0);
+  }
+
+  /** Any effect that pulls coins in from every lane. */
+  private magnetFieldActive(): boolean {
+    return this.powerups.isActive("magnet") || this.overdrive.active || this.player.isFlying;
   }
 
   private gatherNearbyKeys(): void {
@@ -899,46 +1009,59 @@ export class Game {
     });
   }
 
+  /**
+   * Chumbak field. Coins that enter the field latch on and home in on the
+   * runner's chest in full 3D (see Coin.home) until collected — even if the
+   * power-up ends meanwhile, so no coin is ever left frozen in mid-air.
+   * Magnet / JOSH / rocket flight cover every lane far ahead; turbo sweeps a
+   * short, narrow cone. Keys and rockets are only vacuumed by JOSH / turbo /
+   * flight (the magnet power-up pulls coins only).
+   */
   private applyMagnet(delta: number): void {
-    const magnetOn = this.powerups.isActive("magnet");
-    const odOn = this.overdrive.active;
-    // Rocket flight vacuums air coins like a magnet — otherwise the high
-    // coins are decoration the player can never reach.
-    const flyOn = this.player.isFlying;
+    const fieldOn = this.magnetFieldActive();
     const turboOn = this.powerups.turboProtects;
-    if (!magnetOn && !odOn && !turboOn && !flyOn) return;
-    const radius = magnetOn ? MAGNET.radius : odOn ? OVERDRIVE_CFG.magnetRadiusBoost : flyOn ? 7 : 4.5;
-    const targetY = this.player.positionY + 1;
-    this.magnetTargetY = targetY;
+    const px = this.player.positionX;
+    const targetY = this.player.positionY + MAGNET.targetHeight;
+    const speed = this.lastEffectiveSpeed;
+    const lateral = fieldOn ? MAGNET.lateralReach : MAGNET.turboLateral;
+    const reach = fieldOn
+      ? Math.min(MAGNET.reachBase + speed * MAGNET.reachSeconds, MAGNET.reachMax)
+      : MAGNET.turboReach;
+    const canLatch = fieldOn || turboOn;
+    const chase = MAGNET.chaseBase + speed * 0.25;
     for (const coin of this.frameCoins) {
-      const dx = this.player.positionX - coin.mesh.position.x;
-      const dz = 0 - coin.worldZ;
-      const dy = targetY - coin.mesh.position.y;
-      if (dx * dx + dz * dz + dy * dy < radius * radius) {
+      if (!coin.attracted) {
+        if (!canLatch) continue;
+        const z = coin.worldZ;
+        if (z < -reach || z > 1.5) continue;
+        if (Math.abs(coin.mesh.position.x - px) > lateral) continue;
+        if (Math.abs(coin.mesh.position.y - targetY) > MAGNET.verticalReach) continue;
         coin.attracted = true;
-        coin.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
+        coin.magnetTime = 0;
       }
+      coin.home(px, targetY, chase, MAGNET.chaseAccel, delta);
     }
-    // The magnet power-up pulls coins ONLY — Life Saver keys and rockets are
-    // never vacuumed by it (walk over them to collect). Overdrive / turbo /
-    // flight keep their full vacuum.
-    if (!odOn && !turboOn && !flyOn) return;
+
+    const vacuum = this.overdrive.active || turboOn || this.player.isFlying;
+    if (!vacuum) return;
+    const radius = this.overdrive.active ? OVERDRIVE_CFG.magnetRadiusBoost : this.player.isFlying ? 7 : 4.5;
+    this.magnetTargetY = targetY;
     for (const key of this.frameKeys) {
-      const dx = this.player.positionX - key.mesh.position.x;
+      const dx = px - key.mesh.position.x;
       const dz = 0 - key.worldZ;
       const dy = targetY - key.mesh.position.y;
       if (dx * dx + dz * dz + dy * dy < radius * radius) {
         key.attracted = true;
-        key.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
+        key.pullTowards(px, targetY, MAGNET.pullLambda, delta);
       }
     }
     for (const rocket of this.frameRockets) {
-      const dx = this.player.positionX - rocket.mesh.position.x;
+      const dx = px - rocket.mesh.position.x;
       const dz = 0 - rocket.worldZ;
       const dy = targetY - rocket.mesh.position.y;
       if (dx * dx + dz * dz + dy * dy < radius * radius) {
         rocket.attracted = true;
-        rocket.pullTowards(this.player.positionX, targetY, MAGNET.pullLambda, delta);
+        rocket.pullTowards(px, targetY, MAGNET.pullLambda, delta);
       }
     }
   }
@@ -948,7 +1071,7 @@ export class Game {
     this.tally.coins += 1;
     this.missionDeltas.collectCoins = (this.missionDeltas.collectCoins ?? 0) + 1;
     this.store.registerCoinPopup();
-    this.particles?.emitBurst(coin.mesh.position.x, coin.mesh.position.y + 0.3, coin.worldZ, 1.0, 0.82, 0.25, 8, 0.8);
+    this.particles?.emitCoinSparkle(coin.mesh.position.x, coin.mesh.position.y + 0.2, coin.worldZ, this.runTime);
     this.audio.playCoin();
     this.overdrive.gain(OVERDRIVE_CFG.gainCoin);
 
@@ -960,6 +1083,7 @@ export class Game {
         this.combo.add(2, this.runTime);
         this.feedback.push("COIN STREAK!", "combo", "+COMBO");
         this.overdrive.gain(OVERDRIVE_CFG.gainPerfect);
+        this.audio.playMeme("coinStreak");
       }
     } else {
       this.coinStreak = 1;
@@ -1022,25 +1146,54 @@ export class Game {
       ROCKET_FLIGHT.firstSeconds + (this.tally.rocketsUsed - 1) * ROCKET_FLIGHT.stepSeconds,
       ROCKET_FLIGHT.maxSeconds
     );
+    const speed = this.lastEffectiveSpeed;
     this.player.startRocket(duration);
     this.store.setRocket(true, duration, duration);
+    this.rocketHudTimer = ROCKET_RIDE.hudInterval;
+    // Guarantee an open landing zone: clear every obstacle that could sit
+    // under the touchdown or the first moments after it (padded for
+    // mid-flight speed boosts). Obstacles nearer than that stay — flying
+    // over traffic is the fun part.
+    const nearZ = -speed * Math.max(0, duration - ROCKET_RIDE.descendSeconds - ROCKET_RIDE.clearLeadSeconds);
+    const farZ = -speed * ROCKET_RIDE.clearSpeedPadding * (duration + ROCKET_RIDE.clearTrailSeconds);
+    this.world.clearObstaclesInRange(farZ, nearZ, this.puffObstacle);
     // Burst-gap air trail sized for the whole flight at current speed.
-    this.world.spawnRocketCoinTrail(-10, duration, this.lastEffectiveSpeed);
-    this.feedback.push("ROCKET!", "epic", "FLY HIGH!");
-    this.audio.playOverdriveActivate();
-    this.particles?.emitBurst(this.player.positionX, 2.2, 0, 0xff4f4f, 0.55, 0.18, 22, 1.3);
-    this.cameraRig?.addShake(0.32);
-    // FOV boost for flight feel
-    this.cameraRig?.setFovBoost(6);
+    this.world.spawnRocketCoinTrail(-10, duration, speed);
+    this.feedback.push("DIWALI ROCKET!", "epic", `UDD CHALO · ${duration}s`);
+    this.audio.playRocketLaunch();
+    this.audio.setRocketThrust(true);
+    this.audio.playMeme("rocket");
+    this.particles?.emitBurst(this.player.positionX, 0.6, 0, 1.0, 0.62, 0.18, 26, 1.4);
+    this.particles?.emitBurst(this.player.positionX, 0.3, 0.4, 1.0, 0.9, 0.55, 14, 0.9);
+    this.cameraRig?.addShake(0.3);
   }
+
+  /** Small puff where a landing-zone obstacle is cleared (only if in view). */
+  private puffObstacle = (x: number, y: number, z: number): void => {
+    if (z > -95) this.particles?.emitBurst(x, y, z, 1.0, 0.78, 0.45, 10, 1.1);
+  };
+
+  /** Touchdown after a Diwali-rocket flight. */
+  private handleRocketLanded = (): void => {
+    this.store.setRocket(false, 0);
+    this.rocketHudTimer = 0;
+    this.reviveInvuln = Math.max(this.reviveInvuln, ROCKET_RIDE.landingGraceSeconds);
+    this.audio.setRocketThrust(false);
+    this.audio.playRocketLand();
+    this.feedback.push("SAFE LANDING!", "good");
+    this.cameraRig?.addShake(0.16);
+    this.particles?.emitBurst(this.player.positionX, 0.25, 0, 1.0, 0.72, 0.35, 16, 1.0);
+  };
 
   private activatePowerUp(type: HudPowerUp["type"], x: number, y: number): void {
     this.powerups.activate(type);
     this.tally.powerUps += 1;
     this.missionDeltas.collectPowerUps = (this.missionDeltas.collectPowerUps ?? 0) + 1;
     this.overdrive.gain(OVERDRIVE_CFG.gainPowerUp);
-    this.feedback.push(`${type === "scoreMultiplier" ? "2× SCORE" : type.toUpperCase()}!`, "good");
+    this.feedback.push(`${POWERUP_DEFS[type].label}!`, "good");
     this.audio.playPowerup();
+    if (type === "magnet") this.audio.playMagnetOn();
+    this.audio.playMeme("powerup");
     const color = new THREE.Color(powerUpColor(type));
     this.particles?.emitBurst(x, y + 0.4, 0, color.r, color.g, color.b, 16, 1.1);
   }
@@ -1134,7 +1287,9 @@ export class Game {
     if (this.store.getSnapshot().gameState !== "playing") return;
 
     this.audio.stopMusic();
+    this.audio.setRocketThrust(false);
     this.audio.playCrash();
+    this.audio.playMeme("crash");
     this.particles?.emitCrash(this.player.positionX, 1.1, 0);
     this.cameraRig?.addShake(0.55);
     this.combo.breakCombo();
@@ -1142,8 +1297,8 @@ export class Game {
 
     // Life Saver — offer to consume a key and continue from same spot
     if (SaveService.get().keys > 0) {
-      this.reviveCountdown = REVIVE_TIME;
-      this.store.setReviveCountdown(Math.ceil(REVIVE_TIME));
+      this.reviveCountdown = REVIVE.seconds;
+      this.store.setReviveCountdown(Math.ceil(REVIVE.seconds));
       this.setState("revive");
       this.feedback.push("LIFE SAVER AVAILABLE!", "epic", "USE KEY TO CONTINUE?");
       return;
@@ -1228,6 +1383,7 @@ export class Game {
       save.stats.totalCoins += totalWalletAddition;
     });
 
+    if (isNewBestScore) this.audio.playMeme("newRecord");
     const stats = SaveService.get().stats;
     const keys = SaveService.get().keys;
     this.store.finishRun(
@@ -1290,7 +1446,7 @@ export class Game {
       odActive: this.overdrive.active,
       odRemaining: this.overdrive.remaining,
       shieldActive: this.powerups.hasShield(),
-      sectorName: this.biomeManager?.name ?? "NEON CITY",
+      sectorName: this.biomeManager?.name ?? BIOMES[0].name,
     });
   }
 
@@ -1301,7 +1457,27 @@ export class Game {
 
   // --------------------------------------------------------- skill awards
 
-  private processSkillAward(kind: SkillEventKind, sideSign: number): void {
+  /** TAAL: a jump launched on the dhol beat (as heard) earns a streak bonus. */
+  private judgeTaal(): void {
+    const beat = this.audio.getBeatTiming();
+    if (!beat) return;
+    const offBeat = Math.min(beat.phase, 1 - beat.phase) * beat.secondsPerBeat;
+    if (offBeat > TAAL.windowSeconds) {
+      this.taalStreak = 0;
+      return;
+    }
+    this.taalStreak += 1;
+    const streak = Math.min(this.taalStreak, TAAL.maxStreak);
+    const bonus = TAAL.bonus * streak;
+    this.score.addBonus(bonus, this.currentTotalMultiplier());
+    this.overdrive.gain(TAAL.joshGain);
+    if (this.taalStreak >= 2 || this.runTime - this.lastTaalToast > TAAL.toastCooldown) {
+      this.lastTaalToast = this.runTime;
+      this.feedback.push(this.taalStreak >= 2 ? `TAAL ×${this.taalStreak}! 🥁` : "TAAL! 🥁", "combo", `+${bonus} ON THE BEAT`);
+    }
+  }
+
+  private processSkillAward(kind: SkillEventKind, sideSign: number, obstacle: Obstacle | null = null): void {
     if (kind === "coinStreak" || kind === "obstacleChain") return; // handled inline
     switch (kind) {
       case "nearMiss": {
@@ -1311,8 +1487,19 @@ export class Game {
         this.combo.add(1, this.runTime);
         this.overdrive.gain(OVERDRIVE_CFG.gainNearMiss);
         this.score.addBonus(50, this.currentTotalMultiplier());
-        this.feedback.push("CLOSE CALL!", "warn", "+50");
         this.audio.playNearMiss();
+        // Desi street flavour: cows bless you, trucks demand a horn.
+        if (obstacle?.approachCue === "moo") {
+          this.score.addBonus(DESI_BONUS.cowBlessing, this.currentTotalMultiplier());
+          this.overdrive.gain(OVERDRIVE_CFG.gainNearMiss * 0.5);
+          this.feedback.push("GAU MATA KI JAI! 🐄", "epic", `+${50 + DESI_BONUS.cowBlessing} BLESSING`);
+        } else if (obstacle?.approachCue === "honk") {
+          this.score.addBonus(DESI_BONUS.hornOkPlease, this.currentTotalMultiplier());
+          this.feedback.push("HORN OK PLEASE! 🚚", "combo", `+${50 + DESI_BONUS.hornOkPlease}`);
+        } else {
+          this.feedback.push("CLOSE CALL!", "warn", "+50");
+        }
+        this.audio.playMeme("nearMiss");
         this.cameraRig?.addImpulse(0.14 * sideSign);
         break;
       }
@@ -1359,10 +1546,13 @@ export class Game {
     this.resizeObserver?.disconnect();
     this.input?.dispose();
     this.audio.dispose();
-    this.player.animation?.dispose();
+    this.playerFX.dispose();
+    this.player.dispose();
+    this.wardrobe.dispose();
     if (this.rendererHandle) {
       this.rendererHandle.renderer.setAnimationLoop(null);
     }
+    this.postFX?.dispose();
     if (this.world && this.sceneBundle) this.world.dispose(this.sceneBundle.scene);
     this.particles?.dispose(this.sceneBundle?.scene ?? new THREE.Scene());
     if (this.sceneBundle) disposeObjectTree(this.sceneBundle.scene);

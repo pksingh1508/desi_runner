@@ -1,4 +1,5 @@
 import type { ObstacleKind } from "@/game/entities/Obstacle";
+import type { ObstacleVariantId } from "@/game/config/obstacles";
 
 export interface PatternObstacle {
   kind: ObstacleKind;
@@ -8,6 +9,11 @@ export interface PatternObstacle {
   z: number;
   moveAmp?: number;
   moveSpeed?: number;
+  /**
+   * Optional authored street prop for this slot (must belong to `kind`).
+   * Purely visual — gameplay validity only depends on `kind`.
+   */
+  variant?: ObstacleVariantId;
 }
 
 export interface PatternCoin {
@@ -54,7 +60,8 @@ function arc(lane: number, zCenter: number, peak = 2.7, count = 7, span = 12): P
  *
  * Base rows sit 16–18m apart: at start speed (12m/s) that is ~1.4s of
  * reaction time, and WorldManager stretches rows further apart as speed
- * rises so the *time* gap never collapses at 32m/s.
+ * rises so the *time* gap never collapses at 32m/s. Tails stay ≥ -42
+ * (PATTERN.maxTailZ) so authored rows are never dropped at start speed.
  */
 export const PATTERNS: PatternDef[] = [
   {
@@ -168,6 +175,71 @@ export const PATTERNS: PatternDef[] = [
       ...line(2, -36, 4),
     ],
   },
+
+  // ------------------------------------------------ Indian street patterns
+  {
+    // A lazy cow ambles across all three lanes: jump her (or time the gap).
+    id: "cow-crossing",
+    minTier: 1,
+    weight: 1.4,
+    obstacles: [{ kind: "moving", lane: 1, z: -14, moveAmp: 2.5, moveSpeed: 1.45, variant: "cow" }],
+    coins: [...arc(1, -14), ...line(0, -27, 3)],
+  },
+  {
+    // Slide under the railway phaatak, then hop the sabzi thelas (or swerve right).
+    id: "phaatak-thela",
+    minTier: 1,
+    weight: 1.5,
+    obstacles: [
+      { kind: "overhead3", lane: 1, z: -10, variant: "phaatak" },
+      { kind: "barrier", lane: 0, z: -28, variant: "thela" },
+      { kind: "barrier", lane: 1, z: -28, variant: "thela" },
+    ],
+    coins: [...line(1, -14, 2), ...arc(1, -28), ...line(2, -36, 2)],
+  },
+  {
+    // Weave between chai stalls: open lane goes center → right → right.
+    id: "chai-slalom",
+    minTier: 2,
+    weight: 1.3,
+    obstacles: [
+      { kind: "block", lane: 0, z: -8, variant: "chaiTapri" },
+      { kind: "block", lane: 2, z: -8, variant: "truck" },
+      { kind: "block", lane: 1, z: -24, variant: "chaiTapri" },
+      { kind: "block", lane: 0, z: -40, variant: "sackCart" },
+      { kind: "block", lane: 1, z: -40, variant: "autoLoaded" },
+    ],
+    coins: [...line(1, -4, 2), ...line(2, -18, 3), ...line(2, -36, 3)],
+  },
+  {
+    // Bell-ringing rickshaw, a shop sign + barricade row, then another cow.
+    id: "rickshaw-rush",
+    minTier: 2,
+    weight: 1.2,
+    obstacles: [
+      { kind: "moving", lane: 1, z: -8, moveAmp: 2.5, moveSpeed: 1.9, variant: "cycleRickshaw" },
+      { kind: "overhead1", lane: 0, z: -24, variant: "signboard" },
+      { kind: "barrier", lane: 2, z: -24, variant: "policeBarricade" },
+      { kind: "moving", lane: 1, z: -40, moveAmp: 2.2, moveSpeed: 1.6, variant: "cow" },
+    ],
+    coins: [...arc(1, -8), ...line(1, -19, 3), ...arc(1, -40)],
+  },
+  {
+    // Bazaar gauntlet: slide under laundry, jump the barricade row, slide the arch.
+    id: "bazaar-gauntlet",
+    minTier: 3,
+    weight: 1.2,
+    obstacles: [
+      { kind: "overhead1", lane: 0, z: -8, variant: "clothesline" },
+      { kind: "block", lane: 1, z: -8, variant: "truck" },
+      { kind: "overhead1", lane: 2, z: -8, variant: "clothesline" },
+      { kind: "barrier", lane: 0, z: -24, variant: "thela" },
+      { kind: "barrier", lane: 1, z: -24, variant: "policeBarricade" },
+      { kind: "barrier", lane: 2, z: -24, variant: "roadWork" },
+      { kind: "overhead3", lane: 1, z: -40, variant: "swagatArch" },
+    ],
+    coins: [...line(0, -4, 3), ...arc(1, -24), ...line(1, -34, 3)],
+  },
 ];
 
 /** Weighted pick among patterns unlocked for the tier, avoiding immediate repeats.
@@ -194,34 +266,42 @@ export function pickPattern(
 }
 
 /**
- * Authored laser-grid chains injected by the RunEventSystem. Never picked by
- * random generation (kept out of PATTERNS) but validated like every other
- * template: wide spacing guarantees one valid action per row.
+ * TRAFFIC JAM chains injected by the RunEventSystem (the "laserGrid" event).
+ * Never picked by random generation (kept out of PATTERNS) but validated
+ * like every other template: each row leaves one open lane (or a jump /
+ * slide), and the open lane only ever shifts by one lane between rows.
  */
 export const LASER_PATTERNS: PatternDef[] = [
   {
-    id: "laser-chain-a",
+    // Snake through stalled traffic: open lane right → center → left.
+    id: "jam-chain-a",
     minTier: 0,
     weight: 0,
     obstacles: [
-      { kind: "overhead3", lane: 1, z: -8 },
-      { kind: "barrier", lane: 1, z: -24 },
-      { kind: "overhead3", lane: 1, z: -40 },
+      { kind: "block", lane: 0, z: -8, variant: "truck" },
+      { kind: "block", lane: 1, z: -8, variant: "autoLoaded" },
+      { kind: "block", lane: 0, z: -24, variant: "truck" },
+      { kind: "block", lane: 2, z: -24, variant: "truck" },
+      { kind: "block", lane: 1, z: -40, variant: "autoLoaded" },
+      { kind: "block", lane: 2, z: -40, variant: "truck" },
     ],
-    coins: [...line(1, -14, 3), ...arc(1, -24)],
+    coins: [...line(2, -4, 3), ...line(1, -20, 3), ...line(0, -36, 3)],
   },
   {
-    id: "laser-chain-b",
+    // Jam with a cow wandering through it: dodge left, jump the cow, go center.
+    id: "jam-chain-b",
     minTier: 0,
     weight: 0,
     obstacles: [
-      { kind: "barrier", lane: 0, z: -8 },
-      { kind: "overhead3", lane: 1, z: -24 },
-      { kind: "moving", lane: 1, z: -40, moveAmp: 2.2, moveSpeed: 1.9 },
+      { kind: "block", lane: 1, z: -8, variant: "sackCart" },
+      { kind: "block", lane: 2, z: -8, variant: "truck" },
+      { kind: "moving", lane: 1, z: -24, moveAmp: 2.5, moveSpeed: 1.5, variant: "cow" },
+      { kind: "block", lane: 0, z: -40, variant: "truck" },
+      { kind: "block", lane: 2, z: -40, variant: "chaiTapri" },
     ],
-    coins: [...arc(0, -8), ...line(2, -18, 3), ...line(0, -32, 3)],
+    coins: [...line(0, -4, 3), ...arc(0, -24), ...line(1, -36, 3)],
   },
 ];
 
-/** Number of laser patterns queued per Laser Grid event. */
+/** Number of traffic-jam patterns queued per event. */
 export const LASER_PATTERN_COUNT = LASER_PATTERNS.length;

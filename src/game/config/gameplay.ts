@@ -63,15 +63,44 @@ export const SPEED = {
   rampDistance: 2200,
   /** World scroll factor during countdown (no scoring yet). */
   countdownFactor: 0.55,
-  /** Ambient scroll during menu. */
-  menuSpeed: 6,
+  /** Ambient scroll during menu (0 = the street stands still behind the runner). */
+  menuSpeed: 0,
   /** Deceleration (u/s^2) applied to the world after death. */
   deathDeceleration: 30,
+} as const;
+
+/** Life-Saver revive: how long the offer stays open + post-revive grace. */
+export const REVIVE = {
+  seconds: 6,
+  invulnerableSeconds: 2.4,
 } as const;
 
 export const SCORE = {
   pointsPerMeter: 5,
   coinValue: 25,
+} as const;
+
+/**
+ * TAAL: jumping on the dhol beat (as heard) scores a small streak bonus and a
+ * pinch of JOSH. Lenient on purpose — it rewards feel, never punishes.
+ */
+export const TAAL = {
+  /** Max distance from the nearest beat, in seconds. */
+  windowSeconds: 0.08,
+  bonus: 20,
+  /** Bonus multiplies with the streak up to this cap. */
+  maxStreak: 5,
+  joshGain: 3,
+  /** Single on-beat jumps toast at most this often (streaks always toast). */
+  toastCooldown: 2.5,
+} as const;
+
+/** Extra score for desi near misses (on top of the +50 close call). */
+export const DESI_BONUS = {
+  /** Squeezing past a cow: "GAU MATA KI JAI!" */
+  cowBlessing: 100,
+  /** Squeezing past a Horn-OK-Please truck. */
+  hornOkPlease: 50,
 } as const;
 
 export const COIN = {
@@ -103,13 +132,42 @@ export const CAMERA_CFG = {
   shakeAmpOnHit: 0.55,
   bobAmplitude: 0.05,
   bobFrequencyPerUnit: 0.85,
+  /**
+   * Portrait screens have a much narrower horizontal view at the same
+   * vertical FOV; pull back, rise and widen so all three lanes stay visible
+   * next to the runner (scaled in from aspect 1.0 down to 0.5).
+   */
+  portraitExtraZ: 3.4,
+  portraitExtraY: 1.3,
+  portraitExtraFov: 10,
+} as const;
+
+/**
+ * Menu showcase camera: orbits in FRONT of the runner (the runner faces -Z).
+ * `angle` is measured from straight-on toward the runner's left (camera
+ * right). Framing shifts the runner right (landscape) or up (portrait) so the
+ * UI panels never cover them.
+ */
+export const MENU_CAMERA = {
+  home: { angle: 0.36, sway: 0.1, radius: 4.7, height: 1.55, lookY: 1.05, fov: 40 },
+  gear: { angle: 0.5, sway: 0.14, radius: 3.25, height: 1.4, lookY: 1.0, fov: 36 },
+  panel: { angle: 0.42, sway: 0.08, radius: 4.9, height: 1.6, lookY: 1.05, fov: 40 },
+  /** Fraction of the viewport the runner is shifted by. */
+  landscapeShiftX: 0.21,
+  portraitShiftY: 0.25,
+  /** Portrait phones: pull the showcase back so the whole runner fits above
+   * the bottom sheet (scaled in fully at aspect ≤ 0.5). */
+  portraitRadiusScale: 1.7,
+  /** Seconds for the countdown swoop from the showcase to the chase cam. */
+  swoopSeconds: 1.9,
+  orbitDamp: 2.6,
 } as const;
 
 export const DIFFICULTY_TIERS = [
-  { minDistance: 0, name: "WARM-UP", label: "I" },
-  { minDistance: 300, name: "HEAT-UP", label: "II" },
-  { minDistance: 800, name: "OVERDRIVE", label: "III" },
-  { minDistance: 1500, name: "MELTDOWN", label: "IV" },
+  { minDistance: 0, name: "CHALTA HAI", label: "I" },
+  { minDistance: 300, name: "TEZ", label: "II" },
+  { minDistance: 800, name: "TOOFAN", label: "III" },
+  { minDistance: 1500, name: "BAWAAL", label: "IV" },
 ] as const;
 
 export const PATTERN = {
@@ -150,39 +208,6 @@ export const COLORS = {
   dangerRed: 0xe31902,
   buildingBody: 0xeae6da,
   roadBody: 0xe6ddc3,
-} as const;
-
-/**
- * High-contrast obstacle paint: one instantly-readable hue per threat type
- * (jump = red-orange, weave = magenta, wall = amber, duck = blue) with
- * self-lit warning strips so obstacles pop against the bright daylight road
- * instead of washing out. Emissive intensities survive the 3.15 sun.
- */
-export const OBSTACLE_COLORS = {
-  /** Jump barriers: vivid safety red-orange body + dark legs. */
-  barrierBody: 0xff3d00,
-  barrierBodyEmissive: 0xff3d00,
-  barrierBodyEmissiveIntensity: 0.38,
-  barrierLeg: 0x2b2f36,
-  /** Weaving threats: electric magenta shell + dark skids. */
-  movingBody: 0xc81cff,
-  movingBodyEmissive: 0xc81cff,
-  movingBodyEmissiveIntensity: 0.45,
-  movingSkid: 0x23262e,
-  /** Tall walls: saturated amber crate + hot red core/edges. */
-  blockBody: 0xff9500,
-  blockBodyEmissive: 0xff6a00,
-  blockBodyEmissiveIntensity: 0.3,
-  blockEdge: 0xff1744,
-  /** Duck gates: saturated cobalt beam + dark posts. */
-  gateBeam: 0x2255ff,
-  gateBeamEmissive: 0x2255ff,
-  gateBeamEmissiveIntensity: 0.42,
-  gatePost: 0x1c2230,
-  /** Unlit warning glows (MeshBasicMaterial — always full-bright). */
-  warnStrip: 0xffe600,
-  dangerUnder: 0xff1744,
-  footGlow: 0xffb300,
 } as const;
 
 /**
@@ -228,6 +253,52 @@ export const ROCKET_FLIGHT = {
   firstSeconds: 3,
   stepSeconds: 1,
   maxSeconds: 6,
+} as const;
+
+/**
+ * Diwali-rocket ride: phased flight (launch → cruise → descend → touchdown).
+ * Heights are feet height of the runner. Descent is a single eased curve
+ * over `descendSeconds`, so the runner always touches down exactly when the
+ * timer ends (the old competing damps stalled ~2.5 m up and dropped).
+ */
+export const ROCKET_RIDE = {
+  cruiseY: 4.4,
+  launchSeconds: 0.55,
+  descendSeconds: 1.0,
+  bobAmplitude: 0.12,
+  bobFrequency: 3,
+  /** Roll (radians per meter of lateral offset) while banking between lanes. */
+  bankFactor: 0.2,
+  /** Nose-up pitch during launch, nose-down during descent (radians). */
+  launchPitch: 0.16,
+  descendPitch: -0.12,
+  /** Collision-free window after touchdown (the landing zone is also cleared). */
+  landingGraceSeconds: 1.1,
+  /**
+   * Obstacles inside the landing window are cleared at launch. The window is
+   * padded for mid-flight speed boosts (turbo / JOSH) so it always covers the
+   * real touchdown point.
+   */
+  clearLeadSeconds: 1.2,
+  clearTrailSeconds: 1.8,
+  clearSpeedPadding: 1.5,
+  /** Rider seat height above the runner origin (human riders). */
+  seatHeight: 0.38,
+  /** HUD rocket timer push interval (seconds). */
+  hudInterval: 0.1,
+} as const;
+
+/**
+ * Post-processing (desktop, non-performance mode): gentle daytime bloom that
+ * rises at night so neon, diyas and fireworks glow. Threshold is on linear
+ * HDR luminance before tone mapping.
+ */
+export const POST_FX = {
+  bloomStrength: 0.22,
+  bloomRadius: 0.55,
+  bloomThreshold: 0.9,
+  nightBloomStrength: 0.62,
+  msaaSamples: 4,
 } as const;
 
 export const MODEL_URL = "/models/robot_expressive.glb";

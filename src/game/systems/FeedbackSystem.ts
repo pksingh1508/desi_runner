@@ -10,6 +10,8 @@ const PRIORITY: Record<FeedbackTone, number> = {
   combo: 2,
   warn: 2,
   epic: 3,
+  /** Meme captions ride alongside the voice line; never evict epics. */
+  meme: 2,
 };
 
 const TTL: Record<FeedbackTone, number> = {
@@ -17,6 +19,7 @@ const TTL: Record<FeedbackTone, number> = {
   combo: 1.7,
   warn: 1.8,
   epic: 2.3,
+  meme: 2.2,
 };
 
 /**

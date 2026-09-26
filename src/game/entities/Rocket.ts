@@ -3,8 +3,10 @@ import type { ResourceBag } from "@/game/utils/dispose";
 import { PICKUP_VISUAL } from "@/game/config/gameplay";
 
 /**
- * Rocket pickup — triggers flight (Subway jetpack style).
- * Pooled like Key/Pickup but parented to TrackSegment.
+ * Diwali Rocket pickup — the festival firecracker rocket standing in a glass
+ * bottle (how rockets are launched on Diwali night), fuse fizzing. Grabbing
+ * it starts the rocket ride. Pooled; every geometry/material is shared by the
+ * factory and child references are cached (no per-frame scene lookups).
  */
 export class Rocket {
   readonly mesh: THREE.Group;
@@ -15,9 +17,17 @@ export class Rocket {
 
   private age = Math.random() * 10;
   private phase = Math.random() * Math.PI * 2;
+  private readonly body: THREE.Object3D;
+  private readonly fuse: THREE.Mesh;
+  private readonly fuseMaterial: THREE.MeshBasicMaterial;
+  private readonly halo: THREE.Mesh;
 
-  constructor(mesh: THREE.Group) {
+  constructor(mesh: THREE.Group, parts: { body: THREE.Object3D; fuse: THREE.Mesh; halo: THREE.Mesh }) {
     this.mesh = mesh;
+    this.body = parts.body;
+    this.fuse = parts.fuse;
+    this.fuseMaterial = parts.fuse.material as THREE.MeshBasicMaterial;
+    this.halo = parts.halo;
   }
 
   get worldZ(): number {
@@ -39,24 +49,19 @@ export class Rocket {
 
   updateVisual(delta: number): void {
     if (!this.active) return;
+    this.age += delta;
     if (this.attracted) {
-      this.age += delta;
       this.mesh.rotation.y += 3.0 * delta;
       return;
     }
-    this.age += delta;
-    this.mesh.rotation.y += 1.1 * delta;
-    this.mesh.position.y = this.baseY + Math.sin(this.age * 2.0 + this.phase) * 0.16;
-    // pulse flame
-    const flame = this.mesh.getObjectByName("rocketFlame") as THREE.Mesh | null;
-    if (flame) {
-      const s = 1 + Math.sin(this.age * 12) * 0.18;
-      flame.scale.set(s, s * 0.9, s);
-      (flame.material as THREE.MeshBasicMaterial).opacity = 0.72 + Math.sin(this.age * 14) * 0.18;
-    }
-    // hover bob for body
-    const body = this.mesh.getObjectByName("rocketBody") as THREE.Group | null;
-    if (body) body.position.y = Math.sin(this.age * 1.7 + this.phase) * 0.04;
+    this.mesh.rotation.y += 0.9 * delta;
+    this.mesh.position.y = this.baseY + Math.sin(this.age * 2.0 + this.phase) * 0.12;
+    // Rocket itches to launch: tiny hop + fizzing fuse glow.
+    this.body.position.y = Math.max(0, Math.sin(this.age * 5.3 + this.phase)) * 0.035;
+    const fizz = 0.75 + Math.sin(this.age * 31) * 0.15 + Math.sin(this.age * 17 + this.phase) * 0.1;
+    this.fuse.scale.setScalar(fizz);
+    this.fuseMaterial.opacity = 0.65 + fizz * 0.3;
+    this.halo.rotation.z += delta * 0.8;
   }
 
   pullTowards(targetX: number, targetY: number, lambda: number, delta: number): void {
@@ -67,64 +72,80 @@ export class Rocket {
 }
 
 export class RocketFactory {
-  private bodyGeo: THREE.CylinderGeometry;
+  private bottleGeo: THREE.LatheGeometry;
+  private tubeGeo: THREE.CylinderGeometry;
   private noseGeo: THREE.ConeGeometry;
-  private finGeo: THREE.BoxGeometry;
-  private flameGeo: THREE.ConeGeometry;
+  private bandGeo: THREE.TorusGeometry;
+  private stickGeo: THREE.CylinderGeometry;
+  private fuseGeo: THREE.SphereGeometry;
+  private haloGeo: THREE.RingGeometry;
 
-  private bodyMat: THREE.MeshStandardMaterial;
-  private noseMat: THREE.MeshStandardMaterial;
-  private finMat: THREE.MeshStandardMaterial;
-  private detailMat: THREE.MeshStandardMaterial;
-  private flameMat: THREE.MeshBasicMaterial;
+  private glassMat: THREE.MeshStandardMaterial;
+  private paperMat: THREE.MeshStandardMaterial;
+  private foilMat: THREE.MeshStandardMaterial;
+  private bambooMat: THREE.MeshStandardMaterial;
+  private haloMat: THREE.MeshBasicMaterial;
 
   constructor(private bag: ResourceBag) {
-    this.bodyGeo = bag.geo(new THREE.CylinderGeometry(0.14, 0.16, 0.58, 14));
-    this.noseGeo = bag.geo(new THREE.ConeGeometry(0.14, 0.22, 14));
-    this.finGeo = bag.geo(new THREE.BoxGeometry(0.04, 0.18, 0.14));
-    this.flameGeo = bag.geo(new THREE.ConeGeometry(0.12, 0.34, 12));
+    // Glass bottle silhouette (lathe profile, origin at the bottle base).
+    const profile = [
+      [0.0, 0.0],
+      [0.13, 0.0],
+      [0.14, 0.02],
+      [0.14, 0.2],
+      [0.12, 0.26],
+      [0.055, 0.32],
+      [0.045, 0.42],
+      [0.05, 0.44],
+      [0.0, 0.44],
+    ].map(([r, h]) => new THREE.Vector2(r, h));
+    this.bottleGeo = bag.geo(new THREE.LatheGeometry(profile, 20));
+    this.tubeGeo = bag.geo(new THREE.CylinderGeometry(0.075, 0.08, 0.42, 16));
+    this.noseGeo = bag.geo(new THREE.ConeGeometry(0.075, 0.16, 16));
+    this.bandGeo = bag.geo(new THREE.TorusGeometry(0.079, 0.009, 6, 20));
+    this.stickGeo = bag.geo(new THREE.CylinderGeometry(0.012, 0.012, 0.62, 6));
+    this.fuseGeo = bag.geo(new THREE.SphereGeometry(0.05, 10, 8));
+    this.haloGeo = bag.geo(new THREE.RingGeometry(0.3, 0.4, 24));
 
-    this.bodyMat = bag.mat(
+    this.glassMat = bag.mat(
       new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        emissive: 0x9fc8ff,
-        emissiveIntensity: 0.45,
-        roughness: 0.32,
-        metalness: 0.18,
-      })
-    );
-    this.noseMat = bag.mat(
-      new THREE.MeshStandardMaterial({
-        color: 0xe31902,
-        emissive: 0xe31902,
-        emissiveIntensity: PICKUP_VISUAL.rocketGlowEmissiveIntensity,
-        roughness: 0.4,
+        color: 0x3fbf7f,
+        emissive: 0x0d3b24,
+        emissiveIntensity: 0.6,
+        roughness: 0.08,
         metalness: 0.2,
-      })
-    );
-    this.finMat = bag.mat(
-      new THREE.MeshStandardMaterial({
-        color: 0x2eb5e5,
-        emissive: 0x2eb5e5,
-        emissiveIntensity: 0.8,
-        roughness: 0.38,
-        metalness: 0.22,
-      })
-    );
-    this.detailMat = bag.mat(
-      new THREE.MeshStandardMaterial({
-        color: 0xfdd013,
-        emissive: 0xb47a00,
-        emissiveIntensity: 0.18,
-        roughness: 0.35,
-        metalness: 0.45,
-      })
-    );
-    this.flameMat = bag.mat(
-      new THREE.MeshBasicMaterial({
-        color: 0xff9a1a,
         transparent: true,
-        opacity: PICKUP_VISUAL.rocketFlameOpacity,
+        opacity: 0.55,
+        depthWrite: false,
+      })
+    );
+    const paper = bag.tex(new THREE.CanvasTexture(paintRocketPaper()));
+    paper.colorSpace = THREE.SRGBColorSpace;
+    paper.wrapS = THREE.RepeatWrapping;
+    this.paperMat = bag.mat(
+      new THREE.MeshStandardMaterial({
+        map: paper,
+        emissive: 0x3a1204,
+        emissiveIntensity: PICKUP_VISUAL.rocketGlowEmissiveIntensity * 0.5,
+        roughness: 0.55,
+      })
+    );
+    this.foilMat = bag.mat(
+      new THREE.MeshStandardMaterial({
+        color: 0xf2c14e,
+        emissive: 0x6b4a00,
+        emissiveIntensity: 0.45,
+        roughness: 0.2,
+        metalness: 0.95,
+      })
+    );
+    this.bambooMat = bag.mat(new THREE.MeshStandardMaterial({ color: 0xc8a165, roughness: 0.8 }));
+    this.haloMat = bag.mat(
+      new THREE.MeshBasicMaterial({
+        color: 0xffb84f,
+        transparent: true,
+        opacity: 0.45,
+        side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
@@ -133,87 +154,80 @@ export class RocketFactory {
 
   create(): Rocket {
     const root = new THREE.Group();
-    root.name = "RocketRoot";
+    root.name = "RocketPickup";
 
-    const bodyGroup = new THREE.Group();
-    bodyGroup.name = "rocketBody";
-    root.add(bodyGroup);
+    const bottle = new THREE.Mesh(this.bottleGeo, this.glassMat);
+    bottle.position.y = -0.42;
+    bottle.renderOrder = 2;
 
-    // Body
-    const body = new THREE.Mesh(this.bodyGeo, this.bodyMat);
-    body.position.y = 0.12;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    bodyGroup.add(body);
-
-    // Red stripe
-    const stripeGeo = new THREE.CylinderGeometry(0.141, 0.161, 0.12, 14);
-    const stripe = new THREE.Mesh(stripeGeo, this.noseMat);
-    stripe.position.y = 0.02;
-    bodyGroup.add(stripe);
-
-    // Nose cone (top)
-    const nose = new THREE.Mesh(this.noseGeo, this.noseMat);
-    nose.position.y = 0.52;
+    const body = new THREE.Group();
+    body.name = "RocketBody";
+    const stick = new THREE.Mesh(this.stickGeo, this.bambooMat);
+    stick.position.set(0.05, -0.18, 0);
+    const tube = new THREE.Mesh(this.tubeGeo, this.paperMat);
+    tube.position.set(0.05, 0.28, 0);
+    tube.castShadow = true;
+    const nose = new THREE.Mesh(this.noseGeo, this.foilMat);
+    nose.position.set(0.05, 0.57, 0);
     nose.castShadow = true;
-    bodyGroup.add(nose);
+    const bandTop = new THREE.Mesh(this.bandGeo, this.foilMat);
+    bandTop.rotation.x = Math.PI / 2;
+    bandTop.position.set(0.05, 0.45, 0);
+    const bandLow = new THREE.Mesh(this.bandGeo, this.foilMat);
+    bandLow.rotation.x = Math.PI / 2;
+    bandLow.position.set(0.05, 0.1, 0);
+    body.add(stick, tube, nose, bandTop, bandLow);
 
-    // Nose tip dark
-    const tipGeo = new THREE.SphereGeometry(0.035, 8, 6);
-    const tip = new THREE.Mesh(tipGeo, this.detailMat);
-    tip.position.y = 0.635;
-    bodyGroup.add(tip);
+    // Fizzing fuse glow (per-instance material so each flickers alone).
+    const fuse = new THREE.Mesh(
+      this.fuseGeo,
+      this.bag.mat(
+        new THREE.MeshBasicMaterial({
+          color: 0xffc46b,
+          transparent: true,
+          opacity: 0.9,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      )
+    );
+    fuse.position.set(0.05, 0.05, 0);
+    body.add(fuse);
 
-    // Window/porthole
-    const windowGeo = new THREE.CircleGeometry(0.055, 12);
-    const windowMat = new THREE.MeshStandardMaterial({
-      color: 0x6aeefd,
-      emissive: 0x6aeefd,
-      emissiveIntensity: 1.0,
-      roughness: 0.2,
-      metalness: 0.3,
-    });
-    const win = new THREE.Mesh(windowGeo, this.bag.mat(windowMat));
-    win.position.set(0, 0.18, 0.155);
-    win.rotation.y = 0;
-    bodyGroup.add(win);
+    const halo = new THREE.Mesh(this.haloGeo, this.haloMat);
+    halo.rotation.x = -Math.PI / 2;
+    halo.position.y = -0.44;
 
-    // Fins — 4 around body
-    for (let i = 0; i < 4; i++) {
-      const fin = new THREE.Mesh(this.finGeo, this.finMat);
-      const ang = (i / 4) * Math.PI * 2;
-      fin.position.set(Math.cos(ang) * 0.16, -0.18, Math.sin(ang) * 0.16);
-      fin.rotation.y = -ang;
-      fin.castShadow = true;
-      bodyGroup.add(fin);
-    }
-
-    // Flame (bottom)
-    const flame = new THREE.Mesh(this.flameGeo, this.flameMat);
-    flame.name = "rocketFlame";
-    flame.position.y = -0.32;
-    flame.rotation.x = Math.PI;
-    bodyGroup.add(flame);
-
-    // Glow ring at base for visibility on bright road
-    const ringGeo = new THREE.RingGeometry(0.28, 0.38, 16);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffb84f,
-      transparent: true,
-      opacity: 0.4,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const ring = new THREE.Mesh(ringGeo, this.bag.mat(ringMat));
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -0.42;
-    root.add(ring);
-
-    // Overall tilt like key
-    bodyGroup.rotation.x = 0.12;
-
+    root.add(bottle, body, halo);
     root.visible = false;
-    return new Rocket(root);
+    return new Rocket(root, { body, fuse, halo });
   }
+}
+
+/** Festival paper wrap for the pickup rocket (drawn once per factory). */
+function paintRocketPaper(): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+  const colors = ["#d7263d", "#ffb300", "#1b998b", "#e4007c"];
+  for (let i = -4; i < 12; i++) {
+    ctx.fillStyle = colors[((i % colors.length) + colors.length) % colors.length];
+    ctx.beginPath();
+    ctx.moveTo(i * 14, 0);
+    ctx.lineTo(i * 14 + 9, 0);
+    ctx.lineTo(i * 14 + 9 + 24, 64);
+    ctx.lineTo(i * 14 + 24, 64);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  for (let y = 8; y < 64; y += 16) {
+    for (let x = 4; x < 128; x += 12) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  return canvas;
 }

@@ -352,6 +352,36 @@ export class WorldManager {
     }
   }
 
+  /**
+   * Releases every obstacle whose world z lies in [zFar, zNear] (both
+   * negative = ahead of the runner). Used to guarantee an open landing zone
+   * for the Diwali rocket. `onCleared` receives each removed obstacle's
+   * world position (for a puff effect). Returns how many were removed.
+   */
+  clearObstaclesInRange(
+    zFar: number,
+    zNear: number,
+    onCleared?: (x: number, y: number, z: number) => void
+  ): number {
+    let removed = 0;
+    for (const segment of this.segments) {
+      for (let i = segment.obstacles.length - 1; i >= 0; i--) {
+        const ob = segment.obstacles[i];
+        if (!ob.active) continue;
+        const z = segment.originZ + ob.localZ;
+        if (z < zFar || z > zNear) continue;
+        onCleared?.(ob.centerX, ob.topY * 0.5, z);
+        ob.active = false;
+        ob.mesh.removeFromParent();
+        const pool = this.obstaclePools.get(ob.kind);
+        if (pool) pool.push(ob);
+        segment.obstacles.splice(i, 1);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
   dispose(scene: THREE.Scene): void {
     for (const segment of this.segments) {
       this.releaseSegmentEntities(segment);
@@ -547,6 +577,7 @@ export class WorldManager {
 
     for (const item of obstacles) {
       const obstacle = this.acquireObstacle(item.kind);
+      obstacle.prepareSpawn(this.billboardSetIndex, item.variant);
       obstacle.localX = laneIndexToX(item.lane);
       obstacle.localZ = item.z;
       obstacle.mesh.position.set(obstacle.localX, 0, item.z);

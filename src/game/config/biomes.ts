@@ -1,14 +1,41 @@
 /**
- * Biome palettes. Every value is lerped live by the BiomeManager — no
- * loading screens, transitions happen during gameplay via fog/light/material
- * blends. Colors are hex numbers for THREE.Color.
+ * Biome atmospheres. Every value is lerped live by the BiomeManager (fog,
+ * sky, lights, environment, street wetness, facade night glow, skyline,
+ * ambient life) — no loading screens. Colors are sRGB hex.
+ *
+ * Index order is shared with other systems (music themes, obstacle
+ * variants): 0 CHANDNI CHOWK, 1 PINK CITY, 2 MUMBAI MONSOON, 3 DIWALI NIGHT.
+ * Street architecture per biome lives in config/buildings.ts (by `id`).
  */
+
+export interface BiomeSky {
+  zenith: number;
+  horizon: number;
+  /** Below-horizon haze (matches fog so the far city melts into it). */
+  ground: number;
+  /** Direction of the visible sun / moon (normalized at runtime). */
+  sunDir: readonly [number, number, number];
+  sunColor: number;
+  /** Angular radius of the disc (radians). 0 hides it. */
+  sunSize: number;
+  sunGlow: number;
+  /** Horizon glow falloff (higher = thinner band). */
+  haze: number;
+  cloudCover: number;
+  cloudOpacity: number;
+  cloudColor: number;
+  cloudShade: number;
+  stars: number;
+}
+
 export interface BiomeDefinition {
   id: string;
+  /** Short uppercase name shown in the HUD. */
   name: string;
-  background: number;
+  fog: number;
   fogNear: number;
   fogFar: number;
+  sky: BiomeSky;
   hemiSky: number;
   hemiGround: number;
   hemiIntensity: number;
@@ -18,187 +45,246 @@ export interface BiomeDefinition {
   rimIntensity: number;
   glowColor: number;
   glowIntensity: number;
-  road: number;
-  strip: number;
-  dash: number;
-  edgeA: number;
-  edgeB: number;
-  postHead: number;
-  building: number;
-  /** Side aprons / sidewalks / flat-roof trim the street sits on. */
-  sideGround: number;
-  sidewalk: number;
-  roofTrim: number;
-  bands: [number, number, number];
-  /** Billboard art hues (canvas textures generated per biome at boot). */
+  /** scene.environmentIntensity (IBL from a sky-matched PMREM). */
+  envIntensity: number;
+  street: {
+    /** Multiplies the asphalt/footpath atlas. */
+    tint: number;
+    /** 0 dry → 1 monsoon-soaked (dark, glossy, puddles). */
+    wetness: number;
+  };
+  facade: {
+    tint: number;
+    /** Night emissive strength (windows, signs, string lights). */
+    emissive: number;
+    /** Festive bulb twinkle amount. */
+    twinkle: number;
+  };
+  skyline: {
+    near: number;
+    far: number;
+    windowColor: number;
+    windowGlow: number;
+    haze: number;
+    /** 0 = old-city silhouettes (domes, shikharas, forts), 1 = high-rises. */
+    modern: number;
+  };
+  ground: number;
+  ambient: {
+    kites: number;
+    birds: number;
+    fireworks: number;
+    rain: number;
+    skyLanterns: number;
+  };
+  /** Legacy (Game passes these to SharedAssets; the Indian street ignores them). */
   billboardHues: [string, string, string];
-  starOpacity: number;
 }
 
-export const NEON_CITY: BiomeDefinition = {
-  id: "neonCity",
-  name: "SUNNY METRO",
-  background: 0x8ecfff,
-  fogNear: 78,
-  fogFar: 325,
-  hemiSky: 0xd6f0ff,
-  hemiGround: 0xfff2cc,
-  hemiIntensity: 1.42,
-  sunColor: 0xfffdf5,
-  sunIntensity: 3.15,
-  rimColor: 0x6aeefd,
-  rimIntensity: 0.52,
-  glowColor: 0xffd23f,
-  glowIntensity: 10,
-  road: 0xe6ddc3,
-  strip: 0xffffff,
-  dash: 0xffffff,
-  edgeA: 0xfdd013,
-  edgeB: 0x2eb5e5,
-  postHead: 0xfdd013,
-  building: 0xeae6da,
-  sideGround: 0xcfd8cc,
-  sidewalk: 0xf2ede0,
-  roofTrim: 0xfff8ee,
-  bands: [0xfdd013, 0xe31902, 0x6aeefd],
-  billboardHues: ["#FDD013", "#6AEEFD", "#E31902"],
-  starOpacity: 0.06,
-};
-
-export const UNDERGROUND: BiomeDefinition = {
-  id: "underground",
-  name: "SEASIDE LINE",
-  background: 0x7ed4e8,
-  fogNear: 82,
-  fogFar: 335,
-  hemiSky: 0xc6fefe,
-  hemiGround: 0xfff0c2,
-  hemiIntensity: 1.38,
-  sunColor: 0xfff8e8,
-  sunIntensity: 3.0,
-  rimColor: 0x00c2d1,
-  rimIntensity: 0.55,
-  glowColor: 0x37d3e0,
-  glowIntensity: 11,
-  road: 0xdde8dc,
-  strip: 0xffffff,
-  dash: 0xe6f7ff,
-  edgeA: 0x37d3e0,
-  edgeB: 0x4f8dff,
-  postHead: 0x37d3e0,
-  building: 0xe3f2ff,
-  sideGround: 0xc4ddd4,
-  sidewalk: 0xeef4ea,
-  roofTrim: 0xf4fbff,
-  bands: [0x37d3e0, 0x4f8dff, 0xffb84f],
-  billboardHues: ["#37D3E0", "#4F8DFF", "#F7BE76"],
-  starOpacity: 0.04,
-};
-
-export const INDUSTRIAL: BiomeDefinition = {
-  id: "industrial",
-  name: "DESERT STATION",
-  background: 0x9ad4ff,
-  fogNear: 72,
-  fogFar: 310,
-  hemiSky: 0xffe9c2,
-  hemiGround: 0xffd9a0,
-  hemiIntensity: 1.32,
-  sunColor: 0xfff1cc,
-  sunIntensity: 3.1,
-  rimColor: 0xffb84f,
-  rimIntensity: 0.58,
-  glowColor: 0xffa54f,
-  glowIntensity: 12,
-  road: 0xe8dcc2,
-  strip: 0xffffff,
-  dash: 0xfff0d0,
-  edgeA: 0xeb7d26,
-  edgeB: 0xe31902,
-  postHead: 0xeb7d26,
-  building: 0xf5e6cc,
-  sideGround: 0xdccfae,
-  sidewalk: 0xf5ecd8,
-  roofTrim: 0xfff4e0,
-  bands: [0xeb7d26, 0xe31902, 0xfdd013],
-  billboardHues: ["#EB7D26", "#FDD013", "#E31902"],
-  starOpacity: 0.05,
-};
-
-export const CYBER_VOID: BiomeDefinition = {
-  id: "cyberVoid",
-  name: "GREEN PARK",
-  background: 0x87e0ff,
-  fogNear: 86,
-  fogFar: 345,
-  hemiSky: 0xd4f0d4,
-  hemiGround: 0xe0ffcc,
-  hemiIntensity: 1.4,
-  sunColor: 0xfffff0,
+export const CHANDNI_CHOWK: BiomeDefinition = {
+  id: "chandniChowk",
+  name: "CHANDNI CHOWK",
+  fog: 0xe0c29a,
+  fogNear: 55,
+  fogFar: 320,
+  sky: {
+    zenith: 0x2f74cf,
+    horizon: 0xf2d9b2,
+    ground: 0xd9bd94,
+    sunDir: [0.5, 0.36, 0.79],
+    sunColor: 0xffdfa6,
+    sunSize: 0.034,
+    sunGlow: 1.0,
+    haze: 6,
+    cloudCover: 0.3,
+    cloudOpacity: 0.75,
+    cloudColor: 0xffffff,
+    cloudShade: 0xd3c2ae,
+    stars: 0,
+  },
+  hemiSky: 0xd6e4f2,
+  hemiGround: 0xa38a6a,
+  hemiIntensity: 0.8,
+  sunColor: 0xffdfb4,
   sunIntensity: 3.2,
-  rimColor: 0x7ac74f,
-  rimIntensity: 0.5,
-  glowColor: 0xb7f34f,
-  glowIntensity: 10,
-  road: 0xe2e8d0,
-  strip: 0xffffff,
-  dash: 0xe8ffd0,
-  edgeA: 0x7ac74f,
-  edgeB: 0xfdd013,
-  postHead: 0x7ac74f,
-  building: 0xe6efe0,
-  sideGround: 0xc2d8b2,
-  sidewalk: 0xeef3e2,
-  roofTrim: 0xfbfff2,
-  bands: [0x7ac74f, 0xfdd013, 0x6aeefd],
-  billboardHues: ["#7AC74F", "#FDD013", "#6AEEFD"],
-  starOpacity: 0.05,
+  rimColor: 0xffc27a,
+  rimIntensity: 0.9,
+  glowColor: 0xffd28a,
+  glowIntensity: 5,
+  envIntensity: 0.45,
+  street: { tint: 0xffffff, wetness: 0 },
+  facade: { tint: 0xffffff, emissive: 0.1, twinkle: 0 },
+  skyline: { near: 0xa88f7d, far: 0xc6b19b, windowColor: 0xffc46b, windowGlow: 0, haze: 0.62, modern: 0 },
+  ground: 0x9a8a74,
+  ambient: { kites: 1, birds: 1, fireworks: 0, rain: 0, skyLanterns: 0 },
+  billboardHues: ["#FF9933", "#FFD166", "#E4572E"],
 };
 
-/** Fixed progression for the first lap, then Industrial/Cyber Void alternate. */
+export const PINK_CITY: BiomeDefinition = {
+  id: "pinkCity",
+  name: "PINK CITY",
+  fog: 0xeaa982,
+  fogNear: 45,
+  fogFar: 290,
+  sky: {
+    zenith: 0x5566b0,
+    horizon: 0xffae6e,
+    ground: 0xe29e7a,
+    sunDir: [-0.46, 0.12, -0.88],
+    sunColor: 0xffae58,
+    sunSize: 0.045,
+    sunGlow: 1.7,
+    haze: 3.4,
+    cloudCover: 0.42,
+    cloudOpacity: 0.8,
+    cloudColor: 0xffcf9c,
+    cloudShade: 0xa86a86,
+    stars: 0,
+  },
+  hemiSky: 0xffd0ae,
+  hemiGround: 0x8a5a4a,
+  hemiIntensity: 0.8,
+  sunColor: 0xffbd82,
+  sunIntensity: 2.35,
+  rimColor: 0xffa24a,
+  rimIntensity: 2.2,
+  glowColor: 0xffb070,
+  glowIntensity: 6,
+  envIntensity: 0.5,
+  street: { tint: 0xfff0e8, wetness: 0 },
+  facade: { tint: 0xffffff, emissive: 0.35, twinkle: 0 },
+  skyline: { near: 0x94647a, far: 0xc28488, windowColor: 0xffc070, windowGlow: 0.25, haze: 0.55, modern: 0 },
+  ground: 0xa0705a,
+  ambient: { kites: 1, birds: 1, fireworks: 0, rain: 0, skyLanterns: 0 },
+  billboardHues: ["#FF6F91", "#FFC75F", "#F9A03F"],
+};
+
+export const MUMBAI_MONSOON: BiomeDefinition = {
+  id: "mumbaiMonsoon",
+  name: "MUMBAI MONSOON",
+  fog: 0x8ea2a4,
+  fogNear: 18,
+  fogFar: 225,
+  sky: {
+    zenith: 0x56686e,
+    horizon: 0xa0b2b1,
+    ground: 0x889a9a,
+    sunDir: [0.3, 0.62, -0.5],
+    sunColor: 0xdce8e8,
+    sunSize: 0,
+    sunGlow: 0.25,
+    haze: 2.5,
+    cloudCover: 0.96,
+    cloudOpacity: 1,
+    cloudColor: 0xb2c0c2,
+    cloudShade: 0x55636a,
+    stars: 0,
+  },
+  hemiSky: 0xc0d0d2,
+  hemiGround: 0x3f4b4b,
+  hemiIntensity: 1.3,
+  sunColor: 0xd8e6e8,
+  sunIntensity: 1.3,
+  rimColor: 0x9fd0d6,
+  rimIntensity: 0.55,
+  glowColor: 0xbfe0ff,
+  glowIntensity: 6,
+  envIntensity: 0.75,
+  street: { tint: 0xd9dddd, wetness: 1 },
+  facade: { tint: 0xf2f4f4, emissive: 0.5, twinkle: 0 },
+  skyline: { near: 0x5c6c70, far: 0x7d8e90, windowColor: 0xfff0c8, windowGlow: 0.35, haze: 0.66, modern: 1 },
+  ground: 0x56615f,
+  ambient: { kites: 0, birds: 0.35, fireworks: 0, rain: 1, skyLanterns: 0 },
+  billboardHues: ["#3AAFA9", "#DEF2F1", "#FEFFFF"],
+};
+
+export const DIWALI_NIGHT: BiomeDefinition = {
+  id: "diwaliNight",
+  name: "DIWALI NIGHT",
+  fog: 0x2b1f48,
+  fogNear: 24,
+  fogFar: 240,
+  sky: {
+    zenith: 0x060920,
+    horizon: 0x3c2559,
+    ground: 0x261a3c,
+    sunDir: [-0.34, 0.42, -0.84],
+    sunColor: 0xe2e8ff,
+    sunSize: 0.022,
+    sunGlow: 0.35,
+    haze: 4,
+    cloudCover: 0.3,
+    cloudOpacity: 0.45,
+    cloudColor: 0x4a3a6c,
+    cloudShade: 0x1a1430,
+    stars: 1,
+  },
+  hemiSky: 0x6a66b8,
+  hemiGround: 0x4a2c26,
+  hemiIntensity: 0.9,
+  sunColor: 0xa4b4ff,
+  sunIntensity: 0.8,
+  rimColor: 0xff9a3c,
+  rimIntensity: 1.4,
+  glowColor: 0xffb35c,
+  glowIntensity: 16,
+  envIntensity: 0.35,
+  street: { tint: 0xe6e0ff, wetness: 0.35 },
+  facade: { tint: 0xffffff, emissive: 1.7, twinkle: 1 },
+  skyline: { near: 0x14112a, far: 0x241c40, windowColor: 0xffc46b, windowGlow: 1.3, haze: 0.5, modern: 0 },
+  ground: 0x201830,
+  ambient: { kites: 0, birds: 0, fireworks: 1, rain: 0, skyLanterns: 1 },
+  billboardHues: ["#FFB300", "#FF3D00", "#FFE082"],
+};
+
+export const BIOMES: BiomeDefinition[] = [CHANDNI_CHOWK, PINK_CITY, MUMBAI_MONSOON, DIWALI_NIGHT];
+
+/** Fixed first lap (0 → 1 → 2 → 3), then every biome cycles again. */
 export const FIRST_LAP_DISTANCES = [0, 1000, 2000, 3000] as const;
 export const LAP_ALTERNATION_DISTANCE = 1500;
 export const BIOME_BLEND_METERS = 120;
-
-export const BIOMES: BiomeDefinition[] = [
-  NEON_CITY,
-  UNDERGROUND,
-  INDUSTRIAL,
-  CYBER_VOID,
-];
 
 export interface BiomeSlot {
   startDistance: number;
   biomeIndex: number;
 }
 
-function buildScheduleEntry(index: number): BiomeSlot {
-  if (index < FIRST_LAP_DISTANCES.length) {
-    return { startDistance: FIRST_LAP_DISTANCES[index], biomeIndex: index };
-  }
+function entryStart(index: number): number {
+  if (index < FIRST_LAP_DISTANCES.length) return FIRST_LAP_DISTANCES[index];
   const afterFirstLap = index - FIRST_LAP_DISTANCES.length;
-  const startDistance =
-    FIRST_LAP_DISTANCES[FIRST_LAP_DISTANCES.length - 1] +
-    (afterFirstLap + 1) * LAP_ALTERNATION_DISTANCE;
-  // Alternate Industrial (2) / Cyber Void (3) after the first lap.
-  return {
-    startDistance,
-    biomeIndex: afterFirstLap % 2 === 0 ? 2 : 3,
-  };
+  return FIRST_LAP_DISTANCES[FIRST_LAP_DISTANCES.length - 1] + (afterFirstLap + 1) * LAP_ALTERNATION_DISTANCE;
+}
+
+function entryBiome(index: number): number {
+  if (index < FIRST_LAP_DISTANCES.length) return index;
+  return (index - FIRST_LAP_DISTANCES.length) % BIOMES.length;
+}
+
+/** Schedule index active at `distance` (allocation-free). */
+function slotIndexAt(distance: number): number {
+  if (distance < FIRST_LAP_DISTANCES[FIRST_LAP_DISTANCES.length - 1] + LAP_ALTERNATION_DISTANCE) {
+    let index = 0;
+    while (index + 1 < FIRST_LAP_DISTANCES.length + 1 && entryStart(index + 1) <= distance) index++;
+    return index;
+  }
+  const beyond = distance - FIRST_LAP_DISTANCES[FIRST_LAP_DISTANCES.length - 1];
+  return FIRST_LAP_DISTANCES.length - 1 + Math.floor(beyond / LAP_ALTERNATION_DISTANCE);
+}
+
+/** Biome index at a run distance (allocation-free; used for decor lookahead). */
+export function biomeIndexAt(distance: number): number {
+  return entryBiome(slotIndexAt(Math.max(0, distance)));
 }
 
 /** Returns the schedule slot active at `distance` plus the next slot ahead. */
-export function biomeSlotsForDistance(distance: number): {
-  current: BiomeSlot;
-  next: BiomeSlot;
-} {
-  let index = 0;
-  while (buildScheduleEntry(index + 1).startDistance <= distance) index++;
-  return { current: buildScheduleEntry(index), next: buildScheduleEntry(index + 1) };
+export function biomeSlotsForDistance(distance: number): { current: BiomeSlot; next: BiomeSlot } {
+  const index = slotIndexAt(Math.max(0, distance));
+  return {
+    current: { startDistance: entryStart(index), biomeIndex: entryBiome(index) },
+    next: { startDistance: entryStart(index + 1), biomeIndex: entryBiome(index + 1) },
+  };
 }
 
-// Tiny monotonic cache — the hot loop queries this every frame and distance
-// only ever grows during a run, so memoize the last index probed.
 let cachedIndex = -1;
 const scratchPair = {
   current: { startDistance: 0, biomeIndex: 0 },
@@ -207,23 +293,14 @@ const scratchPair = {
 
 /** Allocation-free variant for the frame loop (reuses a shared result). */
 export function biomeSlotsForDistanceCached(distance: number): typeof scratchPair {
-  if (
-    cachedIndex >= 0 &&
-    buildScheduleEntry(cachedIndex).startDistance <= distance &&
-    buildScheduleEntry(cachedIndex + 1).startDistance > distance
-  ) {
-    // still inside cached slot
-  } else {
-    let index = 0;
-    while (buildScheduleEntry(index + 1).startDistance <= distance) index++;
-    cachedIndex = index;
+  const d = Math.max(0, distance);
+  if (!(cachedIndex >= 0 && entryStart(cachedIndex) <= d && entryStart(cachedIndex + 1) > d)) {
+    cachedIndex = slotIndexAt(d);
   }
-  const cur = buildScheduleEntry(cachedIndex);
-  const nxt = buildScheduleEntry(cachedIndex + 1);
-  scratchPair.current.startDistance = cur.startDistance;
-  scratchPair.current.biomeIndex = cur.biomeIndex;
-  scratchPair.next.startDistance = nxt.startDistance;
-  scratchPair.next.biomeIndex = nxt.biomeIndex;
+  scratchPair.current.startDistance = entryStart(cachedIndex);
+  scratchPair.current.biomeIndex = entryBiome(cachedIndex);
+  scratchPair.next.startDistance = entryStart(cachedIndex + 1);
+  scratchPair.next.biomeIndex = entryBiome(cachedIndex + 1);
   return scratchPair;
 }
 

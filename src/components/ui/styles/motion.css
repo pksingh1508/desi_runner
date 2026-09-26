@@ -1,0 +1,162 @@
+/* ==========================================================================
+   Motion library — every UI animation is CSS (keyframes / transitions), so
+   gameplay never pays for per-frame React work. Reduced-motion overrides
+   live in reduced-motion.css (imported last).
+   ========================================================================== */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(0.9rem) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rise-out {
+  to { opacity: 0; transform: translateY(-0.8rem); }
+}
+
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-1.25rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes drop-out {
+  to { opacity: 0; transform: translateY(-1.25rem); }
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pop-out {
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-2.5rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slide-out-left {
+  to { opacity: 0; transform: translateX(-3rem); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(2rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(104%); }
+  to { transform: none; }
+}
+
+@keyframes sheet-out {
+  to { transform: translateY(104%); }
+}
+
+@keyframes zoom-fade-out {
+  to { opacity: 0; transform: scale(1.05); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-rev {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes float-y {
+  from { transform: translateY(0); }
+  to { transform: translateY(-0.45rem); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.3) rotate(-8deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes tick {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes btn-shine {
+  0% { transform: translateX(-160%) skewX(-22deg); }
+  42%, 100% { transform: translateX(640%) skewX(-22deg); }
+}
+
+@keyframes garland-sway {
+  from { transform: skewX(-1.4deg) scaleY(0.97); }
+  to { transform: skewX(1.4deg) scaleY(1.03); }
+}
+
+@keyframes flame-flicker {
+  0% { transform: scale(1, 1) rotate(-2deg); }
+  45% { transform: scale(0.92, 1.1) rotate(2.5deg); }
+  100% { transform: scale(1.05, 0.95) rotate(-1deg); }
+}
+
+@keyframes stamp-in {
+  0% { opacity: 0; transform: scale(2.3) rotate(var(--tilt, -7deg)); }
+  55% { opacity: 1; transform: scale(0.92) rotate(var(--tilt, -7deg)); }
+  78% { transform: scale(1.04) rotate(var(--tilt, -7deg)); }
+  100% { opacity: 1; transform: scale(1) rotate(var(--tilt, -7deg)); }
+}
+
+@keyframes wobble-in {
+  0% { opacity: 0; transform: scale(0.3) rotate(-16deg); }
+  50% { opacity: 1; transform: scale(1.12) rotate(6deg); }
+  72% { transform: scale(0.95) rotate(-3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(var(--tilt, -2deg)); }
+}
+
+@keyframes petal-fly {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(0deg) scale(0.3); }
+  12% { opacity: 1; }
+  55% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx) * 1.2), calc(-50% + var(--dy) + 7rem))
+      rotate(calc(var(--rot) * 2.2)) scale(0.85);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(90deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes shimmer-x {
+  from { background-position: 200% 0; }
+  to { background-position: -100% 0; }
+}

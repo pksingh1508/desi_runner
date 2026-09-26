@@ -7,20 +7,15 @@ import {
   COIN_STORM,
   DRONE_ATTACK,
   RUN_EVENTS_CFG,
+  RUN_EVENT_DEFS,
+  type RunEventKind,
 } from "@/game/config/events";
+import { ShaadiDroneFactory, type DroneVisual } from "@/game/entities/ShaadiDrone";
+import { PaisaRain } from "@/game/entities/PaisaRain";
 import type { WorldManager } from "@/game/world/WorldManager";
 import type { FeedbackSystem } from "./FeedbackSystem";
 import type { AudioSystem } from "./AudioSystem";
-import type { DifficultySystem } from "./DifficultySystem";
 import { randRange, weightedIndex } from "@/game/utils/math";
-
-type EventKind = "coinStorm" | "droneAttack" | "laserGrid";
-
-const EVENT_DEFS: { kind: EventKind; label: string; weight: number }[] = [
-  { kind: "coinStorm", label: "🪙 COIN STORM", weight: 0.4 },
-  { kind: "droneAttack", label: "⚠ DRONE ATTACK", weight: 0.33 },
-  { kind: "laserGrid", label: "⚠ LASER GRID AHEAD", weight: 0.27 },
-];
 
 export interface Drone {
   group: THREE.Group;
@@ -33,42 +28,54 @@ export interface Drone {
 /**
  * Occasional special moments during a run. All events announce themselves
  * first, respect cooldowns and distance gates, and are survivable by
- * construction. Drones are self-managed entities with a fair warning phase;
- * laser grids inject validated authored patterns into upcoming segments.
+ * construction:
+ *  - PAISA BAARISH  (coinStorm)  — coin lines + fluttering note confetti
+ *  - SHAADI DRONE ATTACK (droneAttack) — wedding camera drones lock onto a
+ *    lane (red chevron telegraph + fast REC blink), then charge; one lane
+ *    always stays open
+ *  - TRAFFIC JAM (laserGrid)     — validated authored vehicle chains are
+ *    queued into upcoming segments
  */
 export class RunEventSystem {
   /** Drones currently on the field; Game includes their colliders in hit tests. */
   readonly drones: Drone[] = [];
 
-  private activeKind: EventKind | null = null;
+  private activeKind: RunEventKind | null = null;
   private state: "idle" | "announcing" | "active" | "cooldown" = "cooldown";
   private stateTimer = RUN_EVENTS_CFG.maxInterval * 0.6;
-  private cooldown = 20;
-  private lastKind: EventKind | null = null;
+  private lastKind: RunEventKind | null = null;
   private stormTimer = 0;
   private stormLaneCursor = 1;
   private waveIndex = 0;
   private waveTimer = 0;
 
-  private dronePool: Drone[] = [];
+  /** Every drone ever built; any with state "idle" is free for reuse. */
+  private readonly allDrones: Drone[] = [];
+  private readonly visuals = new Map<Drone, DroneVisual>();
+  private readonly droneFactory: ShaadiDroneFactory;
+  private readonly rain: PaisaRain;
+  private readonly laneScratch = [0, 1, 2];
+  private readonly weightScratch: number[] = [];
 
   constructor(
     private world: WorldManager,
-    private bag: ResourceBag,
+    bag: ResourceBag,
     private feedback: FeedbackSystem,
     private audio: AudioSystem
-  ) {}
+  ) {
+    // Built at boot so the first event never stalls a frame.
+    this.droneFactory = new ShaadiDroneFactory(bag);
+    this.rain = new PaisaRain(world.root, bag);
+  }
 
   update(delta: number, distance: number, worldSpeed: number, difficultyTier: number): void {
     this.updateDrones(delta, worldSpeed);
+    this.rain.update(delta, worldSpeed, this.isStormLive());
 
     switch (this.state) {
       case "cooldown":
         this.stateTimer -= delta;
-        if (
-          this.stateTimer <= 0 &&
-          distance >= RUN_EVENTS_CFG.minDistance
-        ) {
+        if (this.stateTimer <= 0 && distance >= RUN_EVENTS_CFG.minDistance) {
           this.beginAnnounce();
         }
         break;
@@ -77,7 +84,7 @@ export class RunEventSystem {
         if (this.stateTimer <= 0) this.beginActive(difficultyTier);
         break;
       case "active":
-        this.tickActive(delta, worldSpeed, difficultyTier);
+        this.tickActive(delta, difficultyTier);
         break;
       case "idle":
         break;
@@ -85,7 +92,9 @@ export class RunEventSystem {
   }
 
   reset(): void {
-    for (const drone of this.drones) this.releaseDrone(drone);
+    for (const drone of this.drones) this.hideDrone(drone);
+    this.drones.length = 0;
+    this.rain.clear();
     this.activeKind = null;
     this.state = "cooldown";
     this.stateTimer = randRange(RUN_EVENTS_CFG.minInterval, RUN_EVENTS_CFG.maxInterval) * 0.7;
@@ -95,16 +104,34 @@ export class RunEventSystem {
 
   // ------------------------------------------------------------------ intern
 
+  /** Notes flutter from the announcement until the storm's last line. */
+  private isStormLive(): boolean {
+    return this.activeKind === "coinStorm" && (this.state === "announcing" || this.state === "active");
+  }
+
   private beginAnnounce(): void {
-    const weights = EVENT_DEFS.map((e) => (e.kind === this.lastKind ? 0 : e.weight));
-    const def = EVENT_DEFS[weightedIndex(weights)];
+    const weights = this.weightScratch;
+    weights.length = 0;
+    for (const def of RUN_EVENT_DEFS) weights.push(def.kind === this.lastKind ? 0 : def.weight);
+    const def = RUN_EVENT_DEFS[weightedIndex(weights)];
     this.activeKind = def.kind;
     this.lastKind = def.kind;
     this.state = "announcing";
     this.stateTimer = RUN_EVENTS_CFG.announceDuration;
     this.feedback.showBanner(def.label, RUN_EVENTS_CFG.announceDuration + COIN_STORM.duration * 0.4);
-    if (def.kind !== "coinStorm") this.audio.playWarn();
-    else this.audio.playPowerup();
+    switch (def.kind) {
+      case "coinStorm":
+        this.audio.playPowerup();
+        this.audio.playMeme("coinStorm");
+        break;
+      case "droneAttack":
+        this.audio.playWarn();
+        break;
+      case "laserGrid":
+        this.audio.playWarn();
+        this.audio.playHonk();
+        break;
+    }
   }
 
   private beginActive(tier: number): void {
@@ -129,7 +156,7 @@ export class RunEventSystem {
     }
   }
 
-  private tickActive(delta: number, worldSpeed: number, tier: number): void {
+  private tickActive(delta: number, tier: number): void {
     switch (this.activeKind) {
       case "coinStorm": {
         this.stateTimer -= delta;
@@ -143,17 +170,15 @@ export class RunEventSystem {
             COIN_STORM.coinsPerLine,
             COIN_STORM.coinSpacing
           );
-          void worldSpeed;
         }
         if (this.stateTimer <= 0) this.finish();
         break;
       }
       case "droneAttack": {
         this.waveTimer -= delta;
-        const aliveDrones = this.drones.length > 0;
         if (this.waveIndex < DRONE_ATTACK.waves && this.waveTimer <= 0) {
           this.spawnWave(tier);
-        } else if (this.waveIndex >= DRONE_ATTACK.waves && !aliveDrones) {
+        } else if (this.waveIndex >= DRONE_ATTACK.waves && this.drones.length === 0) {
           this.finish();
         }
         break;
@@ -176,7 +201,17 @@ export class RunEventSystem {
   private spawnWave(tier: number): void {
     this.waveIndex++;
     this.waveTimer = DRONE_ATTACK.waveGap;
-    const lanes = [0, 1, 2].sort(() => Math.random() - 0.5);
+    // Fisher–Yates on a reused lane list; at most two lanes, one stays open.
+    const lanes = this.laneScratch;
+    lanes[0] = 0;
+    lanes[1] = 1;
+    lanes[2] = 2;
+    for (let i = lanes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = lanes[i];
+      lanes[i] = lanes[j];
+      lanes[j] = tmp;
+    }
     const count = tier >= DRONE_ATTACK.doubleWaveTier ? Math.min(2, lanes.length - 1) : 1;
     for (let i = 0; i < count; i++) {
       this.spawnDrone(lanes[i]);
@@ -188,8 +223,11 @@ export class RunEventSystem {
     drone.laneX = LANES[lane];
     drone.state = "warning";
     drone.timer = DRONE_ATTACK.warnTime;
-    drone.group.position.set(drone.laneX, 1.15, DRONE_ATTACK.hoverZ);
+    drone.group.position.set(drone.laneX, DRONE_ATTACK.hoverY, DRONE_ATTACK.hoverZ);
+    drone.group.rotation.set(0, 0, 0);
     drone.group.visible = true;
+    this.visuals.get(drone)?.reset();
+    this.syncCollider(drone);
     this.drones.push(drone);
     this.audio.playCountdownBeep(false);
   }
@@ -198,81 +236,60 @@ export class RunEventSystem {
     for (let i = this.drones.length - 1; i >= 0; i--) {
       const drone = this.drones[i];
       const mesh = drone.group;
-      mesh.rotation.y += delta * 3;
       if (drone.state === "warning") {
         drone.timer -= delta;
-        // Pulsing red warning glow.
-        const pulse = 0.5 + Math.sin(drone.timer * 18) * 0.5;
-        const eye = mesh.userData.eye as THREE.Mesh;
-        const mat = eye.material as THREE.MeshBasicMaterial;
-        mat.opacity = 0.35 + pulse * 0.65;
         mesh.position.z += worldSpeed * delta; // drifts closer with the world
         if (drone.timer <= 0) drone.state = "charging";
       } else if (drone.state === "charging") {
         mesh.position.z += worldSpeed * (DRONE_ATTACK.speedFactor - 1) * delta;
-        const eye = mesh.userData.eye as THREE.Mesh;
-        (eye.material as THREE.MeshBasicMaterial).opacity = 1;
       }
+      this.visuals.get(drone)?.update(delta, drone.state);
+      this.syncCollider(drone);
 
-      // Collider sync (player sits near z=0).
-      const z = mesh.position.z;
-      drone.collider.minX = mesh.position.x - 0.55;
-      drone.collider.maxX = mesh.position.x + 0.55;
-      drone.collider.minY = mesh.position.y - 0.55;
-      drone.collider.maxY = mesh.position.y + 0.55;
-      drone.collider.minZ = z - 0.55;
-      drone.collider.maxZ = z + 0.55;
-
-      if (z > 8) {
-        this.releaseDrone(drone);
+      if (mesh.position.z > 8) {
+        this.hideDrone(drone);
         this.drones.splice(i, 1);
       }
     }
   }
 
+  private syncCollider(drone: Drone): void {
+    const p = drone.group.position;
+    const h = DRONE_ATTACK.halfSize;
+    drone.collider.minX = p.x - h;
+    drone.collider.maxX = p.x + h;
+    drone.collider.minY = p.y - h;
+    drone.collider.maxY = p.y + h;
+    drone.collider.minZ = p.z - h;
+    drone.collider.maxZ = p.z + h;
+  }
+
   private acquireDrone(): Drone {
-    const pooled = this.dronePool.pop();
-    if (pooled) return pooled;
+    // Game may also release drones (smash / shield / revive) by splicing
+    // them out and marking them idle — idle means free, whoever released it.
+    for (const drone of this.allDrones) {
+      if (drone.state === "idle" && !this.drones.includes(drone)) return drone;
+    }
     return this.buildDrone();
   }
 
-  private releaseDrone(drone: Drone): void {
+  private hideDrone(drone: Drone): void {
     drone.group.visible = false;
     drone.state = "idle";
-    this.dronePool.push(drone);
   }
 
   private buildDrone(): Drone {
-    const group = new THREE.Group();
-    const bodyMat = this.bag.mat(
-      new THREE.MeshStandardMaterial({ color: 0x141a22, roughness: 0.4, metalness: 0.7 })
-    );
-    const eyeMat = this.bag.mat(
-      new THREE.MeshBasicMaterial({ color: 0xff4040, transparent: true })
-    );
-    const bodyGeo = this.bag.geo(new THREE.ConeGeometry(0.42, 0.85, 6));
-    const eyeGeo = this.bag.geo(new THREE.SphereGeometry(0.16, 8, 8));
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.rotation.x = Math.PI;
-    body.castShadow = true;
-    const eye = new THREE.Mesh(eyeGeo, eyeMat);
-    eye.position.set(0, 0.12, 0.3);
-    const ringGeo = this.bag.geo(new THREE.TorusGeometry(0.5, 0.04, 6, 24));
-    const ringMat = this.bag.mat(
-      new THREE.MeshBasicMaterial({ color: 0xef5350, transparent: true, opacity: 0.6 })
-    );
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2;
-    group.add(body, eye, ring);
-    group.userData.eye = eye;
-    group.visible = false;
-    this.world.root.add(group);
-    return {
-      group,
+    const visual = this.droneFactory.create();
+    this.world.root.add(visual.group);
+    const drone: Drone = {
+      group: visual.group,
       collider: { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 },
       laneX: 0,
       state: "idle",
       timer: 0,
     };
+    this.allDrones.push(drone);
+    this.visuals.set(drone, visual);
+    return drone;
   }
 }

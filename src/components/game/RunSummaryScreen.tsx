@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { RunResult } from "@/types/game";
-import { xpRequiredForLevel } from "@/game/config/progression";
+import { GameButton } from "@/components/ui/Button";
+import { cssVars } from "@/components/ui/cn";
+import { CountUp } from "@/components/ui/CountUp";
+import { fmtClock, fmtInt, fmtMeters, type NumberFormatKind } from "@/components/ui/format";
+import { CoinIcon, KeyIcon } from "@/components/ui/GameIcons";
+import { Icon } from "@/components/ui/Icon";
+import { guardActivationKeys } from "@/components/ui/keyboard";
+import { Garland, PetalBurst } from "@/components/ui/Ornaments";
+import { XpPanel } from "./summary/XpPanel";
 
 interface RunSummaryScreenProps {
   result: RunResult;
@@ -12,244 +20,248 @@ interface RunSummaryScreenProps {
   onMenu: () => void;
 }
 
+type VerdictKind = "record" | "early" | "solid";
+
+function verdictFor(result: RunResult): { kind: VerdictKind; text: string } {
+  if (result.isNewBestScore || result.isNewBestDistance) return { kind: "record", text: "MOGAMBO KHUSH HUA!" };
+  if (result.distance < 300) return { kind: "early", text: "ARRE YAAR… PHIR SE!" };
+  return { kind: "solid", text: "BAHUT HARD!" };
+}
+
 /**
- * V2 run summary: animated counters, skill breakdown, XP bar, mission /
- * achievement rewards and level-up reveals. Tapping anywhere skips the
- * count-up animations.
+ * Run summary: meme verdict stamp, animated score, hero stats, detail grid,
+ * XP bar, rewards. Tapping anywhere skips the count-ups; a new record
+ * throws a marigold-petal burst.
  */
-export function RunSummaryScreen({
-  result,
-  bestScore,
-  bestDistance,
-  onRestart,
-  onMenu,
-}: RunSummaryScreenProps) {
+export function RunSummaryScreen({ result, bestScore, bestDistance, onRestart, onMenu }: RunSummaryScreenProps) {
   const [skip, setSkip] = useState(false);
-  const scoreValue = useCountUp(result.score, 1100, skip);
-  const xpValue = useCountUp(result.xpEarned, 900, skip, 500);
+  const verdict = verdictFor(result);
+  const record = verdict.kind === "record";
+
+  const details: { label: string; value: string; icon: ReactNode }[] = [
+    { label: "NEAR MISSES", value: fmtInt(result.nearMisses), icon: "😰" },
+    { label: "PERFECT", value: fmtInt(result.perfectJumps + result.perfectSlides), icon: "✨" },
+    { label: "SMASHES", value: fmtInt(result.obstaclesSmashed), icon: "💥" },
+    { label: "JOSH", value: fmtInt(result.overdrives), icon: "🔥" },
+    { label: "POWER-UPS", value: fmtInt(result.powerUps), icon: "⚡" },
+    { label: "ROCKETS", value: fmtInt(result.rocketsUsed), icon: "🚀" },
+    { label: "KEYS FOUND", value: fmtInt(result.keysCollected), icon: <KeyIcon /> },
+    { label: "SAVES", value: fmtInt(result.keysUsed), icon: "🛟" },
+    { label: "SURVIVED", value: fmtClock(result.survivalTime), icon: "⏱️" },
+  ];
+
+  const stop = (action: () => void) => (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    action();
+  };
 
   return (
     <div
-      className="absolute inset-0 z-40 overflow-y-auto bg-gradient-to-b from-[#070b09]/78 via-[#0a120e]/92 to-[#070b09]/97"
+      className="overlay overlay--summary summary scroll-area"
       onClick={() => setSkip(true)}
+      onKeyDown={guardActivationKeys}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="summary-title"
     >
-      <div className="scanlines" />
-      <div className="mx-auto flex min-h-full w-full max-w-lg flex-col items-center justify-center gap-4 px-6 py-[max(1.5rem,env(safe-area-inset-top))]">
-        <div className="gameover-enter flex flex-col items-center gap-2">
-          {(result.isNewBestScore || result.isNewBestDistance) && (
-            <span className="new-best-badge font-tech text-[10px] tracking-[0.35em]">
-              {result.isNewBestScore ? "NEW RECORD!" : "NEW DISTANCE RECORD!"}
+      <div className="summary__col">
+        <header className="summary__head">
+          <Garland className="summary__garland" />
+          {record && <PetalBurst count={34} className="summary__petals" />}
+          {record && (
+            <span className="summary__record">
+              <Icon name="star" /> NEW {result.isNewBestScore ? "HIGH SCORE" : "DISTANCE RECORD"} <Icon name="star" />
             </span>
           )}
-          <h2 className="title-glow title-flicker font-retro text-2xl sm:text-3xl">RUN COMPLETE</h2>
-          <div className="score-value font-tech text-5xl tabular-nums text-[#f4f6d0] sm:text-6xl">
-            {Math.floor(scoreValue).toLocaleString()}
-          </div>
-        </div>
+          <h2 id="summary-title" className="stamp summary__verdict" data-kind={verdict.kind}>
+            {verdict.text}
+          </h2>
+          <p className="summary__label">RUN SCORE</p>
+          <CountUp className="summary__score" value={result.score} durationMs={1300} delayMs={380} instant={skip} />
+          <p className="summary__best">
+            BEST {fmtInt(bestScore)} · {fmtMeters(bestDistance)}
+          </p>
+        </header>
 
-        {/* -------------------------------------------------- skill stats */}
-        <div className="gameover-enter-delayed hud-panel grid w-full grid-cols-3 gap-x-4 gap-y-2 px-5 py-3">
-          <SummaryStat label="DISTANCE" value={`${Math.floor(result.distance).toLocaleString()}m`} accent="text-[#9fca7d]" />
-          <SummaryStat label="COINS" value={`✦ ${result.coins.toLocaleString()}`} accent="text-[#e8c96a]" />
-          <SummaryStat label="MAX COMBO" value={`×${result.maxCombo}`} accent="text-[#ffb84f]" />
-          <SummaryStat label="NEAR MISSES" value={String(result.nearMisses)} />
-          <SummaryStat label="PERFECT" value={String(result.perfectJumps + result.perfectSlides)} />
-          <SummaryStat label="SMASHES" value={String(result.obstaclesSmashed)} />
-          <SummaryStat label="KEYS" value={`🔑 ${result.keysCollected}`} accent="text-[#fdd013]" />
-          <SummaryStat label="SAVES" value={String(result.keysUsed)} accent="text-[#7efff5]" />
-          <SummaryStat label="ROCKETS" value={`🚀 ${result.rocketsUsed}`} accent="text-[#ff7a6b]" />
-          <SummaryStat label="OVERDRIVES" value={String(result.overdrives)} />
-          <SummaryStat label="POWER-UPS" value={String(result.powerUps)} />
-          <SummaryStat label="SURVIVED" value={`${result.survivalTime}s`} />
-        </div>
+        <section className="summary__hero" aria-label="Run stats">
+          <HeroStat
+            icon={<Icon name="road" />}
+            label="DISTANCE"
+            value={Math.floor(result.distance)}
+            format="meters"
+            best={result.isNewBestDistance}
+            skip={skip}
+            index={0}
+          />
+          <HeroStat icon={<CoinIcon />} label="COINS" value={result.coins} skip={skip} index={1} />
+          <HeroStat icon={<Icon name="flame" />} label="MAX COMBO" value={result.maxCombo} format="combo" skip={skip} index={2} />
+        </section>
 
-        {/* ------------------------------------------------------- XP bar */}
-        <XPBar result={result} skip={skip} xpShown={xpValue} />
+        <section className="summary__grid" aria-label="Skill breakdown">
+          {details.map((detail, index) => (
+            <div key={detail.label} className="sum-stat" style={cssVars({ "--i": index })}>
+              <span className="sum-stat__icon" aria-hidden="true">
+                {detail.icon}
+              </span>
+              <span className="sum-stat__value">{detail.value}</span>
+              <span className="sum-stat__label">{detail.label}</span>
+            </div>
+          ))}
+        </section>
 
-        {/* ------------------------------------------- missions / unlocks */}
+        <XpPanel result={result} skip={skip} />
+
         {result.missionsCompleted.length > 0 && (
-          <RewardsBlock title="MISSIONS COMPLETE">
-            {result.missionsCompleted.map((mission, i) => (
-              <RewardRow key={`m${i}`} icon="✓" text={mission.title} detail={`+${mission.rewardXp} XP · +${mission.rewardCoins} ✦`} />
-            ))}
-          </RewardsBlock>
-        )}
-        {result.achievementsCompleted.length > 0 && (
-          <RewardsBlock title="ACHIEVEMENTS UNLOCKED">
-            {result.achievementsCompleted.map((achievement, i) => (
-              <RewardRow key={`a${i}`} icon={achievement.icon} text={achievement.title} detail={`+${achievement.rewardXp} XP · +${achievement.rewardCoins} ✦`} />
-            ))}
-          </RewardsBlock>
-        )}
-        {result.levelUps.length > 0 && (
-          <RewardsBlock title="LEVEL UP!">
-            {result.levelUps.map((levelUp, i) => (
+          <RewardBlock title="MISSIONS COMPLETE" tone="teal">
+            {result.missionsCompleted.map((mission, index) => (
               <RewardRow
-                key={`l${i}`}
-                icon="★"
-                text={`LEVEL ${levelUp.from} → ${levelUp.to}`}
-                detail={levelUp.rewards.map((r) => r.label).join(" · ")}
+                key={`m${index}`}
+                icon={<Icon name="check" />}
+                text={mission.title}
+                detail={`+${fmtInt(mission.rewardXp)} XP · +${fmtInt(mission.rewardCoins)}`}
               />
             ))}
-          </RewardsBlock>
+          </RewardBlock>
+        )}
+        {result.achievementsCompleted.length > 0 && (
+          <RewardBlock title="AWARDS UNLOCKED" tone="gold">
+            {result.achievementsCompleted.map((achievement, index) => (
+              <RewardRow
+                key={`a${index}`}
+                icon={achievement.icon}
+                text={achievement.title}
+                detail={`+${fmtInt(achievement.rewardXp)} XP · +${fmtInt(achievement.rewardCoins)}`}
+              />
+            ))}
+          </RewardBlock>
+        )}
+        {result.levelUps.length > 0 && (
+          <RewardBlock title="LEVEL UP!" tone="rani">
+            {result.levelUps.map((levelUp, index) => (
+              <RewardRow
+                key={`l${index}`}
+                icon={<Icon name="star" />}
+                text={`LEVEL ${levelUp.from} → ${levelUp.to}`}
+                detail={levelUp.rewards
+                  .filter((reward) => reward.kind === "coins")
+                  .map((reward) => reward.label)
+                  .join(" · ")}
+              />
+            ))}
+            {result.unlocks.map((unlock, index) => (
+              <RewardRow
+                key={`u${index}`}
+                icon={unlock.kind === "character" ? "🏃" : "🏅"}
+                text={unlock.label}
+                detail={unlock.kind === "character" ? "NEW RUNNER" : "NEW BADGE"}
+                highlight
+              />
+            ))}
+          </RewardBlock>
         )}
 
-        {/* ------------------------------------------------------ buttons */}
-        <div className="gameover-enter-delayed flex w-64 flex-col gap-3 pb-4 pt-1">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestart();
-            }}
-            className="btn-neon w-full py-4 text-xs"
-          >
-            RUN AGAIN
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMenu();
-            }}
-            className="btn-ghost w-full py-3.5 text-[10px]"
-          >
-            MAIN MENU
-          </button>
+        {/* Sticky: the retry CTA is always one tap away, however long the
+            rewards list gets. */}
+        <div className="summary__dock">
+          <div className="summary__actions">
+            <GameButton
+              variant="saffron"
+              size="lg"
+              block
+              shine
+              onClick={stop(onRestart)}
+              icon={<Icon name="restart" />}
+            >
+              PHIR SE BHAAGO!
+            </GameButton>
+            <GameButton variant="indigo" size="md" block onClick={stop(onMenu)} icon={<Icon name="home" />}>
+              MAIN MENU
+            </GameButton>
+          </div>
           {!skip && (
-            <button type="button" onClick={() => setSkip(true)} className="font-tech text-[8px] tracking-[0.3em] text-white/30 hover:text-white/60">
-              TAP TO SKIP ANIMATIONS
+            <button type="button" className="summary__skip" onClick={stop(() => setSkip(true))}>
+              TAP ANYWHERE TO SKIP
             </button>
           )}
         </div>
-
-        <p className="font-tech pb-2 text-[9px] tracking-[0.3em] text-white/30">
-          BEST {bestScore.toLocaleString()} · {bestDistance.toLocaleString()}m
-        </p>
       </div>
     </div>
   );
 }
 
-// ------------------------------------------------------------------- pieces
-
-function SummaryStat({ label, value, accent = "text-white/85" }: { label: string; value: string; accent?: string }) {
+function HeroStat({
+  icon,
+  label,
+  value,
+  format = "int",
+  best = false,
+  skip,
+  index,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  format?: NumberFormatKind;
+  best?: boolean;
+  skip: boolean;
+  index: number;
+}) {
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="font-tech text-[8px] tracking-[0.28em] text-white/40">{label}</span>
-      <span className={`font-tech text-sm tabular-nums ${accent}`}>{value}</span>
-    </div>
-  );
-}
-
-function XPBar({ result, skip, xpShown }: { result: RunResult; skip: boolean; xpShown: number }) {
-  const { startFraction, endFraction, finalLevel } = xpBarFractions(result);
-
-  return (
-    <div className="gameover-enter-delayed hud-panel w-full px-5 py-3">
-      <div className="flex items-baseline justify-between">
-        <span className="font-tech text-[10px] tracking-[0.25em] text-[#d9de7a]/90">
-          LEVEL {finalLevel}
-        </span>
-        <span className="font-tech text-sm tabular-nums text-[#e8c96a]">
-          +{Math.floor(xpShown).toLocaleString()} XP
-        </span>
-      </div>
-      <div className="xp-track mt-2 h-2">
-        <div
-          className="xp-fill transition-all duration-700 ease-out"
-          style={{ width: `${(skip ? endFraction : startFraction) * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function useCountUpSafe(target: number): number {
-  return target;
-}
-
-/**
- * Computes XP-bar geometry across possible intermediate level-ups:
- * start = previous position, end = position after all XP is banked.
- */
-function xpBarFractions(result: RunResult): {
-  startFraction: number;
-  endFraction: number;
-  finalLevel: number;
-} {
-  let level = result.previousLevel;
-  let xpInto = result.previousXp;
-  const startFraction = xpInto / Math.max(xpRequiredForLevel(level), 1);
-  let remaining = result.xpEarned;
-  let guard = 0;
-  while (guard++ < 60 && remaining > 0) {
-    const needed = xpRequiredForLevel(level) - xpInto;
-    if (remaining >= needed) {
-      remaining -= needed;
-      level += 1;
-      xpInto = 0;
-    } else {
-      xpInto += remaining;
-      remaining = 0;
-    }
-  }
-  return {
-    startFraction,
-    endFraction: xpInto / Math.max(xpRequiredForLevel(level), 1),
-    finalLevel: level,
-  };
-}
-
-function RewardsBlock({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="gameover-enter-delayed hud-panel w-full px-5 py-3">
-      <div className="font-tech mb-2 text-center text-[9px] tracking-[0.35em] text-[#ffb84f]">
-        {title}
-      </div>
-      <div className="flex flex-col gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-function RewardRow({ icon, text, detail }: { icon: string; text: string; detail?: string }) {
-  return (
-    <div className="flex items-center gap-3 border-t border-white/5 py-1 first:border-t-0">
-      <span className="w-5 text-center text-[13px] text-[#d9de7a]">{icon}</span>
-      <span className="font-tech min-w-0 flex-1 truncate text-[10px] tracking-wider text-[#eef3e4]/90">
-        {text}
+    <div className="hero-stat card" data-best={best} style={cssVars({ "--i": index })}>
+      <span className="hero-stat__icon" aria-hidden="true">
+        {icon}
       </span>
-      {detail && <span className="font-tech whitespace-nowrap text-[9px] text-[#e8c96a]/90">{detail}</span>}
+      <CountUp
+        className="hero-stat__value"
+        value={value}
+        format={format}
+        durationMs={900}
+        delayMs={520 + index * 120}
+        instant={skip}
+      />
+      <span className="hero-stat__label">
+        {label}
+        {best && <span className="hero-stat__best">BEST!</span>}
+      </span>
     </div>
   );
 }
 
-/** requestAnimationFrame-driven count-up; snaps to the target when skipped. */
-function useCountUp(target: number, durationMs: number, skipped: boolean, delayMs = 150): number {
-  const [value, setValue] = useState(skipped ? target : 0);
-  const frameRef = useRef(0);
+function RewardBlock({
+  title,
+  tone,
+  children,
+}: {
+  title: string;
+  tone: "teal" | "gold" | "rani";
+  children: ReactNode;
+}) {
+  return (
+    <section className="reward-block card" data-tone={tone} aria-label={title}>
+      <h3 className="reward-block__title">{title}</h3>
+      <ul className="reward-block__list">{children}</ul>
+    </section>
+  );
+}
 
-  useEffect(() => {
-    if (skipped) {
-      setValue(target);
-      return;
-    }
-    let start: number | null = null;
-    const timeoutId = window.setTimeout(() => {
-      const tick = (now: number) => {
-        if (start === null) start = now;
-        const t = Math.min((now - start) / durationMs, 1);
-        const eased = 1 - Math.pow(1 - t, 3);
-        setValue(target * eased);
-        if (t < 1) frameRef.current = requestAnimationFrame(tick);
-      };
-      frameRef.current = requestAnimationFrame(tick);
-    }, delayMs);
-    return () => {
-      window.clearTimeout(timeoutId);
-      cancelAnimationFrame(frameRef.current);
-    };
-  }, [target, durationMs, skipped, delayMs]);
-
-  return value;
+function RewardRow({
+  icon,
+  text,
+  detail,
+  highlight = false,
+}: {
+  icon: ReactNode;
+  text: string;
+  detail?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <li className="reward-row" data-highlight={highlight}>
+      <span className="reward-row__icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="reward-row__text">{text}</span>
+      {detail && <span className="reward-row__detail">{detail}</span>}
+    </li>
+  );
 }

@@ -6,14 +6,26 @@ const FADE_FAST = 0.14;
 const FADE_DEATH = 0.1;
 /** Expected jump airtime from gameplay constants (v/g * 2). */
 const EXPECTED_AIRTIME = (2 * PLAYER.jumpVelocity) / PLAYER.gravity;
+const LOOPING_STATES: ReadonlySet<PlayerAnimationState> = new Set(["idle", "run", "dance", "ride"]);
 
-interface ClipMapping {
-  idle?: THREE.AnimationClip;
-  run?: THREE.AnimationClip;
-  walk?: THREE.AnimationClip;
-  jump?: THREE.AnimationClip;
-  slide?: THREE.AnimationClip;
-  death?: THREE.AnimationClip;
+type ClipMapping = Partial<Record<PlayerAnimationState | "walk", THREE.AnimationClip>>;
+
+export interface AnimationControllerOptions {
+  /** Explicit clip names per state — skips fuzzy name matching. */
+  clipMap?: Partial<Record<PlayerAnimationState, string>>;
+  /**
+   * Build the SlidePivot keyframe overlay when the model has no slide clip
+   * (default true). Requires the mixer root to contain a "SlidePivot" node.
+   */
+  slideOverlay?: boolean;
+  /** Loop the jump clip (in-air cycle) instead of fitting a one-shot to airtime. */
+  jumpLoops?: boolean;
+  /** Run clip timeScale range mapped from the run speed ratio. */
+  runTimeScale?: readonly [number, number];
+  /** Crossfade used when (re)entering the run cycle. */
+  fadeRun?: number;
+  /** Crossfade used for death. */
+  fadeDeath?: number;
 }
 
 function findClip(clips: THREE.AnimationClip[], ...keywords: string[]): THREE.AnimationClip | undefined {
@@ -25,6 +37,11 @@ function findClip(clips: THREE.AnimationClip[], ...keywords: string[]): THREE.An
   return undefined;
 }
 
+function findExact(clips: THREE.AnimationClip[], name: string | undefined): THREE.AnimationClip | undefined {
+  if (!name) return undefined;
+  return clips.find((clip) => clip.name === name);
+}
+
 /**
  * Owns the AnimationMixer, maps loaded clips to logical states and performs
  * crossfades. Adapted from three.js `webgl_animation_skinning_blending`:
@@ -32,8 +49,14 @@ function findClip(clips: THREE.AnimationClip[], ...keywords: string[]): THREE.An
  * crossfades use fadeIn/fadeOut; looping actions are never restarted while
  * active, one-shots clamp on their final frame.
  *
- * If the GLB provides no clips (or loading failed) the controller degrades to
- * a no-op and Player drives a procedural fallback rig instead.
+ * Two clip sources are supported:
+ *  - fuzzy names (RobotExpressive: Idle / Running / Jump / Death) plus a
+ *    procedural SlidePivot overlay for the slide;
+ *  - an explicit clip map (human runners: Universal Animation Library clips
+ *    Idle_Loop / Sprint_Loop / Jump_Loop / Roll / Death01 / Dance / Driving).
+ *
+ * If no clips exist the controller degrades to a no-op and Player drives a
+ * procedural rig instead.
  */
 export class CharacterAnimationController {
   readonly hasClips: boolean;
@@ -46,8 +69,16 @@ export class CharacterAnimationController {
   /** Root-motion overlay used when the model has no purpose-built slide clip. */
   private slideOverlayAction: THREE.AnimationAction | null = null;
   private onJumpFinished?: () => void;
+  private readonly jumpLoops: boolean;
+  private readonly runScale: readonly [number, number];
+  private readonly fadeRun: number;
+  private readonly fadeDeath: number;
 
-  constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
+  constructor(root: THREE.Object3D, clips: THREE.AnimationClip[], options: AnimationControllerOptions = {}) {
+    this.jumpLoops = options.jumpLoops ?? false;
+    this.runScale = options.runTimeScale ?? [0.85, 1.45];
+    this.fadeRun = options.fadeRun ?? FADE_FAST;
+    this.fadeDeath = options.fadeDeath ?? FADE_DEATH;
     if (clips.length === 0) {
       this.hasClips = false;
       return;
@@ -56,18 +87,29 @@ export class CharacterAnimationController {
     const mixer = new THREE.AnimationMixer(root);
     this.mixer = mixer;
 
-    const nativeSlide = findClip(clips, "sliding", "slide", "crouch", "duck");
-    const mapping: ClipMapping = {
-      idle: findClip(clips, "idle"),
-      run: findClip(clips, "running", "run"),
-      walk: findClip(clips, "walking", "walk"),
-      jump: findClip(clips, "jump"),
-      // Only a purpose-built slide clip is used here. Falling back to
-      // "Sitting" made every slide read as sitting down. The model-independent
-      // overlay below supplies the reference video's right-side shoulder roll.
-      slide: nativeSlide,
-      death: findClip(clips, "death"),
-    };
+    const map = options.clipMap;
+    const nativeSlide = map ? findExact(clips, map.slide) : findClip(clips, "sliding", "slide", "crouch", "duck");
+    const mapping: ClipMapping = map
+      ? {
+          idle: findExact(clips, map.idle),
+          run: findExact(clips, map.run),
+          jump: findExact(clips, map.jump),
+          slide: nativeSlide,
+          death: findExact(clips, map.death),
+          dance: findExact(clips, map.dance),
+          ride: findExact(clips, map.ride),
+        }
+      : {
+          idle: findClip(clips, "idle"),
+          run: findClip(clips, "running", "run"),
+          walk: findClip(clips, "walking", "walk"),
+          jump: findClip(clips, "jump"),
+          // Only a purpose-built slide clip is used here. Falling back to
+          // "Sitting" made every slide read as sitting down. The
+          // model-independent overlay below supplies the shoulder roll.
+          slide: nativeSlide,
+          death: findClip(clips, "death"),
+        };
 
     const register = (
       state: PlayerAnimationState,
@@ -85,11 +127,15 @@ export class CharacterAnimationController {
 
     register("idle", mapping.idle ?? mapping.walk, THREE.LoopRepeat);
     register("run", mapping.run ?? mapping.walk ?? mapping.idle, THREE.LoopRepeat);
-    // Fit the jump clip length roughly onto the simulated airtime.
-    const jumpFit = mapping.jump
-      ? THREE.MathUtils.clamp(mapping.jump.duration / EXPECTED_AIRTIME, 0.75, 1.6)
-      : 1;
-    register("jump", mapping.jump, THREE.LoopOnce, jumpFit);
+    if (this.jumpLoops) {
+      register("jump", mapping.jump, THREE.LoopRepeat);
+    } else {
+      // Fit the jump clip length roughly onto the simulated airtime.
+      const jumpFit = mapping.jump
+        ? THREE.MathUtils.clamp(mapping.jump.duration / EXPECTED_AIRTIME, 0.75, 1.6)
+        : 1;
+      register("jump", mapping.jump, THREE.LoopOnce, jumpFit);
+    }
     if (mapping.slide) {
       const slideTimeScale = nativeSlide
         ? mapping.slide.duration / PLAYER.slideDuration
@@ -97,21 +143,24 @@ export class CharacterAnimationController {
       register("slide", mapping.slide, THREE.LoopOnce, slideTimeScale);
     }
     register("death", mapping.death ?? mapping.idle, THREE.LoopOnce);
+    register("dance", mapping.dance, THREE.LoopRepeat);
+    register("ride", mapping.ride, THREE.LoopRepeat);
 
-    this.jumpAction = this.actions.get("jump") ?? null;
+    this.jumpAction = this.jumpLoops ? null : (this.actions.get("jump") ?? null);
     if (this.mixer && this.jumpAction) {
       this.mixer.addEventListener("finished", this.handleFinished);
     }
 
     // A native slide already owns the full body pose. Otherwise use a
     // model-independent low right-side transform around the whole character.
-    if (!nativeSlide) this.buildSlideOverlay();
+    if (!nativeSlide && (options.slideOverlay ?? true)) this.buildSlideOverlay();
 
     // Start from Idle; every other state is entered via setState() crossfades.
     const idle = this.actions.get("idle");
     if (idle) {
       idle.setEffectiveWeight(1);
       idle.play();
+      this.currentState = "idle";
     }
   }
 
@@ -195,6 +244,11 @@ export class CharacterAnimationController {
     this.onJumpFinished = callback;
   }
 
+  /** True when a clip exists for the state (optional states like dance/ride). */
+  hasState(state: PlayerAnimationState): boolean {
+    return this.actions.has(state);
+  }
+
   /**
    * Crossfades into the requested state.
    *
@@ -211,7 +265,7 @@ export class CharacterAnimationController {
     const next = this.actions.get(state);
     if (!next) return;
 
-    const isLooping = state === "run" || state === "idle";
+    const isLooping = LOOPING_STATES.has(state) || (state === "jump" && this.jumpLoops);
     if (state === this.currentState && (isLooping || next.isRunning())) return;
 
     const prev = this.currentState !== null ? this.actions.get(this.currentState) : undefined;
@@ -220,7 +274,8 @@ export class CharacterAnimationController {
     next.reset(); // restart clip; also clears any stale fades/warps
     if (state === "run") next.timeScale = this.currentRunTimeScale();
     next.setEffectiveWeight(1);
-    const fadeDuration = state === "slide" ? PLAYER.slideBlendTime : FADE_FAST;
+    const fadeDuration =
+      state === "slide" ? PLAYER.slideBlendTime : state === "run" ? this.fadeRun : FADE_FAST;
     next.fadeIn(fadeDuration);
     next.play();
 
@@ -232,7 +287,7 @@ export class CharacterAnimationController {
     }
 
     if (prev && prev !== next && prev.isRunning()) {
-      prev.fadeOut(state === "death" ? FADE_DEATH : fadeDuration);
+      prev.fadeOut(state === "death" ? this.fadeDeath : fadeDuration);
     } else if (prev && prev !== next) {
       prev.stop();
     }
@@ -243,6 +298,8 @@ export class CharacterAnimationController {
   /** Called when the simulation ends a jump early (e.g. landing). */
   forceFinishOneShot(state: PlayerAnimationState): void {
     const action = this.actions.get(state);
+    // Looping jump cycles are faded out by the next setState() instead.
+    if (state === "jump" && this.jumpLoops) return;
     if (action && action.isRunning()) {
       action.enabled = false;
       action.stop();
@@ -262,7 +319,8 @@ export class CharacterAnimationController {
   }
 
   private currentRunTimeScale(): number {
-    return THREE.MathUtils.clamp(0.85 + this.runRatio * 0.55, 0.85, 1.45);
+    const [min, max] = this.runScale;
+    return THREE.MathUtils.clamp(min + this.runRatio * (max - min), min, max);
   }
 
   update(delta: number): void {
@@ -274,6 +332,7 @@ export class CharacterAnimationController {
     for (const action of this.actions.values()) {
       action.stop();
     }
+    this.slideOverlayAction?.stop();
     this.currentState = null;
     this.setState("idle");
   }

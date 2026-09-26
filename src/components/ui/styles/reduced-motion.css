@@ -1,0 +1,42 @@
+/* ==========================================================================
+   prefers-reduced-motion: every animation collapses to its end state and
+   loops stop. Delays are kept so time-based exits (toasts, memes) still
+   disappear on schedule. Elements whose keyframes END hidden but must be
+   seen (countdown numerals, BHAAGO!) are pinned visible instead.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .cd__num,
+  .cd__go,
+  .cd__word,
+  .cd__go-hi,
+  .cd__rays,
+  .ribbon,
+  .ribbon__body::after {
+    animation: none !important;
+  }
+
+  .cd__rays {
+    opacity: 0.3;
+  }
+
+  .ribbon__body::after,
+  .crash__flash,
+  .btn--shine::after,
+  .petals {
+    display: none !important;
+  }
+
+  .rcard {
+    transform: none !important;
+  }
+}

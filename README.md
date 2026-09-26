@@ -1,45 +1,36 @@
-# DESI RUN
+# DESI RUN · देसी रन
 
-A production-quality, browser-based **3D endless runner**. Sprint through
-shifting neon sectors: switch lanes, jump barriers, slide under beams, chain
-combos, grab power-ups, unleash Overdrive, complete daily missions and level
-up — then do it all again.
+A browser-based **3D endless runner set in vibrant Indian streets**. Sprint
+through the bazaars of Chandni Chowk, Jaipur's Pink City, rain-soaked Mumbai
+lanes and a glowing Diwali night. Dodge cows, cycle-rickshaws and Horn-OK-Please
+trucks, roll under railway phaataks and saree clotheslines, ride a Diwali
+rocket, and get roasted by Bollywood-meme voice lines along the way.
 
 Built with **Next.js (App Router) + TypeScript + Three.js used directly** —
 no React Three Fiber, no game engine.
 
-## V2 at a glance
+## What makes it different
 
-Three connected loops sit on top of the V1 core:
-
-```text
-CORE   Run → Dodge → Collect → Survive
-RUN    Power-ups → Combos → Overdrive → Events → Score
-META   Run → XP → Missions → Level Up → Unlock → Customize → Run Again
-```
-
-| System | What it does |
-| ------ | ------------ |
-| **Power-ups** | Magnet (8s coin pull), Shield (absorbs one hit), 2× Score (10s), Turbo (6s speed + smashing + protection). Rare weighted spawns with cooldown. |
-| **Combo** | Grows only from skillful play; multiplier tiers ×1 → ×3; gentle decay, hard reset on unprotected hits. |
-| **Skill events** | Perfect jumps/slides and near misses award score, combo and Overdrive energy. One award per obstacle, ever. |
-| **Overdrive** | Charge by playing well; `E` / double-tap for 6s of boosted speed, FOV, destruction and auto-collection. Reinforced gates stay lethal. |
-| **Missions** | 3 deterministic daily missions per calendar date; rewards banked at run end. |
-| **Progression** | XP curve `80·L^1.35`, levels to 50, data-driven `LEVEL_REWARDS`. |
-| **Achievements** | 26 data-driven lifetime milestones with XP/coin rewards. |
-| **Customization** | 4 character variants (runtime material tints — GLB untouched) + 5 procedural trails. |
-| **Biomes** | Neon City → Underground → Industrial District → Cyber Void, live-blended while you run. |
-| **Run events** | Coin Storm, Drone Attack (telegraphed waves), Laser Grid (validated chains). Cooldown-gated. |
-| **Run summary** | Animated counters, skill breakdown, XP bar, rewards, level-up reveals. Tap to skip. |
+| Feature | What it does |
+| ------- | ------------ |
+| **Realistic desi runners** | 8 realistic 3D humans (RAJU, PRIYA, JASSI, MEERA, INSPECTOR, HERO, BABLI, SHERA) — CC0 base bodies + CC0 motion library (sprint, jump, roll, death, dance, ride). Outfits are painted by a bind-pose clothing shader (tees, kurtas, track jackets, khaki uniform); turbans, mustaches, aviators, bindis, jhumkas, bangles and sneakers are bone-attached; dupattas and gamchas are simulated cloth that flies in the wind. The 15 legacy stylized rigs live on as the CLASSIC squad. |
+| **Indian streets** | Four live-blended biomes — CHANDNI CHOWK, PINK CITY, MUMBAI MONSOON (rain, puddles, lightning), DIWALI NIGHT (fireworks, sky lanterns, bulb strings). Shophouses with Hindi/English signboards, balconies, water tanks, AC units, tangled wires, bunting, kites, pigeons, yellow-black kerbs. |
+| **Street hazards** | Police barricades, sabzi thelas, road-work boards (jump) · cows and cycle-rickshaws crossing (jump / dodge) · HORN OK PLEASE trucks, chai tapris, loaded autos (dodge) · signboards, saree clotheslines, mela banners (slide) · railway phaatak and स्वागत arches (slide, unbreakable). Each variant's collider matches its model. |
+| **Desi power-ups** | CHUMBAK magnet (coins from every lane home in on you), NIMBU-MIRCHI shield (wards off one crash), DOUBLE DHAMAKA ×2, CHAI BOOST turbo, and the **DIWALI ROCKET** — ride a festival firecracker (launch → cruise → smooth landing on a cleared street). |
+| **JOSH** | The overdrive meter: "How's the josh?" — "High sir!" |
+| **TAAL** | Jump on the dhol beat for a streak bonus; the soundtrack is part of the game. |
+| **Meme voice lines** | "FAAAH!" (synthesized shout), "Arre bhai bhai bhai!", "Paisa hi paisa hoga!", "Picture abhi baaki hai, mere dost!", "Mogambo khush hua!", "Bahut hard!", "Udd gaya!"… with comic caption bubbles. License-free: formant synthesis + the device's own speech voice (see `public/sounds/memes/README.md`). |
+| **Desi soundtrack** | Procedural dhol/tabla grooves, tanpura drone and shehnai/bansuri leads improvising in a raag flavour per biome; tempo rises with speed. Auto-rickshaw honks, cow moos and cycle bells announce traffic. |
+| **Street moments** | Near-miss a cow: "GAU MATA KI JAI!" · squeeze past a truck: "HORN OK PLEASE!" · events: PAISA BAARISH (money rain), SHAADI DRONE ATTACK (wedding camera drones), TRAFFIC JAM. |
+| **Meta** | Combos, daily missions, XP to level 50, achievements, Life-Saver keys, GEAR with live 3D preview of every runner (locked ones too). |
 
 ## Tech Stack
 
 - Next.js 16 (App Router), React 19, TypeScript (strict)
-- Three.js `WebGLRenderer`, `AnimationMixer` / `AnimationAction`,
-  `QuaternionKeyframeTrack` / `VectorKeyframeTrack` / `AnimationClip`
-- GLTFLoader for the character model
-- Tailwind CSS v4 + CSS keyframes for UI effects
-- Procedural WebAudio (all SFX & music synthesized at runtime — zero audio assets)
+- Three.js `WebGLRenderer`, `GLTFLoader`, `AnimationMixer` / `AnimationAction`,
+  `SkeletonUtils`, `EffectComposer` (MSAA HDR + bloom + output pass)
+- Tailwind CSS v4 + CSS keyframes for all UI motion
+- Web Audio (music, SFX, formant vocals) + Web Speech API (meme lines)
 
 ## Getting Started
 
@@ -63,160 +54,151 @@ npx tsc --noEmit
 
 ## Controls
 
-| Action       | Desktop                  | Mobile          |
-| ------------ | ------------------------ | --------------- |
-| Move left    | `A` / `←`                | Swipe left      |
-| Move right   | `D` / `→`                | Swipe right     |
-| Jump         | `W` / `↑` / `Space`      | Swipe up        |
-| Slide        | `S` / `↓` (slam mid-air) | Swipe down      |
-| **Overdrive**| `E`                      | Double-tap      |
-| Pause        | `P` / `Esc`              | ❚❚ button       |
-| Start/Retry  | `Enter`                  | PLAY button     |
+| Action        | Desktop                  | Mobile          |
+| ------------- | ------------------------ | --------------- |
+| Move left     | `A` / `←`                | Swipe left      |
+| Move right    | `D` / `→`                | Swipe right     |
+| Jump          | `W` / `↑` / `Space`      | Swipe up        |
+| Slide / roll  | `S` / `↓` (slam mid-air) | Swipe down      |
+| **JOSH**      | `E`                      | Double-tap      |
+| Pause         | `P` / `Esc`              | ❚❚ button       |
+| Start / retry | `Enter`                  | BHAAGO! button  |
 
-Settings (music / SFX / screen shake / performance mode) live in the menu
-footer. The game auto-pauses when the tab loses visibility.
+Settings (SFX / music / meme voices / screen shake / performance mode) live in
+the menu footer. The game auto-pauses when the tab loses visibility.
 
 ## Architecture Overview
 
-React owns menus/HUD/overlays; the engine owns everything per-frame.
-They communicate through one external store (`GameStore`) that React reads via
-`useSyncExternalStore`. HUD numbers and combat state (combo, power-up chips,
-Overdrive meter) flush at ~10 Hz; state changes push immediately. **No React
-state is touched per frame.**
+React owns menus/HUD/overlays; the engine owns everything per-frame. They talk
+through one external store (`GameStore`) read with `useSyncExternalStore`. HUD
+numbers, combat state and coin pops flush at ~10 Hz; state changes push
+immediately. **No React state is touched per frame.**
 
 ```text
 src/
-├── app/                     # layout, page, global styles (CSS keyframes)
-├── components/game/         # GameCanvas, LoadingScreen, MenuScreen (tabbed),
-│                            # CountdownOverlay, GameHUD, PauseScreen,
-│                            # RunSummaryScreen, DebugPanel, meta.ts
-├── game/
-│   ├── Game.ts              # orchestrator: loop, state machine, hit resolution
-│   ├── GameStore.ts         # engine → React bridge (throttled HUD + combat)
-│   ├── config/              # ALL tuning constants, data-driven content
-│   │   ├── gameplay.ts      #   lanes, speeds, camera, difficulty tiers…
-│   │   ├── powerups.ts      #   definitions, spawn rules, magnet/turbo tuning
-│   │   ├── progression.ts   #   XP curve, level rewards, run-XP weights
-│   │   ├── characters.ts    #   character + trail catalogs (unlock levels)
-│   │   ├── missions.ts      #   templates + deterministic daily generation
-│   │   ├── achievements.ts  #   lifetime achievements
-│   │   ├── biomes.ts        #   palettes + distance schedule
-│   │   └── events.ts        #   run-event cooldowns/durations
-│   ├── core/
-│   │   ├── Renderer.ts      # WebGLRenderer setup w/ WebGL-missing handling
-│   │   ├── GameScene.ts     # scene, fog, lights, camera, star field
-│   │   ├── CameraRig.ts     # follow/bob/FOV(+boost)/shake/impulse
-│   │   ├── AssetManager.ts  # GLTF loading with byte-level progress
-│   │   └── SaveService.ts   # versioned SaveDataV2 + V1 migration
-│   ├── player/
-│   │   ├── Player.ts                        # lane damp, jump physics, AABB,
-│   │   │                                    # cosmetic character variants
-│   │   ├── CharacterAnimationController.ts  # mixer, clips, crossfades
-│   │   ├── PlayerFX.ts                      # shield bubble, magnet ring, OD aura
-│   │   └── TrailRenderer.ts                 # pooled cosmetic trail particles
-│   ├── world/
-│   │   ├── WorldManager.ts  # segment ring + obstacle/coin/pickup pools,
-│   │   │                    # dynamic storm coins, obstacle destruction
-│   │   ├── TrackSegment.ts  # road/rails/posts/skyline/billboards
-│   │   ├── BiomeManager.ts  # live fog/light/material blending
-│   │   ├── SharedAssets.ts  # shared geo/mats/per-biome billboard textures
-│   │   └── patterns.ts      # hand-authored survivable templates + lasers
-│   ├── entities/            # Obstacle (destructible + skill flags),
-│   │                        # Coin (+magnet attraction), Pickup (+factory)
-│   └── systems/             # Input, Collision, Score, Difficulty,
-│                            # PowerUp, Combo, Skill, Overdrive, Feedback,
-│                            # RunEvent, Mission, Achievement, Progression,
-│                            # ParticleSystem, AudioSystem
-└── types/game.ts            # shared types (state machine, views, tally…)
+├── app/                       # layout (next/font), page, globals.css
+├── components/
+│   ├── game/                  # GameCanvas, screens (Loading, Menu, Countdown,
+│   │   ├── hud/               #   HUD, Pause, Revive, RunSummary), HUD parts,
+│   │   ├── menu/              #   menu tabs, summary panels, meta.ts
+│   │   └── summary/
+│   └── ui/                    # design system: Button, Ring, Logo, ornaments,
+│       └── styles/            #   tokens / motion / primitives / menu / hud css
+└── game/
+    ├── Game.ts                # orchestrator: loop, state machine, hit resolution
+    ├── GameStore.ts           # engine → React bridge (throttled)
+    ├── config/                # ALL tuning + data-driven content
+    │   ├── gameplay.ts        #   lanes, speeds, camera, rocket ride, TAAL, post FX…
+    │   ├── characters.ts      #   desi + classic runners, outfits
+    │   ├── humanRig.ts        #   realistic runner assets, clip map, landmarks
+    │   ├── powerups.ts        #   power-ups, magnet field
+    │   ├── obstacles.ts       #   obstacle variants + colliders per biome
+    │   ├── biomes.ts          #   biome palettes + schedule
+    │   ├── buildings.ts       #   street styles per biome
+    │   ├── street.ts, ambient.ts
+    │   ├── memes.ts, music.ts #   meme lines, raag themes
+    │   └── missions / achievements / progression / events
+    ├── core/                  # Renderer, GameScene, CameraRig (showcase + chase),
+    │                          # PostFX (bloom), AssetManager, SaveService
+    ├── player/
+    │   ├── Player.ts          # lanes, jump physics, slide, rocket ride, rig swap
+    │   ├── CharacterAnimationController.ts
+    │   ├── human/             # HumanRig, OutfitMaterial, Accessories,
+    │   │                      # ClothTail (verlet cloth), HumanAssets (lazy)
+    │   ├── ClassicRigs.ts     # legacy procedural rigs
+    │   ├── DiwaliRocket.ts    # the ridable rocket + spark trail
+    │   └── PlayerFX.ts        # nimbu-mirchi shield, chumbak field, JOSH aura
+    ├── world/                 # WorldManager (segment ring + pools),
+    │   ├── street/            # merged street/building/decor geometry,
+    │   ├── atmosphere/        # sky dome, skyline, kites, birds, rain,
+    │   ├── textures/          # fireworks, lanterns, facade + street atlases
+    │   └── gfx/
+    ├── entities/              # Obstacle (+ obstacles/ models), Coin (homing),
+    │                          # Pickup (+ pickups/), Key, Rocket, ShaadiDrone,
+    │                          # PaisaRain
+    ├── audio/                 # DesiMusic, DesiSfx, MemeVoice, FormantVoice,
+    │                          # SpeechVoice, MemeClips, instruments
+    └── systems/               # Input, Collision, Score, Difficulty, PowerUp,
+                               # Combo, Skill, Overdrive (JOSH), Feedback,
+                               # RunEvent, Mission, Achievement, Progression,
+                               # Particle, Audio
 ```
 
 ### Key decisions
 
-- **Moving world**: the player stays near `z=0`; segments slide toward the
-  camera and teleport ahead when fully behind. Coordinates never grow —
-  numerically stable for 30-minute runs.
-- **One authoritative loop** via `renderer.setAnimationLoop`, delta clamped to
-  50 ms so tab switches never explode the simulation. Hit-stop effects scale
-  simulation time briefly instead of blocking JavaScript.
-- **State machine**: `loading → menu → countdown → playing ⇄ paused → gameover`.
-- **Animation**: actions created once; crossfades use weights (pattern adapted
-  from the official three.js skinning-blending example). `Running` is never
-  restarted while active. Slide is a custom `AnimationClip` built from
-  `QuaternionKeyframeTrack`s targeting a `SlidePivot` node.
-- **Never impossible**: obstacle layouts come from validated pattern templates;
-  every row leaves at least one valid action by construction. Event drones
-  always telegraph before attacking and never block every lane.
-- **Pooling everywhere**: obstacles, coins, pickups, particles, trails and
-  segments are pooled; hot loops reuse scratch arrays/vectors.
-- **Score ≠ wallet**: run-score multipliers (combo ×2× power-up ×overdrive ×turbo)
-  inflate only the run score. Coins banked, XP, and mission rewards always use
-  raw values.
+- **Moving world**: the runner stays near `z=0`; segments slide toward the
+  camera and teleport ahead. Coordinates never grow.
+- **One authoritative loop** (`renderer.setAnimationLoop`), delta clamped to
+  50 ms; hit-stop scales simulation time instead of blocking.
+- **State machine**: `loading → menu → countdown → playing ⇄ paused → revive → gameover`.
+- **One rig at a time**: human runners own their `AnimationMixer`; the VECTOR
+  robot's mixer is created only while equipped, so bone names never collide.
+- **Never impossible**: obstacle rows come from validated templates; every row
+  leaves at least one valid action; the rocket's landing zone is cleared.
+- **Pooling + merging everywhere**: obstacles, coins (one draw call each),
+  pickups, particles, drones and street segments are pooled; the whole street
+  is ~40–50 draw calls; hot loops reuse scratch objects.
+- **Score ≠ wallet**: run multipliers never inflate coins banked or XP.
 
 ## Extending the Game
 
-### Add a power-up
+### Add a desi runner
 
-1. Add its definition to `POWERUP_DEFS` in `config/powerups.ts`
-   (duration, weight, icon, color).
-2. Handle its behavior in `PowerUpSystem` (active state lives there) and apply
-   effects where they belong (`Game.updatePlaying` reads the system).
-3. Give it a distinct core shape in `entities/Pickup.ts` (`CORE_BUILDERS`).
+Add a `CharacterDefinition` with `archetype: "human"` and an `outfit` to
+`DESI_CHARACTERS` in `config/characters.ts` (body, skin tone, hair, top style
+and sleeves, bottom, shoes, accessories, colors) and a level reward in
+`config/progression.ts`. No new art is needed — the outfit shader and
+accessories build the look.
 
-### Add a mission template
+### Add a meme line
 
-Add an entry to `MISSION_TEMPLATES` in `config/missions.ts` — type, title,
-targets, rewards, mode. Daily generation picks from the pool automatically;
-no other code changes needed.
-
-### Add an achievement
-
-Append to `ACHIEVEMENTS` in `config/achievements.ts` with a `metric` key from
-`PlayerStatsData`. Checks are pure stat comparisons at run end.
+Add an entry to `MEME_LINES` in `config/memes.ts` (Hindi + romanized text,
+caption, cooldown, chance, priority, stinger) and trigger the event with
+`audio.playMeme(event)` from `Game.ts`.
 
 ### Add a biome
 
-Add a `BiomeDefinition` to `config/biomes.ts` and extend the schedule builder
-(`buildScheduleEntry`). Fog/lights/materials blend automatically.
+Add a `BiomeDefinition` to `BIOMES` in `config/biomes.ts` and a matching
+`STREET_STYLES` entry (keyed by the biome `id`) in `config/buildings.ts`.
+Atmosphere, fog, lights and street materials blend automatically.
 
-### Add a run event
+### Add an obstacle variant
 
-Implement a branch in `RunEventSystem` (`beginActive` / `tickActive`), add an
-announcement label, and respect the cooldown/distance gates already there.
+Add it to `OBSTACLE_VARIANTS` in `config/obstacles.ts` (kind, collider,
+approach cue, biome weights) and build its model in
+`entities/obstacles/models/`. Keep the collider inside the kind's fairness
+envelope documented at the top of `config/obstacles.ts`.
 
-### Add a cosmetic
+### Add a power-up / mission / achievement
 
-Characters: extend `CHARACTERS` in `config/characters.ts` (+ a level reward in
-`progression.ts`). Trails: extend `TRAILS`; rendering is fully procedural.
-
-### Replace the character model
-
-1. Drop your `.glb` into `public/models/`.
-2. Point `MODEL_URL` in `src/game/config/gameplay.ts` at it.
-3. Ensure clips named like `Idle`, `Running`/`Run`, `Jump`, `Death`
-   (fuzzy matching; the controller degrades gracefully).
+Power-ups: `POWERUP_DEFS` in `config/powerups.ts`, behavior in
+`PowerUpSystem`, model in `entities/pickups/PickupModels.ts`. Missions:
+`MISSION_TEMPLATES` in `config/missions.ts`. Achievements: `ACHIEVEMENTS` in
+`config/achievements.ts`.
 
 ## Persistence & Migration
 
-`SaveService` stores a single versioned blob (`neonrun.save.v2`) containing
-progression, stats, missions, achievements, customization and settings. On
-first load it migrates legacy V1 keys (`neonrun.bestScore`,
-`neonrun.bestDistance`, `neonrun.totalCoins`, `neonrun.muted`) without
-deleting them, and any corrupted/partial JSON falls back to safe defaults.
-
-Known limitation: daily missions use the local calendar date; a manipulated
-device clock shifts mission days. Accepted for a backend-free V2.
+`SaveService` stores one versioned blob (`neonrun.save.v2`): progression,
+stats, missions, achievements, customization and settings (incl. the meme
+voice toggle). Legacy V1 keys are migrated; corrupted data falls back to safe
+defaults. Saves that had a CLASSIC runner equipped switch once to RAJU (classics
+stay unlocked in GEAR).
 
 ## Performance Notes
 
-- Capped device pixel ratio (performance mode drops to 1× and disables shadows)
-- Single shadow-casting directional light; additive emissives instead of lights
-- One pooled `Points` cloud drives all bursts, one drives the trail
-- Biome blending mutates shared materials in place (zero allocations)
-- Distance culling beyond fog; draw calls visible in the dev DebugPanel
-- Mission UI / achievement checks / persistence run at run-end cadence,
-  never per frame
+- Pixel ratio capped; performance mode drops to 1×, disables shadows and the
+  post-processing chain (touch devices skip bloom by default)
+- One shadow-casting sun; decor never casts shadows
+- Merged/instanced street geometry built once per biome variant; recycling
+  never allocates
+- Coins are a single merged mesh; particle sprites are size-capped
+- Human runners load lazily (the other body is warmed in the background);
+  realistic runner assets total ~2.8 MB (WebP textures)
+- Typical frame: ~190–230 draw calls during a run at 60 FPS on a laptop
 
 ## Asset Information
 
-See [ASSETS.md](./ASSETS.md). Everything else (geometry, textures, audio,
-trails, biomes) is generated procedurally in code.
+See [ASSETS.md](./ASSETS.md). The realistic runners and their animations are
+CC0 (Quaternius); everything else — streets, obstacles, pickups, outfits,
+accessories, music, SFX and meme voices — is generated in code.
+`scripts/build-desi-assets.mjs` documents how the CC0 packs were optimized.

@@ -39,6 +39,10 @@ export function characterOptions(): CharacterOptionView[] {
     species: c.species,
     description: c.description,
     archetype: c.archetype,
+    group: c.group,
+    tagline: c.tagline,
+    hindiName: c.hindiName,
+    accentHex: c.accentHex,
   }));
 }
 
@@ -74,7 +78,7 @@ export function careerGroups(stats: PlayerStatsData): CareerStatsGroup[] {
         { label: "Perfect Jumps", value: stats.totalPerfectJumps.toLocaleString() },
         { label: "Perfect Slides", value: stats.totalPerfectSlides.toLocaleString() },
         { label: "Power-ups", value: stats.totalPowerUps.toLocaleString() },
-        { label: "Overdrives", value: stats.totalOverdrives.toLocaleString() },
+        { label: "Josh Bursts", value: stats.totalOverdrives.toLocaleString() },
         { label: "Smashes", value: stats.obstaclesSmashed.toLocaleString() },
       ],
     },

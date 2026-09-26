@@ -14,7 +14,9 @@ void main() {
   vColor = aColor;
   vAlpha = aAlpha;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = aSize * (140.0 / max(-mv.z, 0.1));
+  // Capped on-screen size: close-range bursts (rocket flight, pickups right
+  // at the runner) must never balloon into screen-filling blobs.
+  gl_PointSize = min(aSize * (110.0 / max(-mv.z, 0.1)), 56.0);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -24,9 +26,11 @@ varying float vAlpha;
 varying vec3 vColor;
 void main() {
   float d = length(gl_PointCoord - vec2(0.5));
-  float a = smoothstep(0.5, 0.06, d) * vAlpha;
+  float a = (1.0 - smoothstep(0.06, 0.5, d)) * vAlpha;
   if (a < 0.01) discard;
-  gl_FragColor = vec4(vColor, a);
+  // Additive into an HDR target never clamps; keep each sprite's energy
+  // modest so overlapping bursts don't blow out under bloom.
+  gl_FragColor = vec4(vColor * 0.75, a * 0.8);
 }
 `;
 
@@ -48,6 +52,7 @@ export class ParticleSystem {
   private maxLives = new Float32Array(CAPACITY);
 
   private alive = 0;
+  private lastSparkleAt = -1;
   private streakAccumulator = 0;
 
   constructor(scene: THREE.Scene, bag: ResourceBag) {
@@ -76,6 +81,27 @@ export class ParticleSystem {
   clear(): void {
     this.alive = 0;
     this.points.geometry.setDrawRange(0, 0);
+  }
+
+  /**
+   * Small gold glint for a coin pickup. Rate-limited so magnet / rocket coin
+   * streams (several pickups per frame) stay a sparkle, not a flare.
+   */
+  emitCoinSparkle(x: number, y: number, z: number, now: number): void {
+    const dense = now - this.lastSparkleAt < 0.08;
+    this.lastSparkleAt = now;
+    const count = dense ? 2 : 5;
+    for (let i = 0; i < count && this.alive < CAPACITY; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = randRange(1.2, 3);
+      this.push(
+        x, y, z,
+        Math.cos(angle) * speed, randRange(1.5, 3.5), Math.sin(angle) * speed * 0.6,
+        randRange(0.25, 0.45), randRange(3, 5.5),
+        1.0, 0.8, 0.28,
+        9
+      );
+    }
   }
 
   emitCoinBurst(x: number, y: number, z: number): void {

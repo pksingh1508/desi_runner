@@ -1,423 +1,140 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { AchievementView, MissionView, PlayerStatsData } from "@/types/game";
-import {
-  careerGroups,
-  characterOptions,
-  levelInfo,
-} from "./meta";
+import { useEffect, useEffectEvent, useState } from "react";
+import type { AchievementView, MenuFocus, MissionView, PlayerStatsData } from "@/types/game";
+import { useCoarsePointer } from "@/components/ui/hooks";
+import { guardActivationKeys } from "@/components/ui/keyboard";
+import { Garland } from "@/components/ui/Ornaments";
+import { AwardsTab } from "./menu/AwardsTab";
+import { CareerTab } from "./menu/CareerTab";
+import { GearTab } from "./menu/GearTab";
+import { MenuHeader } from "./menu/MenuHeader";
+import { MenuTabs, type TabDef } from "./menu/MenuTabs";
+import { MissionsTab } from "./menu/MissionsTab";
+import { PlayTab } from "./menu/PlayTab";
+import { RunnerNameplate } from "./menu/RunnerNameplate";
+import { characterOptions } from "./meta";
+import { SettingsBar } from "./SettingsBar";
+import type { SettingsActions, SettingsView } from "./settings";
 
 interface MenuScreenProps {
   bestScore: number;
   bestDistance: number;
   totalCoins: number;
-  totalKeys: number;
-  muted: boolean;
+  keys: number;
   missions: MissionView[];
   achievements: AchievementView[];
   stats: PlayerStatsData;
-  settings: { screenShake: boolean; music: boolean; sound: boolean; performanceMode: boolean };
+  settings: SettingsView;
+  settingsActions: SettingsActions;
   onPlay: () => void;
-  onToggleMute: () => void;
-  onToggleShake: () => void;
-  onToggleMusic: () => void;
-  onToggleSound: () => void;
-  onTogglePerformance: () => void;
   onEquipCharacter: (id: string) => void;
+  onPreviewCharacter: (id: string | null) => void;
+  onFocusChange: (focus: MenuFocus) => void;
 }
 
 type Tab = "play" | "missions" | "career" | "gear" | "awards";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "play", label: "PLAY" },
-  { id: "missions", label: "MISSIONS" },
-  { id: "career", label: "CAREER" },
-  { id: "gear", label: "GEAR" },
-  { id: "awards", label: "AWARDS" },
+const TABS: readonly TabDef<Tab>[] = [
+  { id: "play", label: "PLAY", icon: "play" },
+  { id: "missions", label: "MISSIONS", icon: "target" },
+  { id: "career", label: "CAREER", icon: "chart" },
+  { id: "gear", label: "GEAR", icon: "shirt" },
+  { id: "awards", label: "AWARDS", icon: "medal" },
 ];
 
+const FOCUS: Record<Tab, MenuFocus> = {
+  play: "home",
+  missions: "missions",
+  career: "career",
+  gear: "gear",
+  awards: "awards",
+};
+
+/**
+ * Main menu over the live 3D street. Landscape: content column on the left,
+ * the runner framed on the right. Portrait: runner on top, content in a
+ * bottom sheet. Tab changes drive the engine camera via setMenuFocus.
+ */
 export function MenuScreen(props: MenuScreenProps) {
   const [tab, setTab] = useState<Tab>("play");
-  const [touch, setTouch] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const touch = useCoarsePointer();
+
+  const reportFocus = useEffectEvent((focus: MenuFocus) => props.onFocusChange(focus));
   useEffect(() => {
-    setTouch(window.matchMedia("(pointer: coarse)").matches);
-  }, []);
+    reportFocus(FOCUS[tab]);
+  }, [tab]);
 
-  const level = levelInfo();
-  const xpFraction = Math.min(level.xpInto / Math.max(level.xpForNext, 1), 1);
+  const preview = (id: string | null) => {
+    setPreviewId(id);
+    props.onPreviewCharacter(id);
+  };
 
-  return (
-    <div className="absolute inset-0 z-40 flex flex-col bg-gradient-to-b from-[#0a1628]/22 via-transparent to-[#0a1628]/16">
-      <div className="scanlines" />
+  const selectTab = (next: Tab) => {
+    if (next === tab) return;
+    if (previewId !== null) preview(null);
+    setTab(next);
+  };
 
-      {/* ---------------------------------------------------------- header */}
-      <div className="flex items-start justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 sm:pt-4">
-        <div>
-          <h1 className="title-flicker title-glow font-retro text-2xl leading-none sm:text-3xl">
-            DESI <span className="title-gold">RUN</span>
-          </h1>
-          <div className="mt-2 flex items-center gap-3">
-            <span className="lvl-badge font-tech">LV {level.level}</span>
-            <div className="xp-track">
-              <div className="xp-fill" style={{ width: `${xpFraction * 100}%` }} />
-            </div>
-            <span className="font-tech text-[9px] tabular-nums text-white/45">
-              {level.xpInto.toLocaleString()}/{level.xpForNext.toLocaleString()} XP
-            </span>
-          </div>
-        </div>
-        <div className="stats-chip font-tech hidden items-center gap-4 px-4 py-2 text-[10px] font-bold tracking-widest sm:flex">
-          <span className="text-white">BEST {props.bestScore.toLocaleString()}</span>
-          <span className="text-white/30">|</span>
-          <span className="text-white">{props.bestDistance.toLocaleString()}m</span>
-          <span className="text-white/30">|</span>
-          <span className="text-[#fdd013]">🔑 {props.totalKeys}</span>
-        </div>
-      </div>
+  const equip = (id: string) => {
+    setPreviewId(null);
+    props.onEquipCharacter(id);
+  };
 
-      {/* ------------------------------------------------------------ tabs */}
-      <div className="mt-4 flex justify-center gap-1.5 px-4 sm:gap-3">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`tab-btn font-tech ${tab === t.id ? "tab-active" : ""}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* --------------------------------------------------------- content */}
-      <div className="menu-scroll mt-4 flex-1 overflow-y-auto px-5 pb-2 sm:px-8">
-        {tab === "play" && (
-          <PlayTab
-            touch={touch}
-            bestScore={props.bestScore}
-            bestDistance={props.bestDistance}
-            totalCoins={props.totalCoins}
-            totalKeys={props.totalKeys}
-            missions={props.missions}
-            onPlay={props.onPlay}
-          />
-        )}
-        {tab === "missions" && <MissionsTab missions={props.missions} />}
-        {tab === "career" && <CareerTab stats={props.stats} />}
-        {tab === "gear" && (
-          <GearTab
-            onEquipCharacter={props.onEquipCharacter}
-          />
-        )}
-        {tab === "awards" && <AwardsTab achievements={props.achievements} />}
-      </div>
-
-      {/* ---------------------------------------------------------- footer */}
-      <div className="flex items-center justify-between gap-2 px-5 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-2 sm:px-8">
-        <div className="font-tech text-[8px] font-bold tracking-[0.32em] text-white/70">
-          RUN · DODGE · SURVIVE
-        </div>
-        <div className="flex gap-1.5">
-          <ToggleChip label="SFX" on={props.settings.sound} onClick={props.onToggleSound} />
-          <ToggleChip label="MUSIC" on={props.settings.music} onClick={props.onToggleMusic} />
-          <ToggleChip label="SHAKE" on={props.settings.screenShake} onClick={props.onToggleShake} />
-          <ToggleChip label="PERF" on={!props.settings.performanceMode} onClick={props.onTogglePerformance} />
-          <button type="button" onClick={props.onToggleMute} aria-label="Mute" className="icon-btn">
-            {props.muted ? "🔇" : "🔊"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------- tabs
-
-function PlayTab({
-  touch,
-  bestScore,
-  bestDistance,
-  totalCoins,
-  totalKeys,
-  missions,
-  onPlay,
-}: {
-  touch: boolean;
-  bestScore: number;
-  bestDistance: number;
-  totalCoins: number;
-  totalKeys: number;
-  missions: MissionView[];
-  onPlay: () => void;
-}) {
-  return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-6 py-6">
-      <p className="menu-title text-center text-sm tracking-[0.4em]">
-        RUN · DODGE · SURVIVE
-      </p>
-      <button type="button" onClick={onPlay} className="btn-neon play-cta px-20 py-5 text-base">
-        PLAY
-      </button>
-
-      {touch ? (
-        <div className="menu-panel px-6 py-3">
-          <p className="menu-text font-tech text-center text-[11px] font-semibold leading-relaxed tracking-widest">
-            SWIPE ← → TO CHANGE LANES · SWIPE ↑ JUMP · SWIPE ↓ SLIDE
-            <br />
-            DOUBLE-TAP FOR OVERDRIVE · <span className="menu-gold">🔑</span> KEY TO REVIVE · <span className="text-[#ff7a6b]">🚀</span> ROCKET TO FLY
-          </p>
-        </div>
-      ) : (
-        <div className="menu-panel font-tech flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-6 py-3 text-[11px] font-semibold tracking-widest">
-          <span className="menu-text"><kbd className="kbd">←</kbd> <kbd className="kbd">→</kbd> MOVE</span>
-          <span className="menu-text"><kbd className="kbd">↑</kbd> / <kbd className="kbd">SPACE</kbd> JUMP</span>
-          <span className="menu-text"><kbd className="kbd">↓</kbd> SLIDE</span>
-          <span className="menu-text"><kbd className="kbd">E</kbd> OVERDRIVE</span>
-          <span className="menu-gold">🔑 LIFE SAVER</span>
-          <span className="text-[#ff7a6b]" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>🚀 ROCKET</span>
-        </div>
-      )}
-
-      <div className="menu-panel font-tech flex items-center gap-4 px-6 py-2.5 text-[11px] font-bold tracking-widest">
-        <span className="menu-text">BEST {bestScore.toLocaleString()}</span>
-        <span className="text-white/25">|</span>
-        <span className="menu-text">{bestDistance.toLocaleString()}m</span>
-        <span className="text-white/25">|</span>
-        <span className="menu-gold">✦ {totalCoins.toLocaleString()}</span>
-        <span className="text-white/25">|</span>
-        <span className="menu-text">🔑 {totalKeys}</span>
-      </div>
-
-      {missions.some((m) => !m.completed) && (
-        <div className="w-full max-w-xl">
-          <p className="menu-gold font-tech mb-2 text-center text-[9px] font-bold tracking-[0.35em]">
-            TODAY&apos;S MISSIONS
-          </p>
-          <MissionCard mission={missions.find((m) => !m.completed)!} compact />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MissionsTab({ missions }: { missions: MissionView[] }) {
-  return (
-    <div className="mx-auto flex max-w-xl flex-col gap-3 py-2">
-      <SectionTitle>DAILY MISSIONS</SectionTitle>
-      {missions.map((mission) => (
-        <MissionCard key={mission.title + mission.target} mission={mission} />
-      ))}
-    </div>
-  );
-}
-
-function MissionCard({ mission, compact }: { mission: MissionView; compact?: boolean }) {
-  const fraction = Math.min(mission.progress / Math.max(mission.target, 1), 1);
-  return (
-    <div className={`menu-panel px-5 py-3.5 ${mission.completed ? "mission-done" : ""}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-base text-[#fdd013] drop-shadow-[0_0_8px_rgba(253,208,19,0.45)]">{mission.icon}</span>
-          <div>
-            <div className="menu-text font-tech text-[11px] font-bold tracking-[0.18em]">
-              {mission.title}
-            </div>
-            <div className="menu-text font-tech text-[9px] font-medium tracking-wider opacity-90">
-              {mission.description}
-            </div>
-          </div>
-        </div>
-        <div className="menu-gold font-tech whitespace-nowrap text-right text-[9px] font-bold leading-relaxed">
-          +{mission.rewardXp} XP
-          <br />+{mission.rewardCoins} ✦
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-2">
-        <div className="progress-track flex-1">
-          <div className="progress-fill" style={{ width: `${fraction * 100}%` }} />
-        </div>
-        {mission.completed ? (
-          <span className="mission-done-badge rounded-full px-2 py-0.5 text-[8px] tracking-[0.14em]">DONE ✓</span>
-        ) : (
-          <span className="menu-text font-tech text-[9px] font-bold tabular-nums">
-            {Math.floor(mission.progress)} / {mission.target}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CareerTab({ stats }: { stats: PlayerStatsData }) {
-  const groups = careerGroups(stats);
-  return (
-    <div className="mx-auto grid max-w-2xl gap-3 py-2 sm:grid-cols-2">
-      {groups.map((group) => (
-        <div key={group.label} className="menu-panel px-5 py-4">
-          <div className="menu-title mb-3 text-[11px] font-bold tracking-[0.32em]">
-            {group.label}
-          </div>
-          {group.rows.map((row) => (
-            <div key={row.label} className="flex items-baseline justify-between border-t border-white/10 py-2 first:border-t-0">
-              <span className="menu-row-label font-tech text-[10px] font-semibold tracking-[0.12em]">{row.label}</span>
-              <span className="menu-value text-[13px] font-bold tabular-nums tracking-wide">{row.value}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function GearTab({
-  onEquipCharacter,
-}: {
-  onEquipCharacter: (id: string) => void;
-}) {
   const characters = characterOptions();
-  return (
-    <div className="mx-auto max-w-3xl pb-2">
-      <SectionTitle>CHARACTERS — {characters.length} UNIQUE RUNNERS</SectionTitle>
-      <p className="gear-section-sub font-tech mb-2 text-center text-[8px] font-semibold tracking-[0.18em]">
-        STREET · ROBOTS · ALIENS · LEGENDS — EACH WITH A DISTINCT 3D MODEL
-      </p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {characters.map((option) => (
-          <CharacterGearCard
-            key={option.id}
-            option={option}
-            onEquip={() => onEquipCharacter(option.id)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+  const equipped = characters.find((c) => c.equipped) ?? characters[0];
+  const previewed = previewId ? characters.find((c) => c.id === previewId) : undefined;
+  const staged = previewed ?? equipped;
+  const pendingMissions = props.missions.filter((m) => !m.completed);
 
-function CharacterGearCard({
-  option,
-  onEquip,
-}: {
-  option: import("@/types/game").CharacterOptionView;
-  onEquip: () => void;
-}) {
   return (
-    <button
-      type="button"
-      disabled={option.locked}
-      onClick={onEquip}
-      className={`hud-panel gear-card character-card relative overflow-hidden px-3 py-3 text-left ${option.equipped ? "gear-equipped" : ""} ${option.locked ? "opacity-90" : ""}`}
-    >
-      {/* Gradient preview with large icon — this is the "character" thumbnail */}
-      <div
-        className="relative mb-2.5 flex h-[68px] w-full items-center justify-center overflow-hidden rounded-md border border-white/25"
-        style={{ background: option.gradient, opacity: option.locked ? 0.7 : 1 }}
-      >
-        {/* Subtle inner glow */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
-        <span
-          className="relative text-[34px] leading-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)]"
-          style={{ filter: option.locked ? "grayscale(0.85) brightness(0.6)" : undefined }}
-          aria-hidden
+    <div className="menu" data-active-tab={tab} onKeyDown={guardActivationKeys}>
+      <MenuHeader totalCoins={props.totalCoins} keys={props.keys} />
+
+      <section className="panel menu-col" aria-label="Main menu">
+        <Garland slim className="menu-col__garland" />
+        <div className="menu-col__tabs">
+          <MenuTabs tabs={TABS} active={tab} onChange={selectTab} />
+        </div>
+        <div
+          key={tab}
+          className="menu-body scroll-area"
+          role="tabpanel"
+          id={`panel-${tab}`}
+          aria-labelledby={`tab-${tab}`}
         >
-          {option.icon}
-        </span>
-        {/* Species pill */}
-        <span
-          className="absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 font-tech text-[7px] font-bold tracking-[0.14em] text-white shadow"
-          style={{
-            background: "rgba(0,0,0,0.68)",
-            border: "1px solid rgba(255,255,255,0.3)",
-            backdropFilter: "blur(4px)",
-            textShadow: "0 1px 2px rgba(0,0,0,0.9)",
-          }}
-        >
-          {option.species}
-        </span>
-        {/* Lock overlay */}
-        {option.locked && (
-          <div className="gear-lock-overlay absolute inset-0 flex items-center justify-center backdrop-blur-[0.5px]">
-            <span className="gear-lock-text rounded-full bg-black/60 px-2.5 py-1 text-[10px] tracking-[0.16em]">🔒 LOCKED</span>
-          </div>
+          {tab === "play" && equipped && (
+            <PlayTab
+              equipped={equipped}
+              bestScore={props.bestScore}
+              bestDistance={props.bestDistance}
+              totalCoins={props.totalCoins}
+              mission={pendingMissions[0] ?? null}
+              missionsLeft={pendingMissions.length}
+              touch={touch}
+              onPlay={props.onPlay}
+              onOpenGear={() => selectTab("gear")}
+              onOpenMissions={() => selectTab("missions")}
+            />
+          )}
+          {tab === "missions" && <MissionsTab missions={props.missions} />}
+          {tab === "career" && <CareerTab stats={props.stats} />}
+          {tab === "gear" && (
+            <GearTab characters={characters} previewId={previewId} onEquip={equip} onPreview={preview} />
+          )}
+          {tab === "awards" && <AwardsTab achievements={props.achievements} />}
+        </div>
+        <footer className="menu-foot">
+          <SettingsBar settings={props.settings} actions={props.settingsActions} />
+        </footer>
+      </section>
+
+      <div className="menu-stage">
+        {tab === "gear" && staged && (
+          <RunnerNameplate key={staged.id} option={staged} previewing={Boolean(previewed)} />
         )}
       </div>
-
-      <div className="gear-name text-[13px] tracking-[0.12em]">{option.name}</div>
-      <div className="gear-desc font-tech mt-1 line-clamp-2 text-[9px] font-medium leading-snug tracking-wide">{option.description}</div>
-      <div
-        className={`font-tech mt-2 inline-flex items-center rounded-full px-2 py-1 text-[8px] font-bold tracking-[0.16em] ${
-          option.locked
-            ? "gear-lock-pill"
-            : option.equipped
-              ? "bg-[#e8c96a] text-[#241c05] shadow-[0_0_10px_rgba(232,201,106,0.45)]"
-              : "bg-white/10 text-white/85"
-        }`}
-      >
-        {option.locked ? `🔒 ${option.unlockLabel}` : option.equipped ? "● EQUIPPED" : "READY — TAP TO EQUIP"}
-      </div>
-      {option.equipped && <div className="gear-dot" />}
-    </button>
-  );
-}
-
-function AwardsTab({ achievements }: { achievements: AchievementView[] }) {
-  const done = achievements.filter((a) => a.completed).length;
-  return (
-    <div className="mx-auto flex max-w-xl flex-col gap-2.5 py-2">
-      <SectionTitle>{`ACHIEVEMENTS · ${done}/${achievements.length}`}</SectionTitle>
-      {achievements.map((achievement) => {
-        const fraction = Math.min(achievement.progress / Math.max(achievement.target, 1), 1);
-        return (
-          <div
-            key={achievement.id}
-            className={`menu-panel flex items-center gap-3 px-5 py-3 ${achievement.completed ? "award-done" : ""}`}
-          >
-            <span className={`w-7 text-center text-base ${achievement.completed ? "" : "opacity-60"}`}>
-              {achievement.icon}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="menu-text font-tech truncate text-[11px] font-bold tracking-[0.15em]">
-                  {achievement.title}
-                </span>
-                <span className="menu-gold font-tech whitespace-nowrap text-[8px] font-bold">
-                  +{achievement.rewardXp} XP · +{achievement.rewardCoins} ✦
-                </span>
-              </div>
-              <div className="menu-text font-tech truncate text-[9px] font-medium opacity-90">{achievement.description}</div>
-              {!achievement.completed && (
-                <div className="progress-track mt-1 h-1">
-                  <div className="progress-fill" style={{ width: `${fraction * 100}%` }} />
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
     </div>
-  );
-}
-
-// ------------------------------------------------------------------ pieces
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="menu-title mt-3 mb-2 text-center text-xs font-bold tracking-[0.32em]">
-      {children}
-    </p>
-  );
-}
-
-function ToggleChip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`toggle-chip font-tech ${on ? "toggle-on" : "toggle-off"}`}
-      aria-pressed={on}
-    >
-      {label}
-    </button>
   );
 }

@@ -1,0 +1,119 @@
+/* ==========================================================================
+   Design tokens — saffron · marigold · rani pink · peacock teal · indigo
+   night · deep maroon · cream. Font families come from next/font variables
+   declared on <html> (see src/app/layout.tsx). The Tailwind @theme mapping
+   of these tokens lives in src/app/globals.css.
+   ========================================================================== */
+
+:root {
+  /* typography */
+  --ff-display: var(--font-baloo), "Baloo 2", ui-rounded, system-ui, sans-serif;
+  --ff-ui: var(--font-poppins), "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ff-deco: var(--font-yatra), "Yatra One", var(--font-baloo), serif;
+
+  /* brand */
+  --saffron: #ff8a1f;
+  --saffron-hi: #ffb866;
+  --saffron-lo: #c9560a;
+  --marigold: #ffb300;
+  --marigold-hi: #ffd766;
+  --rani: #e4007c;
+  --rani-hi: #ff5cae;
+  --rani-lo: #8f004e;
+  --peacock: #00a6a6;
+  --peacock-hi: #4de3d4;
+  --indigo: #1a1440;
+  --indigo-950: #0b0820;
+  --indigo-900: #110c2c;
+  --indigo-700: #251c58;
+  --indigo-600: #312673;
+  --indigo-500: #433498;
+  --maroon: #5a0f1e;
+  --maroon-900: #2b0710;
+  --cream: #fff4e0;
+  --ink: #3a0b0c;
+
+  /* text */
+  --text-1: #fff4e0;
+  --text-2: rgba(255, 244, 224, 0.8);
+  --text-3: rgba(255, 244, 224, 0.6);
+  --text-4: rgba(255, 244, 224, 0.4);
+
+  /* surfaces */
+  --glass-1: linear-gradient(160deg, rgba(49, 38, 116, 0.9) 0%, rgba(26, 20, 64, 0.92) 50%, rgba(64, 14, 44, 0.9) 100%);
+  --glass-2: linear-gradient(165deg, rgba(52, 40, 122, 0.62), rgba(22, 16, 56, 0.72));
+  --glass-hud: linear-gradient(180deg, rgba(33, 25, 82, 0.86), rgba(17, 12, 44, 0.86));
+  --edge-festive: linear-gradient(135deg, #ffc640 0%, rgba(228, 0, 124, 0.85) 48%, #00b3ad 100%);
+  --edge-gold: linear-gradient(160deg, #ffe39a, #ffb300 45%, #c96a00);
+  --edge-soft: linear-gradient(160deg, rgba(255, 244, 224, 0.34), rgba(255, 244, 224, 0.06) 55%, rgba(255, 179, 0, 0.3));
+  --hairline: inset 0 0 0 1px rgba(255, 244, 224, 0.1);
+  --sheen: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  --grad-gold-text: linear-gradient(180deg, #fffbe9 0%, #ffe07a 36%, #ffb300 62%, #ff8a1f 100%);
+  --grad-fire-text: linear-gradient(180deg, #fff3cf 0%, #ffb300 42%, #ff6a1f 78%, #e4007c 100%);
+  --grad-festive: linear-gradient(90deg, var(--saffron), var(--rani));
+
+  /* radii */
+  --r-xs: 0.5rem;
+  --r-sm: 0.75rem;
+  --r-md: 1rem;
+  --r-lg: 1.375rem;
+  --r-xl: 1.75rem;
+
+  /* motion */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* safe areas */
+  --sa-t: env(safe-area-inset-top, 0px);
+  --sa-r: env(safe-area-inset-right, 0px);
+  --sa-b: env(safe-area-inset-bottom, 0px);
+  --sa-l: env(safe-area-inset-left, 0px);
+
+  --shadow-deep: 0 1.25rem 2.75rem -1.1rem rgba(6, 3, 20, 0.85);
+}
+
+/* Fluid root size: 16px up to ~1600×900, growing smoothly to 24px on 4K so
+ * every rem-based surface scales together. Short landscape phones shrink. */
+html {
+  font-size: clamp(
+    16px,
+    min(calc(16px + (100vw - 1600px) * 0.004), calc(16px + (100vh - 900px) * 0.007)),
+    24px
+  );
+}
+
+@media (max-height: 30rem) and (min-aspect-ratio: 1/1) {
+  html {
+    font-size: 14px;
+  }
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--indigo-950);
+  color: var(--text-1);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--ff-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(255, 138, 31, 0.45);
+  color: var(--cream);
+}
+
+:focus-visible {
+  outline: 3px solid var(--marigold);
+  outline-offset: 3px;
+}

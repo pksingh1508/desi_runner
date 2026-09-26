@@ -82,7 +82,7 @@ function initialSnapshot(): HudSnapshot {
     odRemaining: 0,
     feedback: [],
     banner: null,
-    sectorName: "NEON CITY",
+    sectorName: "",
     shieldActive: false,
     metaVersion: 0,
     reviveCountdown: 0,
@@ -93,7 +93,7 @@ function initialSnapshot(): HudSnapshot {
   };
 }
 
-const DIFFICULTY_DEFAULT_NAME = "WARM-UP";
+const DIFFICULTY_DEFAULT_NAME = "CHALTA HAI";
 
 /**
  * Bridge between the Three.js simulation and React UI.
@@ -196,8 +196,10 @@ export class GameStore {
     this.patch({ countdownValue: value }, true);
   }
 
+  /** Coin pickup counter for the HUD pop — batched into the ~10 Hz flush so
+   * magnet streams never trigger a React render per coin. */
   registerCoinPopup(): void {
-    this.patch({ popupSeq: this.snapshot.popupSeq + 1 }, true);
+    this.patch({ popupSeq: this.snapshot.popupSeq + 1 }, false);
   }
 
   setKeys(keys: number): void {

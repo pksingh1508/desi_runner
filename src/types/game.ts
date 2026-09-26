@@ -12,9 +12,16 @@ export type PlayerAnimationState =
   | "run"
   | "jump"
   | "slide"
-  | "death";
+  | "death"
+  /** Menu flourish / celebration (human runners). */
+  | "dance"
+  /** Seated pose while riding the Diwali rocket (human runners). */
+  | "ride";
 
 export type LaneIndex = 0 | 1 | 2;
+
+/** Menu tab the camera frames (GEAR zooms onto the runner). */
+export type MenuFocus = "home" | "gear" | "missions" | "career" | "awards";
 
 export type GameAction =
   | "left"
@@ -161,7 +168,24 @@ export interface HudPowerUp {
   colorHex: string;
 }
 
-export type FeedbackTone = "good" | "combo" | "warn" | "epic";
+export type FeedbackTone = "good" | "combo" | "warn" | "epic" | "meme";
+
+/**
+ * Gameplay moments that can trigger a desi meme voice line. The AudioSystem
+ * owns cooldowns/chances, so the engine can report every moment freely.
+ */
+export type MemeEvent =
+  | "start"
+  | "crash"
+  | "nearMiss"
+  | "coinStreak"
+  | "coinStorm"
+  | "revive"
+  | "newRecord"
+  | "overdrive"
+  | "rocket"
+  | "powerup"
+  | "combo";
 
 export interface FeedbackItem {
   id: number;
@@ -211,4 +235,12 @@ export interface CharacterOptionView {
   species: string;
   description: string;
   archetype: string;
+  /** "desi" = realistic 3D human runners; "classic" = legacy stylized rigs. */
+  group: "desi" | "classic";
+  /** Short flavour line, e.g. "Galli ka Bolt". */
+  tagline: string;
+  /** Devanagari display name (empty for classic characters). */
+  hindiName: string;
+  /** Primary outfit / theme color for UI accents. */
+  accentHex: string;
 }

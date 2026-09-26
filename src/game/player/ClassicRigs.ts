@@ -1,0 +1,1623 @@
+import * as THREE from "three";
+import type { CharacterArchetype } from "@/game/config/characters";
+
+/**
+ * CLASSIC squad rigs: stylized low-poly robots, aliens and legends built from
+ * primitives in code. Each builder returns a group modeled facing local -Z
+ * with `userData.legs` / `userData.arms` pivot groups that Player animates
+ * procedurally. (Extracted from Player.ts — behavior unchanged.)
+ */
+
+/** Enables cast shadows on every opaque mesh of a procedural rig. */
+function shadowify(group: THREE.Group): void {
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+    const materials = Array.isArray(material) ? material : material ? [material] : [];
+    if (materials.some((m) => m.transparent)) return;
+    mesh.castShadow = true;
+  });
+}
+
+export function buildClassicRig(archetype: CharacterArchetype, tintHex: string, accentHex: string): THREE.Group {
+  switch (archetype) {
+    case "boy":
+      return buildBoy(tintHex, accentHex);
+    case "girl":
+      return buildGirl(tintHex, accentHex);
+    case "alien_slim":
+      return buildAlienSlim(tintHex, accentHex);
+    case "alien_brute":
+      return buildAlienBrute(tintHex, accentHex);
+    case "robot_ember":
+      return buildEmberBot(tintHex, accentHex);
+    case "robot_wraith":
+      return buildWraithBot(tintHex, accentHex);
+    case "robot_aurora":
+      return buildAuroraBot(tintHex, accentHex);
+    case "ninja":
+      return buildNinja(tintHex, accentHex);
+    case "pilot":
+      return buildPilot(tintHex, accentHex);
+    case "pirate":
+      return buildPirate(tintHex, accentHex);
+    case "astronaut":
+      return buildAstronaut(tintHex, accentHex);
+    case "voltbot":
+      return buildVoltBot(tintHex, accentHex);
+    case "jackal":
+      return buildJackal(tintHex, accentHex);
+    case "pharaoh":
+      return buildPharaoh(tintHex, accentHex);
+    case "robot":
+    default:
+      return buildFallbackBot();
+  }
+}
+
+function buildBoy(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Boy";
+
+  const jacketMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.6, metalness: 0.15 });
+  const jacketDark = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.7, metalness: 0.1 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.1, roughness: 0.45 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf0c8a8, roughness: 0.65 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x22345a, roughness: 0.8 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a2436, roughness: 0.75 });
+  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.5 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 0.85 });
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.58, 4, 12), jacketMat);
+  torso.position.y = 1.02;
+
+  // Open jacket: dark inner shirt panel on the chest + jacket hem.
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.42, 0.08), darkMat);
+  shirt.position.set(0, 1.0, -0.24);
+  const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.3, 0.1, 12), jacketDark);
+  hem.position.set(0, 0.62, 0);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), skinMat);
+  head.position.set(0, 1.58, -0.02);
+
+  // Cap readable from the rear camera: full dome + back strap + button.
+  const capDome = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    jacketMat
+  );
+  capDome.position.set(0, 1.6, -0.02);
+  const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.045, 0.26), accentMat);
+  capBrim.position.set(0, 1.68, -0.24);
+  capBrim.rotation.x = 0.08;
+  const capStrap = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.06), accentMat);
+  capStrap.position.set(0, 1.62, 0.24);
+  const capButton = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), accentMat);
+  capButton.position.set(0, 1.88, -0.02);
+  // Hair fringe at the nape, below the cap line.
+  const nape = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.1), hairMat);
+  nape.position.set(0, 1.42, 0.16);
+
+  // Runner shades.
+  const shades = new THREE.Mesh(
+    new THREE.BoxGeometry(0.36, 0.09, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x0a0e14, roughness: 0.15, metalness: 0.4 })
+  );
+  shades.position.set(0, 1.56, -0.22);
+
+  // Street-runner backpack — the rear-view signature: body, front pocket,
+  // top bedroll and shoulder straps.
+  // Warm orange + slight emissive: flat rear faces go near-black under a
+  // high sun, so the pack carries its own light and never reads as a void.
+  const packMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.45, roughness: 0.6 });
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.44, 0.2), packMat);
+  pack.position.set(0, 1.06, 0.32);
+  const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.07), jacketMat);
+  packPocket.position.set(0, 0.98, 0.44);
+  const packStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.05, 0.02), whiteMat);
+  packStrip.position.set(0, 1.06, 0.48);
+  const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.34, 10), jacketDark);
+  bedroll.rotation.z = Math.PI / 2;
+  bedroll.position.set(0, 1.32, 0.32);
+  const strapGeo = new THREE.BoxGeometry(0.09, 0.34, 0.05);
+  const strapL = new THREE.Mesh(strapGeo, accentMat);
+  strapL.position.set(-0.18, 1.24, -0.29);
+  strapL.rotation.x = -0.12;
+  const strapR = new THREE.Mesh(strapGeo, accentMat);
+  strapR.position.set(0.18, 1.24, -0.29);
+  strapR.rotation.x = -0.12;
+  // Resting hood roll under the pack.
+  const hood = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.055, 8, 14, Math.PI), jacketDark);
+  hood.position.set(0, 0.78, 0.2);
+  hood.rotation.x = Math.PI * 0.1;
+
+  // Arms pivot at the shoulder so sleeves + hands swing together.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.38, 1.32, 0);
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), jacketMat);
+    arm.add(pad);
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.2, 4, 8), jacketMat);
+    sleeve.position.y = -0.2;
+    arm.add(sleeve);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.05, 10), accentMat);
+    cuff.position.y = -0.34;
+    arm.add(cuff);
+    const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.14, 4, 8), skinMat);
+    forearm.position.y = -0.44;
+    arm.add(forearm);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), skinMat);
+    hand.position.y = -0.56;
+    arm.add(hand);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip so sneakers swing with the run cycle.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.16, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.34, 4, 8), pantsMat);
+    thigh.position.y = -0.32;
+    leg.add(thigh);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.3, 0.03), accentMat);
+    stripe.position.set(side * 0.12, -0.34, 0);
+    leg.add(stripe);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.3), whiteMat);
+    shoe.position.set(0, -0.64, -0.05);
+    leg.add(shoe);
+    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.31), accentMat);
+    sole.position.set(0, -0.695, -0.05);
+    leg.add(sole);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, shirt, hem, head, capDome, capBrim, capStrap, capButton, nape, shades,
+    pack, packPocket, packStrip, bedroll, strapL, strapR, hood, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildGirl(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Girl";
+
+  const topMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.55, metalness: 0.16 });
+  const topDark = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.65 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.3, roughness: 0.4 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0b8, roughness: 0.65 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1d2a44, roughness: 0.8 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.55, emissive: accent, emissiveIntensity: 0.5 });
+  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.5 });
+
+  // Cropped athletic jacket + high waistband.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.5, 4, 12), topMat);
+  torso.position.y = 1.08;
+  const jacketHem = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.26, 0.09, 12), accentMat);
+  jacketHem.position.set(0, 0.86, 0);
+  const waistband = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.23, 0.1, 12), topDark);
+  waistband.position.set(0, 0.76, 0);
+  // Glowing runner chevron on the back — rear visibility + style.
+  const chevron = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.16, 4), accentMat);
+  chevron.position.set(0, 1.12, 0.24);
+  chevron.rotation.x = Math.PI / 2;
+  chevron.rotation.y = Math.PI / 4;
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), skinMat);
+  head.position.set(0, 1.58, -0.02);
+
+  // Full hair volume: back-falling mass + long high ponytail + tie.
+  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), hairMat);
+  hairBack.position.set(0, 1.6, 0.05);
+  hairBack.scale.set(1, 1.05, 0.95);
+  const lockGeo = new THREE.CapsuleGeometry(0.055, 0.22, 4, 8);
+  const lockL = new THREE.Mesh(lockGeo, hairMat);
+  lockL.position.set(-0.22, 1.42, -0.06);
+  const lockR = new THREE.Mesh(lockGeo, hairMat);
+  lockR.position.set(0.22, 1.42, -0.06);
+  const ponytail = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.6, 10), hairMat);
+  ponytail.position.set(0, 1.72, 0.3);
+  ponytail.rotation.x = 0.55; // tip streams high, clearing the head silhouette
+  const hairTie = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.028, 8, 12), whiteMat);
+  hairTie.position.set(0, 1.7, 0.29);
+  hairTie.rotation.x = 1.02;
+
+  // Sport visor.
+  const visorBand = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.07, 12, 1, true), accentMat);
+  visorBand.position.set(0, 1.66, -0.02);
+  const visorBrim = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.2), accentMat);
+  visorBrim.position.set(0, 1.62, -0.26);
+
+  // Arms pivot at the shoulder: cap sleeves + forearms + wristbands + hands.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.33, 1.3, 0);
+    const sleeve = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), topMat);
+    arm.add(sleeve);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.12, 4, 8), skinMat);
+    upper.position.y = -0.14;
+    arm.add(upper);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.05, 10), accentMat);
+    band.position.y = -0.26;
+    arm.add(band);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.12, 4, 8), skinMat);
+    fore.position.y = -0.36;
+    arm.add(fore);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), skinMat);
+    hand.position.y = -0.47;
+    arm.add(hand);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip: leggings + sneakers with neon soles.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.14, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.36, 4, 8), pantsMat);
+    thigh.position.y = -0.34;
+    leg.add(thigh);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.09, 0.28), whiteMat);
+    shoe.position.set(0, -0.65, -0.05);
+    leg.add(shoe);
+    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.29), accentMat);
+    sole.position.set(0, -0.7, -0.05);
+    leg.add(sole);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, jacketHem, waistband, chevron, head, hairBack, lockL, lockR,
+    ponytail, hairTie, visorBand, visorBrim, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildAlienSlim(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "AlienSlim";
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.45, metalness: 0.2 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.0, roughness: 0.3 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x0e2a1c, roughness: 0.7 });
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.21, 0.72, 4, 12), bodyMat);
+  torso.position.y = 1.08;
+
+  // Rear spine lights — the back-view signature.
+  const spineGeo = new THREE.SphereGeometry(0.045, 8, 6);
+  for (let i = 0; i < 3; i++) {
+    const node = new THREE.Mesh(spineGeo, glowMat);
+    node.position.set(0, 0.9 + i * 0.18, 0.2);
+    group.add(node);
+  }
+  // Glowing collar ring at the neck.
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.03, 8, 14), glowMat);
+  collar.position.set(0, 1.44, -0.02);
+  collar.rotation.x = Math.PI / 2;
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.31, 16, 12), bodyMat);
+  head.position.set(0, 1.68, -0.02);
+  head.scale.set(1, 1.18, 0.92);
+
+  // Large alien eyes (front).
+  const eyeGeo = new THREE.SphereGeometry(0.11, 12, 8);
+  const eyeL = new THREE.Mesh(eyeGeo, glowMat);
+  eyeL.position.set(-0.13, 1.68, -0.24);
+  eyeL.scale.set(1, 1.3, 0.45);
+  const eyeR = new THREE.Mesh(eyeGeo, glowMat);
+  eyeR.position.set(0.13, 1.68, -0.24);
+  eyeR.scale.set(1, 1.3, 0.45);
+
+  // Swept-back head ridges — classic alien silhouette from behind.
+  const ridgeGeo = new THREE.ConeGeometry(0.07, 0.3, 8);
+  const ridgeL = new THREE.Mesh(ridgeGeo, bodyMat);
+  ridgeL.position.set(-0.16, 1.78, 0.2);
+  ridgeL.rotation.x = 1.9;
+  ridgeL.rotation.z = 0.35;
+  const ridgeR = new THREE.Mesh(ridgeGeo, bodyMat);
+  ridgeR.position.set(0.16, 1.78, 0.2);
+  ridgeR.rotation.x = 1.9;
+  ridgeR.rotation.z = -0.35;
+
+  // Antennae — thicker body-colored stalks, angled out, big glow tips.
+  const buildAntenna = (side: -1 | 1): THREE.Group => {
+    const ant = new THREE.Group();
+    ant.position.set(side * 0.1, 1.92, 0);
+    ant.rotation.z = side * -0.22;
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.28, 8), bodyMat);
+    stalk.position.y = 0.14;
+    ant.add(stalk);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), glowMat);
+    tip.position.y = 0.31;
+    ant.add(tip);
+    return ant;
+  };
+  const antL = buildAntenna(-1);
+  const antR = buildAntenna(1);
+
+  // Arms pivot at the shoulder: slim limbs with glowing hands.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.32, 1.32, 0);
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), glowMat);
+    arm.add(pad);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.3, 4, 8), bodyMat);
+    limb.position.y = -0.26;
+    arm.add(limb);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), glowMat);
+    hand.position.y = -0.48;
+    arm.add(hand);
+    // Extra elbow joint for the lanky look.
+    const finger = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 6), glowMat);
+    finger.position.y = -0.58;
+    finger.rotation.x = Math.PI;
+    arm.add(finger);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip: mint thighs into dark scout boots.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.13, 0.74, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.3, 4, 8), bodyMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const boot = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, 0.22, 10), darkMat);
+    boot.position.set(0, -0.58, -0.02);
+    leg.add(boot);
+    const toe = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), glowMat);
+    toe.position.set(0, -0.68, -0.06);
+    toe.scale.set(1, 0.6, 1.3);
+    leg.add(toe);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), glowMat);
+  core.position.set(0, 1.02, -0.19);
+
+  group.add(
+    torso, collar, head, eyeL, eyeR, ridgeL, ridgeR, antL, antR,
+    armL, armR, legL, legR, core
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildAlienBrute(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "AlienBrute";
+
+  // Deep brick hide so the hot-red glow reads; charcoal joints for contrast.
+  const bodyMat = new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.72), roughness: 0.62, metalness: 0.15 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.2, roughness: 0.4 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x201416, roughness: 0.8 });
+  const boneMat = new THREE.MeshStandardMaterial({ color: 0xe8d9c0, roughness: 0.55 });
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.68, 0.42), bodyMat);
+  torso.position.y = 1.06;
+
+  const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.32, 0.06), glowMat);
+  chestPlate.position.set(0, 1.1, -0.23);
+
+  // Rear signature: dorsal spine plates + glowing back emblem.
+  const plateGeo = new THREE.ConeGeometry(0.13, 0.26, 4);
+  for (let i = 0; i < 3; i++) {
+    const plate = new THREE.Mesh(plateGeo, darkMat);
+    plate.position.set(0, 0.98 + i * 0.22, 0.24);
+    plate.rotation.x = -0.35;
+    plate.rotation.y = Math.PI / 4;
+    group.add(plate);
+  }
+  // Glow strips flanking the plates, flat on the torso back.
+  const stripGeo = new THREE.BoxGeometry(0.05, 0.62, 0.04);
+  const stripL = new THREE.Mesh(stripGeo, glowMat);
+  stripL.position.set(-0.22, 1.2, 0.22);
+  group.add(stripL);
+  const stripR = new THREE.Mesh(stripGeo, glowMat);
+  stripR.position.set(0.22, 1.2, 0.22);
+  group.add(stripR);
+  const emblem = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), glowMat);
+  emblem.position.set(0, 1.28, 0.22);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 10), bodyMat);
+  head.position.set(0, 1.64, -0.02);
+  // Rear skull plate.
+  const skull = new THREE.Mesh(
+    new THREE.SphereGeometry(0.29, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    darkMat
+  );
+  skull.position.set(0, 1.66, 0.0);
+  skull.rotation.x = Math.PI * 0.72;
+
+  // Horns — larger, swept out-back, bone with glowing bases.
+  const buildHorn = (side: -1 | 1): THREE.Group => {
+    const horn = new THREE.Group();
+    horn.position.set(side * 0.2, 1.8, -0.02);
+    horn.rotation.z = side * -0.55;
+    horn.rotation.x = 0.3;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.42, 8), boneMat);
+    spike.position.y = 0.21;
+    horn.add(spike);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.11, 0.08, 10), glowMat);
+    horn.add(base);
+    return horn;
+  };
+  const hornL = buildHorn(-1);
+  const hornR = buildHorn(1);
+
+  const eyeGeo = new THREE.SphereGeometry(0.07, 10, 8);
+  const eyeL = new THREE.Mesh(eyeGeo, glowMat);
+  eyeL.position.set(-0.12, 1.62, -0.22);
+  const eyeR = new THREE.Mesh(eyeGeo, glowMat);
+  eyeR.position.set(0.12, 1.62, -0.22);
+
+  // Spiked pauldrons with glowing rims.
+  const buildPauldron = (side: -1 | 1): THREE.Mesh => {
+    const p = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.24, 8), darkMat);
+    p.position.set(side * 0.47, 1.44, 0);
+    return p;
+  };
+
+  // Arms pivot at the shoulder: heavy upper + dark fist.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.46, 1.3, 0);
+    const pauldron = buildPauldron(side);
+    pauldron.position.set(0, 0.14, 0);
+    arm.add(pauldron);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 12), glowMat);
+    rim.position.y = 0.04;
+    rim.rotation.x = Math.PI / 2;
+    arm.add(rim);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.22, 4, 8), bodyMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.16, 4, 8), bodyMat);
+    fore.position.y = -0.44;
+    arm.add(fore);
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.15, 0.16), darkMat);
+    fist.position.y = -0.6;
+    arm.add(fist);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip: pillar thighs + rear knee spikes + stompy boots.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.18, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.3, 4, 8), darkMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 6), boneMat);
+    spike.position.set(0, -0.34, 0.15);
+    spike.rotation.x = 0.9;
+    leg.add(spike);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.13, 0.34), darkMat);
+    boot.position.set(0, -0.635, -0.05);
+    leg.add(boot);
+    const crack = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.045, 0.05), glowMat);
+    crack.position.set(0, -0.62, 0.12);
+    leg.add(crack);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(torso, chestPlate, head, skull, hornL, hornR, eyeL, eyeR, armL, armR, legL, legR);
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+// -------------------------------------------------------- robot variants
+
+function buildEmberBot(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "EmberBot";
+
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.6, metalness: 0.3 });
+  const plateMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.25 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.2, roughness: 0.35 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1c100a, roughness: 0.85 });
+
+  // Boxy heat-forged torso with side heat seams.
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.64, 0.38), hullMat);
+  torso.position.y = 1.06;
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.06), glowMat);
+  chest.position.set(0, 1.18, -0.22);
+  const seamGeo = new THREE.BoxGeometry(0.03, 0.44, 0.3);
+  const seamL = new THREE.Mesh(seamGeo, glowMat);
+  seamL.position.set(-0.285, 1.04, 0);
+  const seamR = new THREE.Mesh(seamGeo, glowMat);
+  seamR.position.set(0.285, 1.04, 0);
+
+  // Rear signature: glowing spine + exhaust vent slits (faces the camera).
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.05), glowMat);
+  spine.position.set(0, 1.08, 0.2);
+  const ventSlatGeo = new THREE.BoxGeometry(0.34, 0.045, 0.04);
+  for (let i = 0; i < 3; i++) {
+    const slat = new THREE.Mesh(ventSlatGeo, glowMat);
+    slat.position.set(0, 0.72 + i * 0.09, 0.2);
+    group.add(slat);
+  }
+  const ventFrame = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.03), darkMat);
+  ventFrame.position.set(0, 0.81, 0.185);
+
+  // Shoulder flame armor — larger cones + rear spikes.
+  const flameGeo = new THREE.ConeGeometry(0.15, 0.34, 6);
+  const flameL = new THREE.Mesh(flameGeo, glowMat);
+  flameL.position.set(-0.4, 1.52, 0);
+  const flameR = new THREE.Mesh(flameGeo, glowMat);
+  flameR.position.set(0.4, 1.52, 0);
+  const spikeGeo = new THREE.ConeGeometry(0.07, 0.22, 6);
+  const spikeL = new THREE.Mesh(spikeGeo, plateMat);
+  spikeL.position.set(-0.44, 1.4, 0.14);
+  spikeL.rotation.x = 0.5;
+  const spikeR = new THREE.Mesh(spikeGeo, plateMat);
+  spikeR.position.set(0.44, 1.4, 0.14);
+  spikeR.rotation.x = 0.5;
+  const shoulderPlateGeo = new THREE.BoxGeometry(0.2, 0.15, 0.24);
+  const shoulderL = new THREE.Mesh(shoulderPlateGeo, plateMat);
+  shoulderL.position.set(-0.43, 1.34, 0);
+  const shoulderR = new THREE.Mesh(shoulderPlateGeo, plateMat);
+  shoulderR.position.set(0.43, 1.34, 0);
+
+  // Head — helmet with visor blaze + glowing nape vent + crest.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), hullMat);
+  head.position.set(0, 1.62, -0.02);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.16), glowMat);
+  visor.position.set(0, 1.6, -0.2);
+  const napeVent = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.09, 0.08), glowMat);
+  napeVent.position.set(0, 1.56, 0.22);
+  const crest = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.2, 0.14), glowMat);
+  crest.position.set(0, 1.84, -0.04);
+
+  // Back flame jets — brighter, angled out.
+  const jetGeo = new THREE.ConeGeometry(0.09, 0.3, 6);
+  const jetL = new THREE.Mesh(jetGeo, glowMat);
+  jetL.position.set(-0.17, 1.02, 0.26);
+  jetL.rotation.x = Math.PI * 0.72;
+  jetL.rotation.z = 0.18;
+  const jetR = new THREE.Mesh(jetGeo, glowMat);
+  jetR.position.set(0.17, 1.02, 0.26);
+  jetR.rotation.x = Math.PI * 0.72;
+  jetR.rotation.z = -0.18;
+
+  // Arms pivot at the shoulder: plated upper + glowing cuff + fist.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.43, 1.3, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.22, 4, 8), hullMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.06, 10), glowMat);
+    cuff.position.y = -0.36;
+    arm.add(cuff);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.14, 4, 8), hullMat);
+    fore.position.y = -0.46;
+    arm.add(fore);
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.12, 0.13), plateMat);
+    fist.position.y = -0.58;
+    arm.add(fist);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip: reinforced thigh + rear calf glow + heeled boot.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.17, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.32, 4, 8), hullMat);
+    thigh.position.y = -0.32;
+    leg.add(thigh);
+    const calfGlow = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.26, 0.04), glowMat);
+    calfGlow.position.set(0, -0.4, 0.12);
+    leg.add(calfGlow);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.3), darkMat);
+    boot.position.set(0, -0.64, -0.04);
+    leg.add(boot);
+    const heel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.06), glowMat);
+    heel.position.set(0, -0.66, 0.12);
+    leg.add(heel);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, chest, seamL, seamR, spine, ventFrame,
+    flameL, flameR, spikeL, spikeR, shoulderL, shoulderR,
+    head, visor, napeVent, crest, jetL, jetR, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  void tint;
+  return group;
+}
+
+function buildWraithBot(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "WraithBot";
+
+  const shellMat = new THREE.MeshStandardMaterial({
+    color: tint,
+    emissive: accent,
+    emissiveIntensity: 0.6,
+    roughness: 0.28,
+    metalness: 0.55,
+  });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x241d3a, roughness: 0.6, metalness: 0.3 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.4, roughness: 0.3 });
+
+  // Sleek capsule torso + rear phase-seam + waist glow ring.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.68, 4, 12), shellMat);
+  torso.position.y = 1.08;
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.52, 0.05), glowMat);
+  seam.position.set(0, 1.06, 0.24);
+  const waist = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.028, 8, 16), glowMat);
+  waist.position.set(0, 0.78, 0);
+  waist.rotation.x = Math.PI / 2;
+  const core = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.26, 0.05), glowMat);
+  core.position.set(0, 1.12, -0.22);
+
+  // Floating shoulder plates — larger, higher, brighter.
+  const buildPlate = (side: -1 | 1): THREE.Group => {
+    const plate = new THREE.Group();
+    plate.position.set(side * 0.46, 1.5, 0);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.26), glowMat);
+    blade.rotation.y = side * 0.4;
+    plate.add(blade);
+    const under = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.12), darkMat);
+    under.position.y = -0.07;
+    plate.add(under);
+    return plate;
+  };
+  const plateL = buildPlate(-1);
+  const plateR = buildPlate(1);
+
+  // Head — elongated, slit visor, glowing nape rune, bright tilted halo.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12), shellMat);
+  head.position.set(0, 1.64, -0.02);
+  head.scale.set(0.95, 1.15, 0.95);
+  const slit = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.045, 0.06), glowMat);
+  slit.position.set(0, 1.64, -0.22);
+  const rune = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), glowMat);
+  rune.position.set(0, 1.6, 0.24);
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.028, 8, 20), glowMat);
+  halo.position.set(0, 1.94, -0.02);
+  halo.rotation.x = Math.PI / 2 - 0.18;
+
+  // Arms pivot at the shoulder: dark limbs, glowing claws + wristbands.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.4, 1.3, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.22, 4, 8), darkMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.05, 10), glowMat);
+    band.position.y = -0.36;
+    arm.add(band);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.16, 4, 8), darkMat);
+    fore.position.y = -0.47;
+    arm.add(fore);
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 8), glowMat);
+    claw.position.y = -0.63;
+    claw.rotation.x = Math.PI;
+    arm.add(claw);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip: two-tone limbs ending in glowing hover claws.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.15, 0.74, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.3, 4, 8), darkMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const anklet = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.05, 10), glowMat);
+    anklet.position.y = -0.52;
+    leg.add(anklet);
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.24, 8), darkMat);
+    claw.position.set(0, -0.62, -0.03);
+    claw.rotation.x = Math.PI;
+    leg.add(claw);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), glowMat);
+    tip.position.set(0, -0.695, -0.03);
+    leg.add(tip);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  // Trailing ghost ribbon — brighter, wider, clearly visible from behind.
+  const ribbon = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.4, 0.62),
+    new THREE.MeshStandardMaterial({
+      color: accent, emissive: accent, emissiveIntensity: 1.4,
+      transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false,
+    })
+  );
+  ribbon.position.set(0, 0.66, 0.26);
+  ribbon.rotation.x = Math.PI * 0.14;
+
+  group.add(
+    torso, seam, waist, core, plateL, plateR, head, slit, rune, halo,
+    armL, armR, legL, legR, ribbon
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  void tint;
+  return group;
+}
+
+function buildAuroraBot(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "AuroraBot";
+
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0xe8f4f8, roughness: 0.45, metalness: 0.22 });
+  const jointMat = new THREE.MeshStandardMaterial({ color: 0x8fa8b5, roughness: 0.55, metalness: 0.35 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.3 });
+  const iceMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.0, roughness: 0.22 });
+  const tankMat = new THREE.MeshStandardMaterial({ color: 0x0e2836, roughness: 0.6, metalness: 0.4 });
+
+  // Frost torso + glowing waist ring.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.6, 4, 12), hullMat);
+  torso.position.y = 1.06;
+  const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.05), iceMat);
+  chestPlate.position.set(0, 1.15, -0.24);
+  const waist = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.03, 8, 16), iceMat);
+  waist.position.set(0, 0.74, 0);
+  waist.rotation.x = Math.PI / 2;
+
+  // Ice crystal shoulders — larger + brighter.
+  const crystalGeo = new THREE.OctahedronGeometry(0.17, 0);
+  const crystalL = new THREE.Mesh(crystalGeo, iceMat);
+  crystalL.position.set(-0.46, 1.42, 0);
+  crystalL.rotation.y = 0.6;
+  const crystalR = new THREE.Mesh(crystalGeo, iceMat);
+  crystalR.position.set(0.46, 1.42, 0);
+  crystalR.rotation.y = -0.6;
+  // Signature back crystal cluster between the shoulders.
+  const clusterGeo = new THREE.OctahedronGeometry(0.11, 0);
+  const clusterC = new THREE.Mesh(clusterGeo, iceMat);
+  clusterC.position.set(0, 1.44, 0.2);
+  const clusterL = new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), iceMat);
+  clusterL.position.set(-0.12, 1.34, 0.2);
+  clusterL.rotation.y = 0.5;
+  const clusterR = new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), iceMat);
+  clusterR.position.set(0.12, 1.34, 0.2);
+  clusterR.rotation.y = -0.5;
+
+  // Head — cryo helmet with glowing rear frost vent.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), hullMat);
+  head.position.set(0, 1.62, -0.02);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.09, 0.12), iceMat);
+  visor.position.set(0, 1.6, -0.2);
+  const napeVent = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.06), iceMat);
+  napeVent.position.set(0, 1.56, 0.22);
+  const frostCrest = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.22, 6), iceMat);
+  frostCrest.position.set(0, 1.86, -0.02);
+
+  // Back cryo tank — dark shell so the cyan core pops from behind.
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.36, 12), tankMat);
+  tank.position.set(0, 1.0, 0.26);
+  tank.rotation.x = Math.PI / 2;
+  const tankCore = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.045, 0.32), iceMat);
+  tankCore.position.set(0, 1.125, 0.26);
+  const tankCap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 12), trimMat);
+  tankCap.position.set(0, 1.0, 0.45);
+  tankCap.rotation.x = Math.PI / 2;
+
+  // Arms pivot at the shoulder: armored upper + joint + mitt.
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.4, 1.3, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.2, 4, 8), hullMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), jointMat);
+    elbow.position.y = -0.36;
+    arm.add(elbow);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.14, 4, 8), hullMat);
+    fore.position.y = -0.47;
+    arm.add(fore);
+    const mitt = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), trimMat);
+    mitt.position.y = -0.6;
+    arm.add(mitt);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  // Legs pivot at the hip: armored thigh + rear calf glow + frost boot.
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.16, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.32, 4, 8), hullMat);
+    thigh.position.y = -0.32;
+    leg.add(thigh);
+    const calfGlow = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.24, 0.04), iceMat);
+    calfGlow.position.set(0, -0.42, 0.11);
+    leg.add(calfGlow);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.11, 0.28), jointMat);
+    boot.position.set(0, -0.635, -0.04);
+    leg.add(boot);
+    const heel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.06), iceMat);
+    heel.position.set(0, -0.655, 0.11);
+    leg.add(heel);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, chestPlate, waist, crystalL, crystalR, clusterC, clusterL, clusterR,
+    head, visor, napeVent, frostCrest, tank, tankCore, tankCap, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildNinja(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Ninja";
+
+  const giMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.85, metalness: 0.05 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0f16, roughness: 0.9 });
+  const sashMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.9, roughness: 0.55 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xe8b98a, roughness: 0.7 });
+
+  // Gi torso + glowing sash belt.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.56, 4, 12), giMat);
+  torso.position.y = 1.06;
+  const wrap = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.36), darkMat);
+  wrap.position.set(0, 1.18, 0);
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.09, 12), sashMat);
+  belt.position.set(0, 0.76, 0);
+  // Belt knot tails streaming behind — rear signature.
+  const tailGeo = new THREE.BoxGeometry(0.07, 0.3, 0.03);
+  const tailL = new THREE.Mesh(tailGeo, sashMat);
+  tailL.position.set(-0.08, 0.6, 0.24);
+  tailL.rotation.x = 0.5;
+  tailL.rotation.z = 0.2;
+  const tailR = new THREE.Mesh(tailGeo, sashMat);
+  tailR.position.set(0.08, 0.6, 0.24);
+  tailR.rotation.x = 0.5;
+  tailR.rotation.z = -0.2;
+
+  // Hooded head: dark hood shell + skin mask slit + glowing eyes.
+  const hood = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), giMat);
+  hood.position.set(0, 1.6, 0.02);
+  hood.scale.set(1, 1.08, 1);
+  const peak = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 8), giMat);
+  peak.position.set(0, 1.9, 0.06);
+  peak.rotation.x = 0.35;
+  const mask = new THREE.Mesh(new THREE.SphereGeometry(0.21, 14, 10), skinMat);
+  mask.position.set(0, 1.56, -0.1);
+  mask.scale.set(0.95, 0.8, 0.7);
+  const eyeGeo = new THREE.BoxGeometry(0.07, 0.035, 0.03);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.4 });
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(-0.08, 1.6, -0.26);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeR.position.set(0.08, 1.6, -0.26);
+
+  // Scarf: neck wrap + long tail flying behind (rear-view signature).
+  const wrap2 = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.05, 8, 14), sashMat);
+  wrap2.position.set(0, 1.4, 0);
+  wrap2.rotation.x = Math.PI / 2;
+  const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.55), sashMat);
+  scarf.position.set(0.05, 1.36, 0.42);
+  scarf.rotation.x = -0.18;
+  scarf.rotation.y = 0.12;
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.36, 1.3, 0);
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), giMat);
+    arm.add(pad);
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.2, 4, 8), giMat);
+    sleeve.position.y = -0.2;
+    arm.add(sleeve);
+    const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.1, 10), darkMat);
+    guard.position.y = -0.36;
+    arm.add(guard);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), skinMat);
+    hand.position.y = -0.47;
+    arm.add(hand);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.15, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.32, 4, 8), darkMat);
+    thigh.position.y = -0.32;
+    leg.add(thigh);
+    const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 10), sashMat);
+    strap.position.y = -0.5;
+    leg.add(strap);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.3), darkMat);
+    boot.position.set(0, -0.64, -0.04);
+    leg.add(boot);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, wrap, belt, tailL, tailR, hood, peak, mask, eyeL, eyeR,
+    wrap2, scarf, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildPilot(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Pilot";
+
+  const jacketMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.6, metalness: 0.1 });
+  const furMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.95 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.8, roughness: 0.5 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd9a06b, roughness: 0.7 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 0.85 });
+
+  // Leather jacket + fur collar + zipper stripe.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.56, 4, 12), jacketMat);
+  torso.position.y = 1.06;
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.07, 8, 14), furMat);
+  collar.position.set(0, 1.38, -0.02);
+  collar.rotation.x = Math.PI / 2;
+  const zip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.04), accentMat);
+  zip.position.set(0, 1.04, -0.26);
+
+  // Flight helmet + aviator goggles (front) + chin strap.
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), jacketMat);
+  helmet.position.set(0, 1.62, 0);
+  const goggles = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 0.11, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0x10151c, emissive: accent, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.5 })
+  );
+  goggles.position.set(0, 1.62, -0.22);
+  const strapGeo = new THREE.BoxGeometry(0.56, 0.06, 0.06);
+  const strap = new THREE.Mesh(strapGeo, furMat);
+  strap.position.set(0, 1.62, 0.02);
+  const chin = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), skinMat);
+  chin.position.set(0, 1.44, -0.12);
+  chin.scale.set(0.9, 0.7, 0.8);
+
+  // Parachute pack + cream scarf — the rear-view signature.
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.48, 0.2), furMat);
+  pack.position.set(0, 1.06, 0.3);
+  const packTrim = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.21), accentMat);
+  packTrim.position.set(0, 1.2, 0.3);
+  const scarfWrap = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.045, 8, 14), accentMat);
+  scarfWrap.position.set(0, 1.42, 0);
+  scarfWrap.rotation.x = Math.PI / 2;
+  const scarfTail = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.5), accentMat);
+  scarfTail.position.set(-0.06, 1.4, 0.4);
+  scarfTail.rotation.x = -0.22;
+  scarfTail.rotation.y = -0.1;
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.37, 1.3, 0);
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.24, 4, 8), jacketMat);
+    sleeve.position.y = -0.22;
+    arm.add(sleeve);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.07, 10), furMat);
+    cuff.position.y = -0.38;
+    arm.add(cuff);
+    const glove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), jacketMat);
+    glove.position.y = -0.48;
+    arm.add(glove);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.15, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.32, 4, 8), pantsMat);
+    thigh.position.y = -0.32;
+    leg.add(thigh);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.14, 0.32), jacketMat);
+    boot.position.set(0, -0.63, -0.05);
+    leg.add(boot);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, collar, zip, helmet, goggles, strap, chin,
+    pack, packTrim, scarfWrap, scarfTail, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildPirate(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Pirate";
+
+  const coatMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.7, metalness: 0.08 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x14101a, roughness: 0.85 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.6 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xc98d5f, roughness: 0.75 });
+  const beardMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.95 });
+
+  // Long coat + gold buttons + belt with buckle.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.6, 4, 12), coatMat);
+  torso.position.y = 1.04;
+  const buttonGeo = new THREE.SphereGeometry(0.035, 8, 6);
+  for (let i = 0; i < 3; i++) {
+    const b = new THREE.Mesh(buttonGeo, goldMat);
+    b.position.set(0.09, 0.92 + i * 0.14, -0.26);
+    group.add(b);
+  }
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 12), darkMat);
+  belt.position.set(0, 0.72, 0);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.09, 0.04), goldMat);
+  buckle.position.set(0, 0.72, -0.27);
+  // Coat tails flaring behind — rear signature.
+  const tailGeo = new THREE.BoxGeometry(0.16, 0.42, 0.04);
+  const tailL = new THREE.Mesh(tailGeo, coatMat);
+  tailL.position.set(-0.12, 0.5, 0.22);
+  tailL.rotation.x = 0.35;
+  const tailR = new THREE.Mesh(tailGeo, coatMat);
+  tailR.position.set(0.12, 0.5, 0.22);
+  tailR.rotation.x = 0.35;
+
+  // Bearded head + tricorn hat.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), skinMat);
+  head.position.set(0, 1.6, -0.02);
+  const beard = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.34, 8), beardMat);
+  beard.position.set(0, 1.4, -0.14);
+  beard.rotation.x = Math.PI;
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 12), darkMat);
+  brim.position.set(0, 1.78, 0);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), coatMat);
+  crown.position.set(0, 1.79, 0);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), goldMat);
+  skull.position.set(0, 1.81, -0.24);
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.38, 1.3, 0);
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.24, 4, 8), coatMat);
+    sleeve.position.y = -0.22;
+    arm.add(sleeve);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 10), goldMat);
+    cuff.position.y = -0.38;
+    arm.add(cuff);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), skinMat);
+    hand.position.y = -0.48;
+    arm.add(hand);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.15, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.3, 4, 8), darkMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const boot = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.24, 10), darkMat);
+    boot.position.set(0, -0.58, -0.02);
+    leg.add(boot);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, belt, buckle, tailL, tailR, head, beard, brim, crown, skull,
+    armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildAstronaut(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Astronaut";
+
+  const suitMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.5, metalness: 0.12 });
+  const jointMat = new THREE.MeshStandardMaterial({ color: 0x8a94a0, roughness: 0.6, metalness: 0.3 });
+  const visorMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 1.4, roughness: 0.2, metalness: 0.4 });
+  const packMat = new THREE.MeshStandardMaterial({ color: 0xd8dee6, roughness: 0.5, metalness: 0.25 });
+
+  // Puffy suit torso + chest control panel.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.52, 4, 12), suitMat);
+  torso.position.y = 1.04;
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.2, 0.06), jointMat);
+  panel.position.set(0, 1.1, -0.28);
+  const lightGeo = new THREE.BoxGeometry(0.05, 0.05, 0.02);
+  const lightCols = [accent, new THREE.Color(0x37d3e0), new THREE.Color(0xff3b5c)];
+  lightCols.forEach((c, i) => {
+    const lamp = new THREE.Mesh(
+      lightGeo,
+      new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1.6 })
+    );
+    lamp.position.set(-0.07 + i * 0.07, 1.12, -0.315);
+    group.add(lamp);
+  });
+
+  // Life-support backpack + tank pair — rear signature.
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.5, 0.22), packMat);
+  pack.position.set(0, 1.06, 0.32);
+  const tankGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.4, 10);
+  const tankL = new THREE.Mesh(tankGeo, suitMat);
+  tankL.position.set(-0.12, 1.06, 0.45);
+  const tankR = new THREE.Mesh(tankGeo, suitMat);
+  tankR.position.set(0.12, 1.06, 0.45);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.43, 0.06, 0.23), visorMat);
+  stripe.position.set(0, 1.24, 0.32);
+
+  // Bubble helmet + gold visor.
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 14), suitMat);
+  helmet.position.set(0, 1.62, 0);
+  // Gold visor band across the front (-Z): sphere phi centers on -X by
+  // default, so start at -0.92π to center the patch at -Z.
+  const visor = new THREE.Mesh(
+    new THREE.SphereGeometry(0.24, 16, 12, -Math.PI * 0.92, Math.PI * 0.84, Math.PI * 0.28, Math.PI * 0.44),
+    visorMat
+  );
+  visor.position.set(0, 1.62, -0.02);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.045, 8, 16), jointMat);
+  ring.position.set(0, 1.38, 0);
+  ring.rotation.x = Math.PI / 2;
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.4, 1.28, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.22, 4, 8), suitMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), jointMat);
+    joint.position.y = -0.36;
+    arm.add(joint);
+    const glove = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), suitMat);
+    glove.position.y = -0.48;
+    arm.add(glove);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.17, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.125, 0.3, 4, 8), suitMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.34), jointMat);
+    boot.position.set(0, -0.63, -0.05);
+    leg.add(boot);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, panel, pack, tankL, tankR, stripe, helmet, visor, ring,
+    armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildVoltBot(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "VoltBot";
+
+  const shellMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.4, metalness: 0.55 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x0a0e16, roughness: 0.6, metalness: 0.35 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.2, roughness: 0.3 });
+
+  // Speaker-chest torso: glowing woofer rings front and back.
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.36), shellMat);
+  torso.position.y = 1.06;
+  const wooferGeo = new THREE.TorusGeometry(0.13, 0.03, 8, 18);
+  const wooferF = new THREE.Mesh(wooferGeo, glowMat);
+  wooferF.position.set(0, 1.12, -0.19);
+  const coneF = new THREE.Mesh(new THREE.CircleGeometry(0.11, 18), darkMat);
+  coneF.position.set(0, 1.12, -0.185);
+  const wooferB = new THREE.Mesh(wooferGeo, glowMat);
+  wooferB.position.set(0, 1.12, 0.19);
+  wooferB.rotation.y = Math.PI;
+  const tweeter = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.04), glowMat);
+  tweeter.position.set(0, 0.86, -0.19);
+
+  // Boxy head: headphone cups + band + antenna — rear signature.
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.32), shellMat);
+  head.position.set(0, 1.62, 0);
+  const face = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.03), glowMat);
+  face.position.set(0, 1.62, -0.17);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 8, 16, Math.PI), darkMat);
+  band.position.set(0, 1.64, 0);
+  const cupGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.07, 14);
+  const cupL = new THREE.Mesh(cupGeo, glowMat);
+  cupL.rotation.z = Math.PI / 2;
+  cupL.position.set(-0.21, 1.62, 0);
+  const cupR = new THREE.Mesh(cupGeo, glowMat);
+  cupR.rotation.z = Math.PI / 2;
+  cupR.position.set(0.21, 1.62, 0);
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8), darkMat);
+  antenna.position.set(0.1, 1.9, 0.05);
+  antenna.rotation.z = -0.15;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), glowMat);
+  tip.position.set(0.125, 2.05, 0.05);
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.36, 1.3, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.22, 4, 8), shellMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 10), glowMat);
+    cuff.position.y = -0.36;
+    arm.add(cuff);
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), darkMat);
+    fist.position.y = -0.48;
+    arm.add(fist);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.15, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.3, 4, 8), shellMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), glowMat);
+    knee.position.set(0, -0.5, -0.06);
+    leg.add(knee);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.3), darkMat);
+    boot.position.set(0, -0.64, -0.04);
+    leg.add(boot);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, wooferF, coneF, wooferB, tweeter, head, face, band,
+    cupL, cupR, antenna, tip, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildJackal(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Jackal";
+
+  const furMat = new THREE.MeshStandardMaterial({ color: tint, roughness: 0.7, metalness: 0.1 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.7, roughness: 0.35, metalness: 0.65 });
+  const eyeMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 2.4 });
+
+  // Lean jackal torso + broad gold collar.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.62, 4, 12), furMat);
+  torso.position.y = 1.06;
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.14, 12), goldMat);
+  collar.position.set(0, 1.36, 0);
+  const chestGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), eyeMat);
+  chestGem.position.set(0, 1.08, -0.22);
+
+  // Jackal head: narrow skull, long snout, tall ears — gold eyes.
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.3), furMat);
+  skull.position.set(0, 1.64, -0.02);
+  const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.3, 8), furMat);
+  snout.rotation.x = Math.PI / 2;
+  snout.position.set(0, 1.58, -0.28);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), goldMat);
+  nose.position.set(0, 1.58, -0.43);
+  const earGeo = new THREE.ConeGeometry(0.08, 0.34, 6);
+  const earL = new THREE.Mesh(earGeo, furMat);
+  earL.position.set(-0.11, 1.9, 0.02);
+  earL.rotation.z = 0.12;
+  const earR = new THREE.Mesh(earGeo, furMat);
+  earR.position.set(0.11, 1.9, 0.02);
+  earR.rotation.z = -0.12;
+  const earTipGeo = new THREE.ConeGeometry(0.035, 0.1, 6);
+  const tipL = new THREE.Mesh(earTipGeo, goldMat);
+  tipL.position.set(-0.125, 2.08, 0.02);
+  tipL.rotation.z = 0.12;
+  const tipR = new THREE.Mesh(earTipGeo, goldMat);
+  tipR.position.set(0.125, 2.08, 0.02);
+  tipR.rotation.z = -0.12;
+  const eyeGeo = new THREE.SphereGeometry(0.045, 8, 6);
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(-0.1, 1.66, -0.16);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeR.position.set(0.1, 1.66, -0.16);
+
+  // Thin upright tail — rear signature.
+  const tailBase = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.4, 8), furMat);
+  tailBase.position.set(0, 0.85, 0.24);
+  tailBase.rotation.x = -0.5;
+  const tailTuft = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 8), goldMat);
+  tailTuft.position.set(0, 1.06, 0.34);
+  tailTuft.rotation.x = -0.5;
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.32, 1.28, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.3, 4, 8), furMat);
+    limb.position.y = -0.26;
+    arm.add(limb);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.06, 10), goldMat);
+    cuff.position.y = -0.42;
+    arm.add(cuff);
+    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), furMat);
+    paw.position.y = -0.52;
+    arm.add(paw);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.14, 0.74, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.32, 4, 8), furMat);
+    thigh.position.y = -0.32;
+    leg.add(thigh);
+    const anklet = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.05, 10), goldMat);
+    anklet.position.y = -0.54;
+    leg.add(anklet);
+    const paw = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.28), furMat);
+    paw.position.set(0, -0.65, -0.05);
+    leg.add(paw);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, collar, chestGem, skull, snout, nose, earL, earR, tipL, tipR,
+    eyeL, eyeR, tailBase, tailTuft, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+function buildPharaoh(tintHex: string, accentHex: string): THREE.Group {
+  const tint = new THREE.Color(tintHex);
+  const accent = new THREE.Color(accentHex);
+  const group = new THREE.Group();
+  group.name = "Pharaoh";
+
+  const goldMat = new THREE.MeshStandardMaterial({ color: tint, emissive: tint, emissiveIntensity: 0.25, roughness: 0.35, metalness: 0.7 });
+  const lapisMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.9, roughness: 0.4 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xb97f4e, roughness: 0.7 });
+  const linenMat = new THREE.MeshStandardMaterial({ color: 0xf2ede0, roughness: 0.9 });
+  const capeMat = new THREE.MeshStandardMaterial({ color: 0x7a1f2a, roughness: 0.85 });
+
+  // Bare chest + broad lapis collar.
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.5, 4, 12), skinMat);
+  torso.position.y = 1.06;
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.06, 8, 16, Math.PI * 1.2), lapisMat);
+  collar.position.set(0, 1.32, -0.02);
+  collar.rotation.x = Math.PI / 2;
+  collar.rotation.z = Math.PI * 0.9;
+  const pendant = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), goldMat);
+  pendant.position.set(0, 1.12, -0.26);
+
+  // Gold death-mask face + striped nemes headdress (rear signature).
+  const mask = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), goldMat);
+  mask.position.set(0, 1.6, -0.03);
+  mask.scale.set(0.95, 1.05, 0.9);
+  const stripeGeo = new THREE.BoxGeometry(0.09, 0.34, 0.06);
+  for (let i = 0; i < 3; i++) {
+    const sL = new THREE.Mesh(stripeGeo, i % 2 === 0 ? lapisMat : goldMat);
+    sL.position.set(-0.2, 1.5 - i * 0.02, 0.12 + i * 0.02);
+    sL.rotation.x = 0.15;
+    sL.rotation.z = 0.12;
+    group.add(sL);
+    const sR = new THREE.Mesh(stripeGeo, i % 2 === 0 ? goldMat : lapisMat);
+    sR.position.set(0.2, 1.5 - i * 0.02, 0.12 + i * 0.02);
+    sR.rotation.x = 0.15;
+    sR.rotation.z = -0.12;
+    group.add(sR);
+  }
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.25, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    goldMat
+  );
+  cap.position.set(0, 1.62, 0.01);
+  const eyeGeo = new THREE.BoxGeometry(0.06, 0.03, 0.02);
+  const eyeL = new THREE.Mesh(eyeGeo, lapisMat);
+  eyeL.position.set(-0.08, 1.62, -0.235);
+  const eyeR = new THREE.Mesh(eyeGeo, lapisMat);
+  eyeR.position.set(0.08, 1.62, -0.235);
+
+  // Cape + pleated kilt.
+  const cape = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.04), capeMat);
+  cape.position.set(0, 1.02, 0.26);
+  cape.rotation.x = 0.08;
+  const capeTrim = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.045), goldMat);
+  capeTrim.position.set(0, 0.68, 0.29);
+  const kilt = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.3, 12, 1, true), linenMat);
+  kilt.position.set(0, 0.58, 0);
+  (kilt.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
+
+  const buildArm = (side: -1 | 1): THREE.Group => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.36, 1.3, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.22, 4, 8), skinMat);
+    upper.position.y = -0.2;
+    arm.add(upper);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.08, 10), goldMat);
+    band.position.y = -0.34;
+    arm.add(band);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.14, 4, 8), skinMat);
+    fore.position.y = -0.45;
+    arm.add(fore);
+    return arm;
+  };
+  const armL = buildArm(-1);
+  const armR = buildArm(1);
+
+  const buildLeg = (side: -1 | 1): THREE.Group => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.15, 0.72, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.3, 4, 8), skinMat);
+    thigh.position.y = -0.3;
+    leg.add(thigh);
+    const sandal = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.07, 0.3), goldMat);
+    sandal.position.set(0, -0.66, -0.05);
+    leg.add(sandal);
+    return leg;
+  };
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
+
+  group.add(
+    torso, collar, pendant, mask, cap, eyeL, eyeR,
+    cape, capeTrim, kilt, armL, armR, legL, legR
+  );
+  shadowify(group);
+  group.userData.legs = [legL, legR];
+  group.userData.arms = [armL, armR];
+  return group;
+}
+
+
+export function buildFallbackBot(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "FallbackBot";
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1a221b, roughness: 0.55, metalness: 0.35 });
+  const glowMat = new THREE.MeshStandardMaterial({
+    color: 0x14210f,
+    emissive: 0xd9de7a,
+    emissiveIntensity: 2.2,
+    roughness: 0.3,
+  });
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: 0x11240f,
+    emissive: 0x9fca7d,
+    emissiveIntensity: 1.4,
+    roughness: 0.4,
+  });
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.62, 4, 12), bodyMat);
+  body.position.y = 1.05;
+  body.castShadow = true;
+
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.3), glowMat);
+  visor.position.set(0, 1.58, -0.16);
+
+  const core = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.06, 10), accentMat);
+  core.rotation.x = Math.PI / 2;
+  core.position.set(0, 1.22, -0.3);
+
+  const shoulderGeo = new THREE.SphereGeometry(0.13, 10, 8);
+  const leftShoulder = new THREE.Mesh(shoulderGeo, accentMat);
+  leftShoulder.position.set(-0.42, 1.38, 0);
+  const rightShoulder = new THREE.Mesh(shoulderGeo, accentMat);
+  rightShoulder.position.set(0.42, 1.38, 0);
+
+  const legGeo = new THREE.CapsuleGeometry(0.11, 0.36, 4, 8);
+  const legL = new THREE.Mesh(legGeo, bodyMat);
+  legL.position.set(-0.16, 0.28, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, bodyMat);
+  legR.position.set(0.16, 0.28, 0);
+  legR.castShadow = true;
+
+  group.add(body, visor, core, leftShoulder, rightShoulder, legL, legR);
+  group.userData.legs = [legL, legR];
+  return group;
+}
+
+
+/** Disposes every geometry/material owned by a classic rig group. */
+export function disposeRigGroup(group: THREE.Object3D): void {
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
+    if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+    else mat?.dispose();
+  });
+}
