@@ -3,7 +3,8 @@ import { SILENT, connectPanned, makeFilter, makeGain, stopSafely } from "./synth
 
 /**
  * Parallel formant synthesizer (Klatt-style parallel branch) for short
- * vocal gestures: the "FAAAH!" crash shout and the cow moo.
+ * vocal gestures: the "FAAAH!" shout (slides / last-second dodges) and the
+ * cow moo.
  *
  *   glottal pulse (pitch contour + vibrato + jitter) ─┐
  *   aspiration noise ─────────────────────────────────┴► F1..F4 bandpass (±) ─► tanh grit ─► tone ─► out
@@ -50,7 +51,7 @@ export interface FormantPreset {
 }
 
 /**
- * The viral desi "FAAAH!" — a dramatic, despairing shout: a breathy "f",
+ * The viral "FAAAH!" — a dramatic, drawn-out shout: a breathy "f",
  * a pressed open "aaa" (F1≈820, F2≈1220, F3≈2500) whose pitch leaps up then
  * sags, heavy vibrato and a long breathy decay.
  */

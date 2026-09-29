@@ -1,11 +1,14 @@
 import type { MemeEvent } from "@/types/game";
 
 /**
- * Desi meme voice lines (MemeVoice). Every built-in line is a license-free
- * recreation: short catchphrases spoken by the player's own device through
- * the Web Speech API, or — for the "FAAAH!" crash shout — synthesized live
- * with formant synthesis. No audio clips ship with the game; players may add
- * clips they own via public/sounds/memes/manifest.json (see its README).
+ * Desi meme reactions (MemeVoice) — short, viral, and tied to what the
+ * runner is doing: FAAAH on slides and last-second dodges, the paragliding
+ * guy on the Diwali rocket, "Jaldi wahan se hato!" before drones / traffic,
+ * "Moye moye" on a crash. Every built-in line is a license-free recreation:
+ * catchphrases are spoken by the player's own device through the Web Speech
+ * API, and the "FAAAH!" shout is synthesized live with formant synthesis.
+ * No audio clips ship with the game; players may add clips they own via
+ * public/sounds/memes/manifest.json (see its README).
  */
 
 /** Instant synthesized hit fired with every line (TTS has start latency). */
@@ -33,14 +36,19 @@ export interface MemeSpeechPart {
 }
 
 export interface MemeLineDef {
-  /** Comic speech-bubble caption. */
+  /** Comic speech-bubble caption — one word or one short meme line. */
   caption: string;
   /** Small gloss under the caption (for players who don't speak Hindi). */
   sub?: string;
   delivery: MemeDelivery;
   /** Spoken parts in order (empty for synthesized deliveries). */
   parts: readonly MemeSpeechPart[];
-  stinger: MemeStinger;
+  /**
+   * Optional instant hit in front of the line. Omitted where the moment
+   * already has its own loud SFX (rocket ignition, warnings) or the voice
+   * is instant anyway (the synthesized FAAAH).
+   */
+  stinger?: MemeStinger;
   /** Seconds before this event (or its group) may speak again. */
   cooldown: number;
   /** Probability (0..1) that an eligible moment actually speaks. */
@@ -61,122 +69,119 @@ function say(
   return { hi, roman, rate, pitch, voice, pauseBefore };
 }
 
-const PAISA = say("पैसा ही पैसा होगा!", "Paisa hee paisa hoga!", 1.12, 1.25);
+/** The viral "FAAAH!" — slides and last-second dodges share one cooldown. */
+const FAAAH_GROUP = "faaah";
+const FAAAH_COOLDOWN = 3.5;
 
 export const MEME_LINES: Record<MemeEvent, MemeLineDef> = {
-  crash: {
+  start: {
+    caption: "BHAAG MILKHA BHAAG! 🏃",
+    sub: "run, run, run!",
+    delivery: "tts",
+    parts: [say("भाग, मिल्खा, भाग!", "Bhaag, Milkha, bhaag!", 1.08, 1.05)],
+    stinger: "shehnai",
+    cooldown: 0,
+    chance: 0.75,
+    priority: MEME_PRIORITY.normal,
+  },
+  slide: {
     caption: "FAAAH! 😱",
     delivery: "faaah",
     parts: [],
+    cooldown: FAAAH_COOLDOWN,
+    chance: 1,
+    priority: MEME_PRIORITY.normal,
+    group: FAAAH_GROUP,
+  },
+  nearMiss: {
+    caption: "FAAAH! 😱",
+    sub: "baal-baal bache!",
+    delivery: "faaah",
+    parts: [],
+    cooldown: FAAAH_COOLDOWN,
+    chance: 1,
+    priority: MEME_PRIORITY.normal,
+    group: FAAAH_GROUP,
+  },
+  rocket: {
+    // The 2019 "Indian paragliding guy", mid-air over Manali.
+    caption: "AASMAAN KI UNCHAIYON MEIN! 🪂",
+    sub: "…and here I am, high in the sky",
+    delivery: "tts",
+    parts: [say("और ये मैं, आसमान की ऊँचाइयों में!", "Aur ye main, aasmaan ki oonchaiyon mein!", 0.98, 1.12)],
+    cooldown: 2,
+    chance: 1,
+    priority: MEME_PRIORITY.high,
+  },
+  rocketLand: {
+    // …and the same flight's most famous plea, as the rocket comes down.
+    caption: "LAND KARA DE! 🙏",
+    sub: "bhai, please land me",
+    delivery: "tts",
+    parts: [say("लैंड करा दे! लैंड करा दे!", "Land kara de! Land kara de!", 1.25, 1.38)],
+    cooldown: 2,
+    chance: 1,
+    priority: MEME_PRIORITY.high,
+  },
+  danger: {
+    // Local-cricket commentary gone viral: get out of the way, fast.
+    caption: "JALDI WAHAN SE HATO! ⚠️",
+    sub: "move, move, move!",
+    delivery: "tts",
+    parts: [say("जल्दी वहाँ से हटो!", "Jaldi wahaan se hato!", 1.18, 1.2)],
+    cooldown: 15,
+    chance: 1,
+    // A real warning: it may cut off a FAAAH rather than be dropped.
+    priority: MEME_PRIORITY.high,
+  },
+  speedBoost: {
+    caption: "DHOOM! 🔥",
+    sub: "full speed",
+    delivery: "tts",
+    parts: [say("धूम!", "Dhoom!", 0.9, 0.85)],
+    stinger: "dhol",
+    cooldown: 12,
+    chance: 1,
+    priority: MEME_PRIORITY.normal,
+  },
+  crash: {
+    caption: "MOYE MOYE 😢",
+    delivery: "tts",
+    parts: [say("मोये मोये", "Mo-ye mo-ye", 0.82, 0.72)],
     stinger: "drama",
     cooldown: 1.5,
     chance: 1,
     priority: MEME_PRIORITY.high,
   },
   revive: {
-    caption: "PICTURE ABHI BAAKI HAI, MERE DOST!",
-    sub: "the film isn't over yet, my friend",
+    caption: "TIGER ABHI ZINDA HAI! 🐯",
+    sub: "back on your feet",
     delivery: "tts",
-    parts: [say("पिक्चर अभी बाकी है, मेरे दोस्त!", "Picture abhee baaki hai, mere dost!", 1.0, 0.9)],
+    parts: [say("टाइगर अभी ज़िंदा है!", "Tiger abhee zinda hai!", 1.02, 0.95)],
     stinger: "shehnai",
     cooldown: 3,
     chance: 1,
     priority: MEME_PRIORITY.high,
   },
   newRecord: {
-    caption: "MOGAMBO KHUSH HUA!",
-    sub: "new record — the villain approves",
+    caption: "JUST LOOKING LIKE A WOW! 🤩",
+    sub: "new record",
     delivery: "tts",
-    parts: [say("मोगैम्बो खुश हुआ!", "Mogambo khush hua!", 0.82, 0.5)],
+    parts: [say("जस्ट लुकिंग लाइक अ वॉव!", "Just looking like a wow!", 1.0, 1.3)],
     stinger: "dhol",
     cooldown: 3,
     chance: 1,
     priority: MEME_PRIORITY.high,
   },
-  overdrive: {
-    caption: "HOW'S THE JOSH?",
-    sub: "HIGH SIR! 🫡",
-    delivery: "tts",
-    parts: [
-      say("हाउज़ द जोश?", "How's the josh?", 0.92, 0.62, "main"),
-      say("हाई सर!", "High, sir!", 1.22, 1.55, "alt", 0.12),
-    ],
-    stinger: "dhol",
-    cooldown: 30,
-    chance: 1,
-    priority: MEME_PRIORITY.normal,
-  },
-  rocket: {
-    caption: "UDD GAYA! BHAI UDD GAYA!",
-    sub: "bro took off!",
-    delivery: "tts",
-    parts: [say("उड़ गया! भाई उड़ गया!", "Udd gaya! Bhai, udd gaya!", 1.2, 1.35)],
-    stinger: "boing",
-    cooldown: 12,
-    chance: 0.9,
-    priority: MEME_PRIORITY.normal,
-  },
-  nearMiss: {
-    caption: "ARRE BHAI BHAI BHAI!",
-    sub: "that was close!",
-    delivery: "tts",
-    parts: [say("अरे भाई भाई भाई!", "Arrey bhai, bhai, bhai!", 1.25, 1.2)],
-    stinger: "tirakita",
-    cooldown: 11,
-    chance: 0.5,
-    priority: MEME_PRIORITY.normal,
-  },
-  coinStreak: {
-    caption: "PAISA HI PAISA HOGA!",
-    sub: "money, money everywhere 💰",
-    delivery: "tts",
-    parts: [PAISA],
-    stinger: "ting",
-    cooldown: 20,
-    chance: 0.7,
-    priority: MEME_PRIORITY.normal,
-    group: "paisa",
-  },
   coinStorm: {
-    caption: "PAISA HI PAISA HOGA!",
-    sub: "money, money everywhere 💰",
+    caption: "PAISA HI PAISA! 💰",
+    sub: "money, money everywhere",
     delivery: "tts",
-    parts: [PAISA],
+    parts: [say("पैसा ही पैसा होगा!", "Paisa hee paisa hoga!", 1.12, 1.25)],
     stinger: "ting",
     cooldown: 20,
     chance: 1,
     priority: MEME_PRIORITY.normal,
-    group: "paisa",
-  },
-  combo: {
-    caption: "BAHUT HARD!",
-    sub: "too good, bro",
-    delivery: "tts",
-    parts: [say("बहुत हार्ड!", "Bahut hard!", 1.05, 1.1)],
-    stinger: "tirakita",
-    cooldown: 15,
-    chance: 0.6,
-    priority: MEME_PRIORITY.normal,
-  },
-  start: {
-    caption: "CHALO, BHAAGO!",
-    sub: "let's run!",
-    delivery: "tts",
-    parts: [say("चलो, भागो!", "Chalo, bhaago!", 1.15, 1.1)],
-    stinger: "shehnai",
-    cooldown: 0,
-    chance: 0.6,
-    priority: MEME_PRIORITY.normal,
-  },
-  powerup: {
-    caption: "JUGAAD!",
-    sub: "desi hack unlocked",
-    delivery: "tts",
-    parts: [say("जुगाड़!", "Joo-gaad!", 0.9, 1.2)],
-    stinger: "ting",
-    cooldown: 25,
-    chance: 0.25,
-    priority: MEME_PRIORITY.low,
   },
 };
 

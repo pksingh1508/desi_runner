@@ -4,6 +4,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import type { HumanBody } from "@/game/config/characters";
 import { HAIR_MESH, HUMAN_ASSETS, UAL_PELVIS_REST } from "@/game/config/humanRig";
 import { disposeObjectTree } from "@/game/utils/dispose";
+import { buildSlideClip } from "./SlideClip";
 
 export type ProgressFn = (ratio: number) => void;
 
@@ -18,7 +19,8 @@ export interface HumanBodyInstance {
  * Loads + caches the realistic runner assets: two base bodies, the shared
  * hairstyle pack and the shared animation library. Bodies are cloned per rig
  * (SkeletonUtils) so any number of runners can exist; geometry and textures
- * stay shared. Clips are retargeted once per body (pelvis re-offset).
+ * stay shared. Clips are retargeted once per body (pelvis re-offset), and
+ * the lean-back slide is baked once per body from its own rest skeleton.
  */
 export class HumanAssetLibrary {
   private loader = new GLTFLoader();
@@ -118,6 +120,8 @@ export class HumanAssetLibrary {
       }
       return clip;
     });
+    const slide = buildSlideClip(bodyGltf.scene, clips);
+    if (slide) clips.push(slide);
     this.clipCache.set(body, clips);
     return clips;
   }

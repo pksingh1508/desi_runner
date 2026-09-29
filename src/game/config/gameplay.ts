@@ -177,19 +177,25 @@ export const PATTERN = {
   firstRowZ: -9,
   marginFromEdges: 5,
   /**
-   * Fairness floor for consecutive obstacle rows at any speed: the required
-   * gap is max(minDistanceGap, speed * minTimeGap). Fixed-distance patterns
-   * feel fine at start speed but collapse in *reaction time* as the world
-   * accelerates (14m = 1.17s @12m/s but only 0.44s @32m/s — shorter than a
-   * jump/slide at 0.85s). WorldManager stretches rows apart to honor this.
+   * Fairness floor between consecutive obstacle rows, in *reaction time*:
+   * gap = max(minDistanceGap, speed × rowTime). A jump or slide lasts
+   * 0.85 s and the runner needs ~0.3–0.4 s more to read the next row, so
+   * rowTime eases from rowTimeStart (start speed) to rowTimeEnd (max speed).
+   * A fixed-distance floor collapsed as the world accelerated — 16 m rows
+   * arrived every 0.85 s at ~50 s into a run, with no room left to run.
    */
-  minTimeGap: 0.62,
+  rowTimeStart: 1.3,
+  rowTimeEnd: 1.05,
   minDistanceGap: 13,
-  /** Stretched patterns are never pushed past this local z (segment budget). */
+  /** Rows are never pushed past this local z (segment budget) — rows that
+   * don't fit after stretching are dropped (their coins stay). */
   maxTailZ: -42,
   /** Empty (breather) patterns get +this weight per difficulty tier so late
    * runs keep recovery windows instead of wall-to-wall obstacles. */
   breatherBonusPerTier: 0.9,
+  /** After this many obstacle rows without a breather, the next segment is
+   * always one (coins only) — a guaranteed stretch of free running. */
+  breatherAfterRows: 6,
   /** Jump-arc coins grow by up to +this fraction (height and span) from start
    * to max speed, tracking the longer/faster jump trajectory so high-speed
    * arcs stay collectible instead of flat and out of reach. */
@@ -245,14 +251,15 @@ export const ROCKET_TRAIL = {
 } as const;
 
 /**
- * Escalating rocket flights: the 1st rocket of a run flies firstSeconds,
- * the 2nd adds stepSeconds, and so on up to maxSeconds. Later pickups feel
- * progressively more rewarding without breaking early-run balance.
+ * Escalating rocket flights: the 1st rocket of a run flies firstSeconds
+ * (never less), each later rocket in the same run adds stepSeconds —
+ * 5 s, 6 s, 7 s … — up to maxSeconds so a lucky long run can't turn into a
+ * permanent free flight.
  */
 export const ROCKET_FLIGHT = {
-  firstSeconds: 3,
+  firstSeconds: 5,
   stepSeconds: 1,
-  maxSeconds: 6,
+  maxSeconds: 10,
 } as const;
 
 /**
@@ -275,13 +282,15 @@ export const ROCKET_RIDE = {
   /** Collision-free window after touchdown (the landing zone is also cleared). */
   landingGraceSeconds: 1.1,
   /**
-   * Obstacles inside the landing window are cleared at launch. The window is
-   * padded for mid-flight speed boosts (turbo / JOSH) so it always covers the
-   * real touchdown point.
+   * Obstacles inside the landing window are cleared at launch and kept clear
+   * for the whole flight (long flights outlast the recycled world). The
+   * window is re-measured every frame at the current speed, so a small
+   * padding covers the difficulty ramp and still leaves ≥3 s of open road
+   * after touchdown.
    */
   clearLeadSeconds: 1.2,
   clearTrailSeconds: 1.8,
-  clearSpeedPadding: 1.5,
+  clearSpeedPadding: 1.2,
   /** Rider seat height above the runner origin (human riders). */
   seatHeight: 0.38,
   /** HUD rocket timer push interval (seconds). */

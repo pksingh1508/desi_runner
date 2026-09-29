@@ -57,6 +57,11 @@ bindi, tilak, jhumkas, bangles, sweatbands, sneakers) and **simulated cloth**
 Both packs share the same 65-bone humanoid skeleton, so the clips bind to the
 bodies by bone name.
 
+The slide is **not** from the pack (it only has a forward `Roll`, kept as a
+fallback): the lean-back `Desi_Slide` clip is project-created — keyframe
+poses in `src/game/config/humanRig.ts` are baked per body at runtime by
+`src/game/player/human/SlideClip.ts`.
+
 ---
 
 ## 3. RobotExpressive.glb (CLASSIC squad: VECTOR)
@@ -91,8 +96,10 @@ procedural rigs in `src/game/player/ClassicRigs.ts`.
 ## Audio & meme voice lines
 
 No audio files are shipped. Music and SFX are synthesized with Web Audio.
-The desi meme reactions are license-free recreations: synthesized vocal
-effects plus short catchphrases spoken by the player's own device via the
-Web Speech API. No film/meme audio clips are included — see
+The desi meme reactions are license-free recreations: a synthesized vocal
+effect ("FAAAH!") plus short catchphrases ("Aasmaan ki unchaiyon mein!",
+"Land kara de!", "Jaldi wahan se hato!", "Moye moye"…) spoken by the
+player's own device via the Web Speech API. No film/meme audio clips are
+included — see
 `public/sounds/memes/README.md` for how to plug in clips you have the rights
 to use.

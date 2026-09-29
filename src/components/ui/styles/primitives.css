@@ -747,7 +747,7 @@
     animation: petal-fly 1.9s var(--ease-out) var(--delay) forwards;
   }
 
-  /* Rubber-stamp verdicts ("SHABAASH!", "MOGAMBO KHUSH HUA!"). */
+  /* Rubber-stamp verdicts ("SHABAASH!", "LOOKING LIKE A WOW!"). */
   .stamp {
     --tilt: -7deg;
     display: inline-block;

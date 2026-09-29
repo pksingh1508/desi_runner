@@ -300,6 +300,9 @@ export class CharacterAnimationController {
     const action = this.actions.get(state);
     // Looping jump cycles are faded out by the next setState() instead.
     if (state === "jump" && this.jumpLoops) return;
+    // So is a native slide clip (crash / rocket mid-slide): a hard stop
+    // would blend the incoming fade with the bind T-pose for a few frames.
+    if (state === "slide" && !this.slideOverlayAction) return;
     if (action && action.isRunning()) {
       action.enabled = false;
       action.stop();

@@ -9,6 +9,14 @@ export const RUN_EVENTS_CFG = {
   minInterval: 26,
   maxInterval: 40,
   announceDuration: 1.7,
+  /**
+   * Drone attacks and traffic jams play out on a reserved stretch of road
+   * (spawned far beyond the fog). The banner goes up once that stretch is
+   * this many seconds ahead, so the warning matches what's coming.
+   */
+  stretchLeadSeconds: 2.4,
+  /** Give up on a reserved stretch that never comes into range. */
+  approachTimeout: 60,
 } as const;
 
 /** Internal ids stay stable; labels carry the desi flavour. */
@@ -68,6 +76,12 @@ export const DRONE_ATTACK = {
   halfSize: 0.55,
   /** Tiers ≥ this send two drones per wave (one lane always stays open). */
   doubleWaveTier: 2,
+  /**
+   * Seconds of obstacle-free road (coins only) reserved for the attack, so
+   * the charging drones are the only threat — never a drone in one lane
+   * and a truck in the "open" one.
+   */
+  openRoadSeconds: 7,
 } as const;
 
 /** Wedding-videography quadcopter visuals. */
@@ -85,9 +99,4 @@ export const SHAADI_DRONE = {
   laneStripOpacityCharging: 0.55,
   /** Nose-down pitch while charging (radians). */
   chargePitch: 0.32,
-} as const;
-
-export const LASER_GRID = {
-  /** Authored traffic-jam chain patterns queued into upcoming segments. */
-  patternCount: 2,
 } as const;

@@ -3,8 +3,8 @@
 A browser-based **3D endless runner set in vibrant Indian streets**. Sprint
 through the bazaars of Chandni Chowk, Jaipur's Pink City, rain-soaked Mumbai
 lanes and a glowing Diwali night. Dodge cows, cycle-rickshaws and Horn-OK-Please
-trucks, roll under railway phaataks and saree clotheslines, ride a Diwali
-rocket, and get roasted by Bollywood-meme voice lines along the way.
+trucks, slide under railway phaataks and saree clotheslines, ride a Diwali
+rocket, and get roasted by desi meme reactions along the way.
 
 Built with **Next.js (App Router) + TypeScript + Three.js used directly** —
 no React Three Fiber, no game engine.
@@ -13,13 +13,13 @@ no React Three Fiber, no game engine.
 
 | Feature | What it does |
 | ------- | ------------ |
-| **Realistic desi runners** | 8 realistic 3D humans (RAJU, PRIYA, JASSI, MEERA, INSPECTOR, HERO, BABLI, SHERA) — CC0 base bodies + CC0 motion library (sprint, jump, roll, death, dance, ride). Outfits are painted by a bind-pose clothing shader (tees, kurtas, track jackets, khaki uniform); turbans, mustaches, aviators, bindis, jhumkas, bangles and sneakers are bone-attached; dupattas and gamchas are simulated cloth that flies in the wind. The 15 legacy stylized rigs live on as the CLASSIC squad. |
+| **Realistic desi runners** | 8 realistic 3D humans (RAJU, PRIYA, JASSI, MEERA, INSPECTOR, HERO, BABLI, SHERA) — CC0 base bodies + CC0 motion library (sprint, jump, death, dance, ride) + a lean-back, feet-first slide baked from code keyframes. Outfits are painted by a bind-pose clothing shader (tees, kurtas, track jackets, khaki uniform); turbans, mustaches, aviators, bindis, jhumkas, bangles and sneakers are bone-attached; dupattas and gamchas are simulated cloth that flies in the wind. The 15 legacy stylized rigs live on as the CLASSIC squad. |
 | **Indian streets** | Four live-blended biomes — CHANDNI CHOWK, PINK CITY, MUMBAI MONSOON (rain, puddles, lightning), DIWALI NIGHT (fireworks, sky lanterns, bulb strings). Shophouses with Hindi/English signboards, balconies, water tanks, AC units, tangled wires, bunting, kites, pigeons, yellow-black kerbs. |
 | **Street hazards** | Police barricades, sabzi thelas, road-work boards (jump) · cows and cycle-rickshaws crossing (jump / dodge) · HORN OK PLEASE trucks, chai tapris, loaded autos (dodge) · signboards, saree clotheslines, mela banners (slide) · railway phaatak and स्वागत arches (slide, unbreakable). Each variant's collider matches its model. |
-| **Desi power-ups** | CHUMBAK magnet (coins from every lane home in on you), NIMBU-MIRCHI shield (wards off one crash), DOUBLE DHAMAKA ×2, CHAI BOOST turbo, and the **DIWALI ROCKET** — ride a festival firecracker (launch → cruise → smooth landing on a cleared street). |
-| **JOSH** | The overdrive meter: "How's the josh?" — "High sir!" |
+| **Desi power-ups** | CHUMBAK magnet (coins from every lane home in on you), NIMBU-MIRCHI shield (wards off one crash), DOUBLE DHAMAKA ×2, CHAI BOOST turbo, and the **DIWALI ROCKET** — ride a festival firecracker (launch → cruise → smooth landing on a cleared street); flights last 5 s, +1 s for every further rocket in the same run (up to 10 s). |
+| **JOSH** | The overdrive meter: fill it, then smash through at full speed — "DHOOM!" |
 | **TAAL** | Jump on the dhol beat for a streak bonus; the soundtrack is part of the game. |
-| **Meme voice lines** | "FAAAH!" (synthesized shout), "Arre bhai bhai bhai!", "Paisa hi paisa hoga!", "Picture abhi baaki hai, mere dost!", "Mogambo khush hua!", "Bahut hard!", "Udd gaya!"… with comic caption bubbles. License-free: formant synthesis + the device's own speech voice (see `public/sounds/memes/README.md`). |
+| **Meme reactions** | Short viral desi memes tied to what the runner does: "FAAAH!" on slides and last-second dodges, "Aasmaan ki unchaiyon mein!" on the Diwali rocket and "Land kara de!" as it comes down, "Jaldi wahan se hato!" before drone attacks / traffic jams, "DHOOM!" for CHAI BOOST / JOSH, "Moye moye" on a crash — plus "Bhaag Milkha bhaag!", "Tiger abhi zinda hai!", "Just looking like a wow!" and "Paisa hi paisa!" — with comic caption bubbles. License-free: formant synthesis + the device's own speech voice (see `public/sounds/memes/README.md`). |
 | **Desi soundtrack** | Procedural dhol/tabla grooves, tanpura drone and shehnai/bansuri leads improvising in a raag flavour per biome; tempo rises with speed. Auto-rickshaw honks, cow moos and cycle bells announce traffic. |
 | **Street moments** | Near-miss a cow: "GAU MATA KI JAI!" · squeeze past a truck: "HORN OK PLEASE!" · events: PAISA BAARISH (money rain), SHAADI DRONE ATTACK (wedding camera drones), TRAFFIC JAM. |
 | **Meta** | Combos, daily missions, XP to level 50, achievements, Life-Saver keys, GEAR with live 3D preview of every runner (locked ones too). |
@@ -59,7 +59,7 @@ npx tsc --noEmit
 | Move left     | `A` / `←`                | Swipe left      |
 | Move right    | `D` / `→`                | Swipe right     |
 | Jump          | `W` / `↑` / `Space`      | Swipe up        |
-| Slide / roll  | `S` / `↓` (slam mid-air) | Swipe down      |
+| Slide         | `S` / `↓` (slam mid-air) | Swipe down      |
 | **JOSH**      | `E`                      | Double-tap      |
 | Pause         | `P` / `Esc`              | ❚❚ button       |
 | Start / retry | `Enter`                  | BHAAGO! button  |
@@ -135,6 +135,10 @@ src/
   robot's mixer is created only while equipped, so bone names never collide.
 - **Never impossible**: obstacle rows come from validated templates; every row
   leaves at least one valid action; the rocket's landing zone is cleared.
+- **Room to run**: consecutive rows keep a minimum *reaction time* (1.3 s at
+  start speed easing to 1.05 s at top speed, measured at the speed the runner
+  will have on arrival), a breather follows every 6 rows, and drone attacks /
+  traffic jams run on reserved stretches of road announced as they arrive.
 - **Pooling + merging everywhere**: obstacles, coins (one draw call each),
   pickups, particles, drones and street segments are pooled; the whole street
   is ~40–50 draw calls; hot loops reuse scratch objects.
@@ -153,8 +157,9 @@ accessories build the look.
 ### Add a meme line
 
 Add an entry to `MEME_LINES` in `config/memes.ts` (Hindi + romanized text,
-caption, cooldown, chance, priority, stinger) and trigger the event with
-`audio.playMeme(event)` from `Game.ts`.
+caption, cooldown, chance, priority, optional stinger) and trigger the event
+with `audio.playMeme(event)` from `Game.ts`. Keep them short and tied to a
+runner action — one word or one viral line.
 
 ### Add a biome
 

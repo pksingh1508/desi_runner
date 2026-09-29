@@ -188,6 +188,7 @@ export class Game {
 
     this.input = new InputSystem(this.host, (action) => this.handleAction(action));
     this.player.onRocketLanded = this.handleRocketLanded;
+    this.player.onRocketDescend = () => this.audio.playMeme("rocketLand");
     this.player.onLand = (impact) => {
       if (this.particles) this.particles.emitDust(this.player.positionX, 0, Math.round(clamp(impact / 4, 2, 8)));
       this.audio.playLand();
@@ -197,7 +198,6 @@ export class Game {
     this.combo.onMilestone = (count, mult) => {
       this.feedback.push(`COMBO ×${count}`, "combo", `×${mult} SCORE`);
       this.audio.playComboMilestone(Math.round(mult));
-      this.audio.playMeme("combo");
       this.overdrive.gain(OVERDRIVE_CFG.gainComboMilestone);
     };
     this.overdrive.onReady = () => {
@@ -208,7 +208,7 @@ export class Game {
       this.tally.overdrives += 1;
       this.feedback.push("FULL JOSH!", "epic", "SMASH THROUGH");
       this.audio.playOverdriveActivate();
-      this.audio.playMeme("overdrive");
+      this.audio.playMeme("speedBoost");
       this.cameraRig?.addShake(0.22);
     };
     this.overdrive.onEnded = () => {
@@ -287,8 +287,10 @@ export class Game {
             this.audio.playJump();
             break;
           case "slide":
-            if (!this.player.isSliding) this.audio.playSlide();
-            this.player.requestSlide();
+            if (this.player.requestSlide()) {
+              this.audio.playSlide();
+              this.audio.playMeme("slide");
+            }
             break;
           case "overdrive":
             if (!this.overdrive.tryActivate()) {
@@ -777,6 +779,7 @@ export class Game {
     this.events?.update(delta, this.score.distance, effectiveSpeed, this.difficulty.tier.index);
     this.player.setWorldSpeed(effectiveSpeed);
     this.player.update(delta, ratio);
+    if (this.player.isFlying) this.keepLandingZoneClear();
 
     // ---- skill evaluation runs just before collision resolution
     const bounds = this.player.getBounds();
@@ -788,6 +791,7 @@ export class Game {
         halfWidth: 0.35,
         airborne: !this.player.isGrounded,
         sliding: this.player.isSliding,
+        flying: this.player.isFlying,
         secondsSinceJumpStart: this.player.secondsSinceJumpStart,
       },
       nearList,
@@ -1083,7 +1087,6 @@ export class Game {
         this.combo.add(2, this.runTime);
         this.feedback.push("COIN STREAK!", "combo", "+COMBO");
         this.overdrive.gain(OVERDRIVE_CFG.gainPerfect);
-        this.audio.playMeme("coinStreak");
       }
     } else {
       this.coinStreak = 1;
@@ -1141,7 +1144,7 @@ export class Game {
 
   private activateRocket(): void {
     this.tally.rocketsUsed += 1;
-    // Escalating flight time per pickup this run: 3s, 4s, 5s … capped.
+    // Escalating flight time per pickup this run: 5s, 6s, 7s … capped.
     const duration = Math.min(
       ROCKET_FLIGHT.firstSeconds + (this.tally.rocketsUsed - 1) * ROCKET_FLIGHT.stepSeconds,
       ROCKET_FLIGHT.maxSeconds
@@ -1150,13 +1153,7 @@ export class Game {
     this.player.startRocket(duration);
     this.store.setRocket(true, duration, duration);
     this.rocketHudTimer = ROCKET_RIDE.hudInterval;
-    // Guarantee an open landing zone: clear every obstacle that could sit
-    // under the touchdown or the first moments after it (padded for
-    // mid-flight speed boosts). Obstacles nearer than that stay — flying
-    // over traffic is the fun part.
-    const nearZ = -speed * Math.max(0, duration - ROCKET_RIDE.descendSeconds - ROCKET_RIDE.clearLeadSeconds);
-    const farZ = -speed * ROCKET_RIDE.clearSpeedPadding * (duration + ROCKET_RIDE.clearTrailSeconds);
-    this.world.clearObstaclesInRange(farZ, nearZ, this.puffObstacle);
+    this.keepLandingZoneClear();
     // Burst-gap air trail sized for the whole flight at current speed.
     this.world.spawnRocketCoinTrail(-10, duration, speed);
     this.feedback.push("DIWALI ROCKET!", "epic", `UDD CHALO · ${duration}s`);
@@ -1166,6 +1163,23 @@ export class Game {
     this.particles?.emitBurst(this.player.positionX, 0.6, 0, 1.0, 0.62, 0.18, 26, 1.4);
     this.particles?.emitBurst(this.player.positionX, 0.3, 0.4, 1.0, 0.9, 0.55, 14, 0.9);
     this.cameraRig?.addShake(0.3);
+  }
+
+  /**
+   * Guarantees an open landing zone: clears every obstacle that could sit
+   * under the touchdown or the first moments after it (padded for mid-flight
+   * speed boosts). Runs at launch and every flying frame, so rows recycled
+   * into the window during long flights vanish while still far out of view.
+   * Obstacles nearer than the window stay — flying over traffic is the fun
+   * part.
+   */
+  private keepLandingZoneClear(): void {
+    const speed = this.lastEffectiveSpeed;
+    const remaining = this.player.rocketRemaining;
+    const lead = Math.max(0, remaining - ROCKET_RIDE.descendSeconds - ROCKET_RIDE.clearLeadSeconds);
+    const nearZ = -speed * lead;
+    const farZ = -speed * ROCKET_RIDE.clearSpeedPadding * (remaining + ROCKET_RIDE.clearTrailSeconds);
+    this.world.clearObstaclesInRange(farZ, nearZ, this.puffObstacle);
   }
 
   /** Small puff where a landing-zone obstacle is cleared (only if in view). */
@@ -1193,7 +1207,7 @@ export class Game {
     this.feedback.push(`${POWERUP_DEFS[type].label}!`, "good");
     this.audio.playPowerup();
     if (type === "magnet") this.audio.playMagnetOn();
-    this.audio.playMeme("powerup");
+    if (type === "turbo") this.audio.playMeme("speedBoost");
     const color = new THREE.Color(powerUpColor(type));
     this.particles?.emitBurst(x, y + 0.4, 0, color.r, color.g, color.b, 16, 1.1);
   }

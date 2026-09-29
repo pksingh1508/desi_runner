@@ -23,7 +23,7 @@ interface RunSummaryScreenProps {
 type VerdictKind = "record" | "early" | "solid";
 
 function verdictFor(result: RunResult): { kind: VerdictKind; text: string } {
-  if (result.isNewBestScore || result.isNewBestDistance) return { kind: "record", text: "MOGAMBO KHUSH HUA!" };
+  if (result.isNewBestScore || result.isNewBestDistance) return { kind: "record", text: "LOOKING LIKE A WOW!" };
   if (result.distance < 300) return { kind: "early", text: "ARRE YAAR… PHIR SE!" };
   return { kind: "solid", text: "BAHUT HARD!" };
 }

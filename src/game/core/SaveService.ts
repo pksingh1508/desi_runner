@@ -15,7 +15,7 @@ export interface SettingsData {
   music: boolean;
   sound: boolean;
   performanceMode: boolean;
-  /** Desi meme voice lines ("FAAAH!", "Arre bhai bhai bhai!"…). */
+  /** Desi meme reactions ("FAAAH!", "Land kara de!"…). */
   voice: boolean;
 }
 

@@ -8,6 +8,8 @@ export interface PlayerSkillState {
   halfWidth: number;
   airborne: boolean;
   sliding: boolean;
+  /** Riding the Diwali rocket: far above the traffic, nothing can arm. */
+  flying: boolean;
   secondsSinceJumpStart: number;
 }
 
@@ -70,7 +72,7 @@ export class SkillSystem {
         continue;
       }
 
-      if (!inWindow || obstacle.skillEvaluated) continue;
+      if (!inWindow || obstacle.skillEvaluated || player.flying) continue;
 
       // Arm vertical skills.
       if (JUMPABLE_KINDS.has(obstacle.kind) && player.airborne) {

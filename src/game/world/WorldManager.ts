@@ -12,7 +12,7 @@ import { Pickup, PickupFactory } from "@/game/entities/Pickup";
 import { Key, KeyFactory } from "@/game/entities/Key";
 import { Rocket, RocketFactory } from "@/game/entities/Rocket";
 import {
-  LASER_PATTERNS,
+  pickBreather,
   pickPattern,
   type PatternDef,
 } from "./patterns";
@@ -22,7 +22,7 @@ import {
 } from "@/game/config/powerups";
 import { PATTERN, ROCKET_TRAIL, SPEED, WORLD } from "@/game/config/gameplay";
 import type { PowerUpType } from "@/types/game";
-import { weightedIndex, clamp } from "@/game/utils/math";
+import { weightedIndex, clamp, lerp } from "@/game/utils/math";
 
 /**
  * Owns the recycled segment ring plus obstacle/coin/pickup pools.
@@ -30,8 +30,13 @@ import { weightedIndex, clamp } from "@/game/utils/math";
  * and teleport ahead when fully behind the camera. Nothing ever grows.
  *
  * V2 additions: power-up pickups ride segments, dynamic (storm) coins live on
- * the world root, authored event patterns can be queued into upcoming
- * recycles, and obstacles can be destroyed back into their pools.
+ * the world root, run events can reserve a stretch of upcoming segments
+ * (open road for drone attacks, traffic-jam chains), and obstacles can be
+ * destroyed back into their pools.
+ *
+ * Pacing: obstacle rows keep a minimum *time* gap at the speed the runner
+ * will have when they arrive, and a long run of rows is always followed by
+ * a breather (coins only).
  */
 export class WorldManager {
   readonly root = new THREE.Group();
@@ -49,8 +54,14 @@ export class WorldManager {
   /** Storm/event coins parented to the world root with absolute z. */
   private dynamicCoins: Coin[] = [];
 
-  /** Authored patterns (laser grids etc.) consumed one per recycle. */
+  /** Reserved event patterns, consumed one per recycle. */
   private queuedPatterns: PatternDef[] = [];
+  /** Queued patterns still ahead of the latest stretch's first one (-1 = none pending). */
+  private stretchStartsIn = -1;
+  /** First segment of the latest reserved stretch, once it has spawned. */
+  private stretchHead: TrackSegment | null = null;
+  /** Obstacle rows spawned since the last breather segment. */
+  private rowStreak = 0;
 
   private lastPatternId: string | null = null;
   private time = 0;
@@ -59,6 +70,8 @@ export class WorldManager {
   private rocketCooldown = 0;
   private billboardSetIndex = 0;
   private distance = 0;
+  /** Latest world speed (sizes reserved open-road stretches). */
+  private speed: number = SPEED.start;
 
   constructor(
     scene: THREE.Scene,
@@ -84,11 +97,51 @@ export class WorldManager {
     this.billboardSetIndex = index;
   }
 
-  /** Queue N authored laser-chain patterns for upcoming recycled segments. */
-  queueAuthoredPatterns(count: number): void {
+  /**
+   * Reserves the next recycled segments for a run event: each one receives
+   * the next of `patterns` instead of a random pick (a traffic-jam chain, or
+   * coins-only open road for a drone attack). Track the stretch with
+   * `reservedStretchZ`; it spawns ~one recycle later, far beyond the fog.
+   */
+  reserveStretch(patterns: readonly PatternDef[]): void {
+    this.stretchHead = null;
+    this.stretchStartsIn = this.queuedPatterns.length;
+    for (const pattern of patterns) this.queuedPatterns.push(pattern);
+  }
+
+  /**
+   * Reserves coins-only open road lasting about `seconds` at the speed the
+   * runner will have when it arrives (it spawns at the far end of the ring).
+   */
+  reserveOpenRoad(seconds: number): void {
+    const ahead = WORLD.segmentLength * (WORLD.segmentCount - 1);
+    const count = Math.max(1, Math.ceil((arrivalSpeed(this.speed, ahead) * seconds) / WORLD.segmentLength));
+    const patterns: PatternDef[] = [];
+    let last = this.lastPatternId;
     for (let i = 0; i < count; i++) {
-      this.queuedPatterns.push(LASER_PATTERNS[i % LASER_PATTERNS.length]);
+      const pattern = pickBreather(last);
+      patterns.push(pattern);
+      last = pattern.id;
     }
+    this.reserveStretch(patterns);
+  }
+
+  /**
+   * World z of the near edge of the latest reserved stretch (negative =
+   * still ahead), or null while it hasn't spawned yet / after release.
+   */
+  get reservedStretchZ(): number | null {
+    return this.stretchHead ? this.stretchHead.originZ : null;
+  }
+
+  /**
+   * Forget the reserved stretch (the event is over or gave up); reserved
+   * patterns that haven't spawned yet are dropped too.
+   */
+  releaseStretch(): void {
+    this.stretchHead = null;
+    this.stretchStartsIn = -1;
+    this.queuedPatterns.length = 0;
   }
 
   /** Spawn a floating coin line directly onto the world root (Coin Storm). */
@@ -142,7 +195,9 @@ export class WorldManager {
       this.coinPool.push(coin);
     }
     this.dynamicCoins.length = 0;
-    this.queuedPatterns.length = 0;
+    this.releaseStretch();
+    this.rowStreak = 0;
+    this.lastPatternId = null;
     this.pickupCooldown = 0;
     this.keyCooldown = 4;
     this.rocketCooldown = 6;
@@ -173,6 +228,7 @@ export class WorldManager {
     const dz = speed * delta;
     this.time += delta;
     this.distance = distance;
+    this.speed = speed;
     if (this.pickupCooldown > 0) this.pickupCooldown -= delta;
     if (this.keyCooldown > 0) this.keyCooldown -= delta;
     if (this.rocketCooldown > 0) this.rocketCooldown -= delta;
@@ -225,6 +281,8 @@ export class WorldManager {
     // Recycle segments that are fully behind the play area.
     for (const segment of this.segments) {
       if (segment.originZ - WORLD.segmentLength > WORLD.recycleBehindZ) {
+        // A reserved stretch that has fully passed stops being trackable.
+        if (segment === this.stretchHead) this.stretchHead = null;
         segment.originZ = minOrigin - WORLD.segmentLength;
         minOrigin = segment.originZ;
         this.releaseSegmentEntities(segment);
@@ -239,15 +297,25 @@ export class WorldManager {
 
   /**
    * Re-populates a freshly recycled segment using current difficulty.
-   * @param speed current world speed — row gaps scale with it so reaction
-   * time stays fair as the run accelerates.
+   * Reserved event patterns come first; otherwise a long streak of
+   * obstacle rows is always broken by a breather.
+   * @param speed current world speed — row gaps scale with the speed the
+   * runner will have on arrival so reaction time stays fair.
    */
   recycleContent(segment: TrackSegment, tierIndex: number, speed: number): void {
-    const pattern =
-      this.queuedPatterns.shift() ??
-      pickPattern(tierIndex, this.lastPatternId, tierIndex * PATTERN.breatherBonusPerTier);
+    let pattern = this.queuedPatterns.shift();
+    if (pattern) {
+      if (this.stretchStartsIn === 0) this.stretchHead = segment;
+      if (this.stretchStartsIn >= 0) this.stretchStartsIn--;
+    } else if (this.rowStreak >= PATTERN.breatherAfterRows) {
+      pattern = pickBreather(this.lastPatternId);
+    } else {
+      pattern = pickPattern(tierIndex, this.lastPatternId, tierIndex * PATTERN.breatherBonusPerTier);
+    }
     this.lastPatternId = pattern.id;
     this.spawnPattern(segment, pattern, speed);
+    const rows = countRows(segment.obstacles);
+    this.rowStreak = rows > 0 ? this.rowStreak + rows : 0;
   }
 
   // ------------------------------------------------------------- iteration
@@ -467,22 +535,21 @@ export class WorldManager {
 
   private spawnPattern(segment: TrackSegment, pattern: PatternDef | null, speed: number): void {
     if (!pattern) return;
-    const minGap = Math.max(PATTERN.minDistanceGap, speed * PATTERN.minTimeGap);
+    const arrival = arrivalSpeed(speed, -segment.originZ);
+    const minGap = rowGapFor(arrival);
 
     // Work on copies — PATTERNS defs are shared authoring data.
     const obstacles = pattern.obstacles.map((o) => ({ ...o }));
     const coins = pattern.coins.map((c) => ({ ...c }));
 
     // Group obstacles into rows (same-row multi-lane walls share a z).
-    // Authored rows sit ≥16m apart, so a 2m tolerance only merges true rows.
-    const ROW_TOLERANCE = 2;
     // Coins authored up to this far ahead-near of a row (jump arcs span ±6m)
     // travel with that row when it is stretched farther.
     const ROW_COIN_LEAD = 7;
     const sorted = [...obstacles].sort((a, b) => b.z - a.z);
     const rows: { z: number; shift: number }[] = [];
     for (const o of sorted) {
-      const row = rows.find((r) => Math.abs(r.z - o.z) <= ROW_TOLERANCE);
+      const row = rows.find((r) => Math.abs(r.z - o.z) <= ROW_Z_TOLERANCE);
       if (!row) rows.push({ z: o.z, shift: 0 });
     }
     rows.sort((a, b) => b.z - a.z); // nearest row first
@@ -493,7 +560,8 @@ export class WorldManager {
     for (let i = 1; i < rows.length; i++) {
       const prevShifted = rows[i - 1].z + rows[i - 1].shift;
       const curShifted = rows[i].z + rows[i].shift;
-      const deficit = prevShifted - minGap - curShifted;
+      // How far this row intrudes into the gap the previous row needs.
+      const deficit = curShifted - (prevShifted - minGap);
       if (deficit > 0) rows[i].shift -= deficit;
     }
 
@@ -506,7 +574,7 @@ export class WorldManager {
 
     const applyShifts = (): void => {
       for (const o of obstacles) {
-        const row = rows.find((r) => Math.abs(r.z - o.z) <= ROW_TOLERANCE);
+        const row = rows.find((r) => Math.abs(r.z - o.z) <= ROW_Z_TOLERANCE);
         o.z += row ? row.shift : 0;
       }
       for (const c of coins) c.z += rowShiftFor(c.z);
@@ -519,7 +587,7 @@ export class WorldManager {
     // lines are untouched.
     const arcK =
       1 +
-      clamp((speed - SPEED.start) / (SPEED.max - SPEED.start), 0, 1) * PATTERN.arcSpeedBoost;
+      clamp((arrival - SPEED.start) / (SPEED.max - SPEED.start), 0, 1) * PATTERN.arcSpeedBoost;
     if (arcK > 1.01) {
       for (const c of coins) {
         if (!c.arc || c.y === undefined) continue;
@@ -539,40 +607,32 @@ export class WorldManager {
       }
     }
 
-    // Segment budget: never push the tail past maxTailZ. If stretching
-    // overflowed, drop farthest rows (coins stay — free rewards, no threat)
-    // until the pattern fits; the nearest row always fits (heads ≥ -12).
-    let tail = Math.min(...obstacles.map((o) => o.z));
-    while (rows.length > 1 && tail < PATTERN.maxTailZ) {
-      const dropped = rows.pop()!;
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        if (Math.abs(obstacles[i].z - (dropped.z + dropped.shift)) <= ROW_TOLERANCE) {
-          obstacles.splice(i, 1);
-        }
-      }
-      tail = Math.min(...obstacles.map((o) => o.z));
-    }
-
-    // Cross-segment fairness: the new head must sit at least minGap beyond
-    // the farthest obstacle already on the track. Push the whole pattern
-    // farther when the recycled segment lands too close; clamp the push to
-    // the segment budget (intra-pattern gaps already hold regardless).
+    // Cross-segment fairness: the head must sit at least minGap beyond the
+    // farthest obstacle already on the track, so push the whole pattern
+    // (coins included) farther when the recycled segment lands too close.
     if (obstacles.length > 0) {
-      const head = Math.max(...obstacles.map((o) => o.z));
       const farthest = this.farthestObstacleWorldZ();
       if (farthest !== null) {
-        const headWorld = segment.originZ + head;
-        const gap = farthest - headWorld;
-        const deficit = minGap - gap;
+        let head = -Infinity;
+        for (const o of obstacles) head = Math.max(head, o.z);
+        const deficit = minGap - (farthest - (segment.originZ + head));
         if (deficit > 0) {
-          const tailLocal = Math.min(...obstacles.map((o) => o.z));
-          const push = Math.min(deficit, tailLocal - PATTERN.maxTailZ);
-          if (push > 0) {
-            for (const o of obstacles) o.z -= push;
-            for (const c of coins) c.z -= push;
-          }
+          for (const o of obstacles) o.z -= deficit;
+          for (const c of coins) c.z -= deficit;
         }
       }
+    }
+
+    // Segment budget: rows pushed past maxTailZ are dropped (their coins
+    // stay — free rewards, no threat). Every row that remains honors minGap
+    // on both sides, so a pattern may shrink to nothing (a breather) but can
+    // never squeeze the runner.
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      if (obstacles[i].z < PATTERN.maxTailZ) obstacles.splice(i, 1);
+    }
+    // Coins pushed off the far edge would overlap the next segment's rows.
+    for (let i = coins.length - 1; i >= 0; i--) {
+      if (coins[i].z < -WORLD.segmentLength) coins.splice(i, 1);
     }
 
     for (const item of obstacles) {
@@ -735,6 +795,44 @@ export class WorldManager {
 export function laneIndexToX(lane: number): number {
   return -2.5 + lane * 2.5;
 }
+
+/** Distinct obstacle rows (multi-lane walls share a z) in one segment. */
+function countRows(obstacles: readonly Obstacle[]): number {
+  let rows = 0;
+  for (let i = 0; i < obstacles.length; i++) {
+    let seen = false;
+    for (let j = 0; j < i; j++) {
+      if (Math.abs(obstacles[j].localZ - obstacles[i].localZ) <= ROW_Z_TOLERANCE) {
+        seen = true;
+        break;
+      }
+    }
+    if (!seen) rows++;
+  }
+  return rows;
+}
+
+/** Difficulty ramp: world speed gained per meter travelled (below max). */
+const RAMP_PER_METER = (SPEED.max - SPEED.start) / SPEED.rampDistance;
+
+/**
+ * World speed expected when the runner reaches content `ahead` meters away.
+ * Segments are filled ~300–400 m early and the difficulty ramp keeps
+ * accelerating meanwhile; boosted speeds (turbo / JOSH) are kept as-is.
+ */
+function arrivalSpeed(speed: number, ahead: number): number {
+  const ramped = Math.max(speed, SPEED.start) + Math.max(0, ahead) * RAMP_PER_METER;
+  return Math.max(speed, Math.min(SPEED.max, ramped));
+}
+
+/** Minimum distance between consecutive obstacle rows at `speed`. */
+function rowGapFor(speed: number): number {
+  const t = clamp((speed - SPEED.start) / (SPEED.max - SPEED.start), 0, 1);
+  return Math.max(PATTERN.minDistanceGap, speed * lerp(PATTERN.rowTimeStart, PATTERN.rowTimeEnd, t));
+}
+
+/** Obstacles within this z distance form one row (authored rows sit ≥16 m apart). */
+const ROW_Z_TOLERANCE = 2;
 
 /** Ground level the authored jump arcs rise from (see patterns.ts arc()). */
 const ARC_BASE_Y = 0.75;

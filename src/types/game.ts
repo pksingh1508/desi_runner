@@ -176,16 +176,16 @@ export type FeedbackTone = "good" | "combo" | "warn" | "epic" | "meme";
  */
 export type MemeEvent =
   | "start"
-  | "crash"
+  | "slide"
   | "nearMiss"
-  | "coinStreak"
-  | "coinStorm"
+  | "rocket"
+  | "rocketLand"
+  | "danger"
+  | "speedBoost"
+  | "crash"
   | "revive"
   | "newRecord"
-  | "overdrive"
-  | "rocket"
-  | "powerup"
-  | "combo";
+  | "coinStorm";
 
 export interface FeedbackItem {
   id: number;

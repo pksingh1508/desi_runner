@@ -34,6 +34,8 @@ export class Player {
   onLand: PlayerLandCallback | null = null;
   /** Fired once when a rocket flight touches down. */
   onRocketLanded: (() => void) | null = null;
+  /** Fired once when a rocket flight begins its final descent. */
+  onRocketDescend: (() => void) | null = null;
 
   private pivot = new THREE.Group(); // named "SlidePivot" — targeted by keyframe tracks
   private modelHolder = new THREE.Group();
@@ -159,15 +161,22 @@ export class Player {
     return false;
   }
 
-  requestSlide(): void {
-    if (this.dead || this.isFlying) return;
+  /**
+   * Returns true when the request starts a new slide now, or slams the
+   * runner down to slide on landing (false while already sliding / flying).
+   */
+  requestSlide(): boolean {
+    if (this.dead || this.isFlying) return false;
     if (!this.grounded) {
       // Slam down and slide on landing.
       this.verticalVelocity = Math.min(this.verticalVelocity, -PLAYER.fastFallVelocity);
+      const fresh = !this.slideQueuedFromAir;
       this.slideQueuedFromAir = true;
-      return;
+      return fresh;
     }
+    if (this.sliding) return false;
     this.beginSlide();
+    return true;
   }
 
   /** Forward world speed (m/s) — drives cloth wind and rocket sparks. */
@@ -364,6 +373,7 @@ export class Player {
       if (this.rocketTimeLeft <= cfg.descendSeconds) {
         this.rocketPhase = "descend";
         this.descendStartY = y;
+        this.onRocketDescend?.();
       }
     }
     if (this.rocketPhase === "descend") {

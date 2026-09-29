@@ -1,15 +1,18 @@
 # Meme voice clips (optional)
 
-DESI RUN ships **no audio files**. Its built-in meme lines are license-free
-recreations made at runtime:
+DESI RUN ships **no audio files**. Its built-in meme reactions are
+license-free recreations made at runtime:
 
-- **"FAAAH!"** (crash) is synthesized live with formant synthesis
-  (a synthetic glottal pulse shaped into an "f" + open "aaa" vowel).
-- The catchphrases ("Arre bhai bhai bhai!", "Paisa hi paisa hoga!",
-  "Picture abhi baaki hai, mere dost!", "Mogambo khush hua!",
-  "How's the josh?" / "High sir!", "Bahut hard!", "Udd gaya!",
-  "Chalo, bhaago!", "Jugaad!") are spoken by the player's own device
-  through the browser's Web Speech API (Hindi voice when available,
+- **"FAAAH!"** (slides and last-second dodges) is synthesized live with
+  formant synthesis (a synthetic glottal pulse shaped into an "f" + open
+  "aaa" vowel).
+- The catchphrases — "Aur ye main aasmaan ki unchaiyon mein!" (Diwali
+  rocket), "Land kara de!" (rocket coming down), "Jaldi wahan se hato!"
+  (drone attack / traffic jam warning), "Dhoom!" (CHAI BOOST / JOSH),
+  "Moye moye" (crash), "Bhaag, Milkha, bhaag!" (run start), "Tiger abhi
+  zinda hai!" (Life Saver), "Just looking like a wow!" (new record) and
+  "Paisa hi paisa hoga!" (money rain) — are spoken by the player's own
+  device through the browser's Web Speech API (Hindi voice when available,
   otherwise Indian-English / English).
 
 No film audio, songs or recordings are included or streamed.
@@ -28,14 +31,14 @@ allows it), you can make the game play it instead of the built-in version:
 
 ```json
 {
-  "crash": ["faaah.mp3"],
-  "nearMiss": "arre-bhai.ogg",
-  "newRecord": ["record-1.mp3", "record-2.mp3"]
+  "slide": ["faaah.mp3"],
+  "rocket": "aasmaan.ogg",
+  "crash": ["moye-1.mp3", "moye-2.mp3"]
 }
 ```
 
-Moments: `start`, `crash`, `nearMiss`, `coinStreak`, `coinStorm`, `revive`,
-`newRecord`, `overdrive`, `rocket`, `powerup`, `combo`.
+Moments: `start`, `slide`, `nearMiss`, `rocket`, `rocketLand`, `danger`,
+`speedBoost`, `crash`, `revive`, `newRecord`, `coinStorm`.
 
 Clips play on the voice channel, so the **Voice lines** and **Mute**
 settings apply, and the game's cooldowns/chances still decide when a line

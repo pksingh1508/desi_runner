@@ -60,7 +60,8 @@ function arc(lane: number, zCenter: number, peak = 2.7, count = 7, span = 12): P
  *
  * Base rows sit 16–18m apart: at start speed (12m/s) that is ~1.4s of
  * reaction time, and WorldManager stretches rows further apart as speed
- * rises so the *time* gap never collapses at 32m/s. Tails stay ≥ -42
+ * rises (PATTERN.rowTimeStart/End) so the *time* between rows never
+ * collapses below a jump/slide plus reaction. Tails stay ≥ -42
  * (PATTERN.maxTailZ) so authored rows are never dropped at start speed.
  */
 export const PATTERNS: PatternDef[] = [
@@ -242,6 +243,16 @@ export const PATTERNS: PatternDef[] = [
   },
 ];
 
+/** Obstacle-free (coins-only) patterns: breathers and event open road. */
+export const BREATHER_PATTERNS: readonly PatternDef[] = PATTERNS.filter((p) => p.obstacles.length === 0);
+
+/** A breather pattern, avoiding an immediate repeat when possible. */
+export function pickBreather(lastPatternId: string | null): PatternDef {
+  const pool = BREATHER_PATTERNS.filter((p) => p.id !== lastPatternId);
+  const from = pool.length > 0 ? pool : BREATHER_PATTERNS;
+  return from[Math.floor(Math.random() * from.length)];
+}
+
 /** Weighted pick among patterns unlocked for the tier, avoiding immediate repeats.
  * @param emptyBonus added to the weight of obstacle-free (breather) patterns
  * so late runs keep recovery windows as speed rises.
@@ -266,10 +277,11 @@ export function pickPattern(
 }
 
 /**
- * TRAFFIC JAM chains injected by the RunEventSystem (the "laserGrid" event).
- * Never picked by random generation (kept out of PATTERNS) but validated
- * like every other template: each row leaves one open lane (or a jump /
- * slide), and the open lane only ever shifts by one lane between rows.
+ * TRAFFIC JAM chains injected by the RunEventSystem (the "laserGrid" event)
+ * on a reserved stretch of road. Never picked by random generation (kept
+ * out of PATTERNS) but validated like every other template: each row
+ * leaves one open lane (or a jump / slide), and the open lane only ever
+ * shifts by one lane between rows.
  */
 export const LASER_PATTERNS: PatternDef[] = [
   {
@@ -303,5 +315,3 @@ export const LASER_PATTERNS: PatternDef[] = [
   },
 ];
 
-/** Number of traffic-jam patterns queued per event. */
-export const LASER_PATTERN_COUNT = LASER_PATTERNS.length;

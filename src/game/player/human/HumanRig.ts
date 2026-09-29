@@ -78,12 +78,14 @@ export class HumanRig {
     this.tails = built.tails;
     for (const tail of this.tails) this.extras.add(tail.mesh);
 
-    this.animation = new CharacterAnimationController(this.object, library.clipsFor(outfit.body), {
+    const clips = library.clipsFor(outfit.body);
+    const hasSlide = clips.some((clip) => clip.name === HUMAN_CLIPS.slide);
+    this.animation = new CharacterAnimationController(this.object, clips, {
       clipMap: {
         idle: HUMAN_CLIPS.idle,
         run: HUMAN_CLIPS.run,
         jump: HUMAN_CLIPS.jump,
-        slide: HUMAN_CLIPS.slide,
+        slide: hasSlide ? HUMAN_CLIPS.slide : HUMAN_CLIPS.slideFallback,
         death: HUMAN_CLIPS.death,
         dance: HUMAN_CLIPS.dance,
         ride: HUMAN_CLIPS.ride,

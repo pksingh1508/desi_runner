@@ -36,11 +36,12 @@ function estimateSeconds(def: MemeLineDef): number {
  * - One line at a time. Per-event (or per-group) cooldowns and chances, a
  *   global gap between lines, and a short silence after each line keep it
  *   funny rather than spammy.
- * - High-priority lines (crash / revive / new record) interrupt lower ones;
- *   a high line arriving during another high line queues right behind it
- *   (FAAAH! … "Mogambo khush hua!").
+ * - High-priority lines (rocket, danger warnings, crash, revive, record)
+ *   interrupt lower ones; a high line arriving during another high line
+ *   queues right behind it ("Aasmaan ki unchaiyon mein!" … "Land kara de!").
  * - Delivery: user clip → synthesized FAAAH → device TTS → caption only.
- *   Every line fires an instant stinger and a caption, and ducks the music.
+ *   Every line shows a caption, ducks the music and (optionally) fires an
+ *   instant stinger to cover the speech engine's start latency.
  */
 export class MemeVoice {
   onCaption: ((caption: string, sub?: string) => void) | null = null;
@@ -137,7 +138,7 @@ export class MemeVoice {
     this.active = line;
     this.lastStart = clock();
     this.onCaption?.(def.caption, def.sub);
-    this.sfx.stinger(def.stinger);
+    if (def.stinger) this.sfx.stinger(def.stinger);
 
     if (!this.muted) {
       const clip = this.clips.pick(event);

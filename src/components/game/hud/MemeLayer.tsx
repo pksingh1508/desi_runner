@@ -3,7 +3,7 @@ import { cssVars } from "@/components/ui/cn";
 import { uniqueById } from "./FeedbackToasts";
 
 /**
- * Bollywood-meme captions ("FAAAH! 😱", "ARRE BHAI BHAI BHAI!") as comic
+ * Desi meme captions ("FAAAH! 😱", "LAND KARA DE! 🙏") as comic
  * speech bubbles. Lives above the HUD/revive layers so the crash line is
  * readable, and pointer-transparent so swipes still reach the game.
  */

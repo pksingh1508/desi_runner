@@ -2,12 +2,13 @@ import * as THREE from "three";
 import type { ResourceBag } from "@/game/utils/dispose";
 import type { ObstacleCollider } from "@/game/entities/Obstacle";
 import { LANES } from "@/game/config/gameplay";
-import { LASER_PATTERN_COUNT } from "@/game/world/patterns";
+import { LASER_PATTERNS } from "@/game/world/patterns";
 import {
   COIN_STORM,
   DRONE_ATTACK,
   RUN_EVENTS_CFG,
   RUN_EVENT_DEFS,
+  type RunEventDef,
   type RunEventKind,
 } from "@/game/config/events";
 import { ShaadiDroneFactory, type DroneVisual } from "@/game/entities/ShaadiDrone";
@@ -32,16 +33,21 @@ export interface Drone {
  *  - PAISA BAARISH  (coinStorm)  — coin lines + fluttering note confetti
  *  - SHAADI DRONE ATTACK (droneAttack) — wedding camera drones lock onto a
  *    lane (red chevron telegraph + fast REC blink), then charge; one lane
- *    always stays open
- *  - TRAFFIC JAM (laserGrid)     — validated authored vehicle chains are
- *    queued into upcoming segments
+ *    always stays open, on a reserved stretch of obstacle-free road so the
+ *    open lane is never blocked by a regular obstacle
+ *  - TRAFFIC JAM (laserGrid)     — validated authored vehicle chains on a
+ *    reserved stretch; the warning goes up as the jam comes into view
+ *
+ * Reserved stretches spawn at the far end of the segment ring, so those
+ * events wait ("approaching") until their road is just ahead.
  */
 export class RunEventSystem {
   /** Drones currently on the field; Game includes their colliders in hit tests. */
   readonly drones: Drone[] = [];
 
   private activeKind: RunEventKind | null = null;
-  private state: "idle" | "announcing" | "active" | "cooldown" = "cooldown";
+  private activeDef: RunEventDef | null = null;
+  private state: "idle" | "approaching" | "announcing" | "active" | "cooldown" = "cooldown";
   private stateTimer = RUN_EVENTS_CFG.maxInterval * 0.6;
   private lastKind: RunEventKind | null = null;
   private stormTimer = 0;
@@ -76,9 +82,19 @@ export class RunEventSystem {
       case "cooldown":
         this.stateTimer -= delta;
         if (this.stateTimer <= 0 && distance >= RUN_EVENTS_CFG.minDistance) {
-          this.beginAnnounce();
+          this.beginEvent();
         }
         break;
+      case "approaching": {
+        this.stateTimer -= delta;
+        const z = this.world.reservedStretchZ;
+        if (z !== null && z > -worldSpeed * RUN_EVENTS_CFG.stretchLeadSeconds) {
+          this.beginAnnounce();
+        } else if (this.stateTimer <= 0) {
+          this.finish();
+        }
+        break;
+      }
       case "announcing":
         this.stateTimer -= delta;
         if (this.stateTimer <= 0) this.beginActive(difficultyTier);
@@ -96,6 +112,7 @@ export class RunEventSystem {
     this.drones.length = 0;
     this.rain.clear();
     this.activeKind = null;
+    this.activeDef = null;
     this.state = "cooldown";
     this.stateTimer = randRange(RUN_EVENTS_CFG.minInterval, RUN_EVENTS_CFG.maxInterval) * 0.7;
     this.stormTimer = 0;
@@ -109,13 +126,36 @@ export class RunEventSystem {
     return this.activeKind === "coinStorm" && (this.state === "announcing" || this.state === "active");
   }
 
-  private beginAnnounce(): void {
+  /** Picks the next event; road events first reserve their stretch. */
+  private beginEvent(): void {
     const weights = this.weightScratch;
     weights.length = 0;
     for (const def of RUN_EVENT_DEFS) weights.push(def.kind === this.lastKind ? 0 : def.weight);
     const def = RUN_EVENT_DEFS[weightedIndex(weights)];
     this.activeKind = def.kind;
+    this.activeDef = def;
     this.lastKind = def.kind;
+    switch (def.kind) {
+      case "droneAttack":
+        this.world.reserveOpenRoad(DRONE_ATTACK.openRoadSeconds);
+        break;
+      case "laserGrid":
+        this.world.reserveStretch(LASER_PATTERNS);
+        break;
+      default:
+        this.beginAnnounce();
+        return;
+    }
+    this.state = "approaching";
+    this.stateTimer = RUN_EVENTS_CFG.approachTimeout;
+  }
+
+  private beginAnnounce(): void {
+    const def = this.activeDef;
+    if (!def) {
+      this.finish();
+      return;
+    }
     this.state = "announcing";
     this.stateTimer = RUN_EVENTS_CFG.announceDuration;
     this.feedback.showBanner(def.label, RUN_EVENTS_CFG.announceDuration + COIN_STORM.duration * 0.4);
@@ -126,10 +166,12 @@ export class RunEventSystem {
         break;
       case "droneAttack":
         this.audio.playWarn();
+        this.audio.playMeme("danger");
         break;
       case "laserGrid":
         this.audio.playWarn();
         this.audio.playHonk();
+        this.audio.playMeme("danger");
         break;
     }
   }
@@ -148,7 +190,7 @@ export class RunEventSystem {
         this.spawnWave(tier);
         break;
       case "laserGrid":
-        this.world.queueAuthoredPatterns(LASER_PATTERN_COUNT);
+        // The jam is already on the road (reserved stretch) — just clear the flag.
         this.stateTimer = 0.5;
         break;
       default:
@@ -193,7 +235,9 @@ export class RunEventSystem {
   }
 
   private finish(): void {
+    if (this.activeKind === "droneAttack" || this.activeKind === "laserGrid") this.world.releaseStretch();
     this.activeKind = null;
+    this.activeDef = null;
     this.state = "cooldown";
     this.stateTimer = randRange(RUN_EVENTS_CFG.minInterval, RUN_EVENTS_CFG.maxInterval);
   }
