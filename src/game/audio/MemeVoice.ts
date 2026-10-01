@@ -1,9 +1,9 @@
 import type { MemeEvent } from "@/types/game";
-import { MEME_LINES, MEME_PRIORITY, MEME_TIMING, type MemeLineDef } from "@/game/config/memes";
+import { MEME_LINES, MEME_PRIORITY, MEME_TIMING, type MemeLineDef } from "../config/memes";
 import type { AudioGraph } from "./AudioGraph";
 import type { DesiSfx } from "./DesiSfx";
 import { FAAAH_PRESET, speakFormants } from "./FormantVoice";
-import type { MemeClips } from "./MemeClips";
+import type { MemeClip, MemeClips } from "./MemeClips";
 import type { SpeechVoice } from "./SpeechVoice";
 import { SILENT, randomBetween, stopSafely } from "./synth";
 
@@ -48,6 +48,7 @@ export class MemeVoice {
 
   private enabled = true;
   private muted = false;
+  private frozen = false;
   private readonly cooldowns = new Map<string, number>();
   private active: ActiveLine | null = null;
   private queued: { event: MemeEvent; expires: number } | null = null;
@@ -68,7 +69,7 @@ export class MemeVoice {
   /** Returns true when the line was accepted (playing now or queued next). */
   play(event: MemeEvent): boolean {
     const def = MEME_LINES[event];
-    if (!def || !this.enabled) return false;
+    if (!def || !this.enabled || this.frozen) return false;
     const now = clock();
     const group = def.group ?? event;
     if ((this.cooldowns.get(group) ?? -Infinity) > now) return false;
@@ -104,20 +105,33 @@ export class MemeVoice {
   setEnabled(enabled: boolean): void {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
-    if (!enabled) {
-      this.queued = null;
-      this.halt(false);
-    }
+    if (!enabled) this.stopLines();
   }
 
   setMuted(muted: boolean): void {
     if (this.muted === muted) return;
     this.muted = muted;
-    // Device TTS bypasses the Web Audio master gain — stop it explicitly.
-    if (muted && this.active?.kind === "speech") this.halt(false);
+    // Stop the line as well as muting the bus, so unmute cannot revive it.
+    if (muted) this.stopLines();
+  }
+
+  freeze(frozen: boolean): void {
+    this.frozen = frozen;
+    if (frozen) this.stopLines();
+  }
+
+  reset(): void {
+    this.stopLines();
+    this.cooldowns.clear();
+    this.lastStart = -Infinity;
+    this.lastEnd = -Infinity;
   }
 
   dispose(): void {
+    this.reset();
+  }
+
+  private stopLines(): void {
     for (const id of this.timers) window.clearTimeout(id);
     this.timers.clear();
     this.queued = null;
@@ -137,15 +151,15 @@ export class MemeVoice {
     const line: ActiveLine = { token: ++this.token, priority: def.priority, kind: "silent", stop: null };
     this.active = line;
     this.lastStart = clock();
-    this.onCaption?.(def.caption, def.sub);
-    if (def.stinger) this.sfx.stinger(def.stinger);
+    const clip = this.clips.pick(event);
+    this.onCaption?.(clip?.caption ?? def.caption, clip?.caption ? clip.sub : def.sub);
 
     if (!this.muted) {
-      const clip = this.clips.pick(event);
       if (clip) {
         this.playClip(line, clip);
         return;
       }
+      if (def.stinger) this.sfx.stinger(def.stinger);
       if (def.delivery === "faaah") {
         this.playFaaah(line);
         return;
@@ -186,18 +200,18 @@ export class MemeVoice {
     this.after(token, voice.duration + 1);
   }
 
-  private playClip(line: ActiveLine, buffer: AudioBuffer): void {
+  private playClip(line: ActiveLine, clip: MemeClip): void {
     const ctx = this.g.ctx;
     const t = ctx.currentTime;
     const token = line.token;
     const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = clip.buffer;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(SILENT, t);
-    gain.gain.exponentialRampToValueAtTime(1, t + 0.012);
-    const duration = buffer.duration;
+    gain.gain.exponentialRampToValueAtTime(clip.gain, t + 0.012);
+    const duration = clip.buffer.duration;
     if (duration > 0.06) {
-      gain.gain.setValueAtTime(1, t + duration - 0.025);
+      gain.gain.setValueAtTime(clip.gain, t + duration - 0.025);
       gain.gain.exponentialRampToValueAtTime(SILENT, t + duration);
     }
     source.connect(gain);

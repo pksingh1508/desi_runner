@@ -36,28 +36,33 @@ export function SettingsBar({
 }) {
   const chips = only ? CHIPS.filter((chip) => only.includes(chip.key)) : CHIPS;
   return (
-    <div className={cn("settings", className)} role="group" aria-label="Settings">
-      {chips.map((chip) => (
-        <button
-          key={chip.key}
-          type="button"
-          className="schip"
-          aria-pressed={settings[chip.key]}
-          title={chip.title}
-          onClick={() => actions[chip.action]()}
-        >
-          <Icon name={chip.icon} />
-          <span className="schip__label">{chip.label}</span>
-          <span className="schip__led" aria-hidden="true" />
-        </button>
-      ))}
-      <IconButton
-        className="settings__mute"
-        label={settings.muted ? "Unmute all sound" : "Mute all sound"}
-        icon={<Icon name={settings.muted ? "mute" : "volume"} />}
-        data-muted={settings.muted}
-        onClick={actions.toggleMute}
-      />
-    </div>
+    <>
+      <div className={cn("settings", className)} role="group" aria-label="Settings">
+        {chips.map((chip) => (
+          <button
+            key={chip.key}
+            type="button"
+            className="schip"
+            aria-pressed={settings[chip.key]}
+            title={chip.title}
+            onClick={() => actions[chip.action]()}
+          >
+            <Icon name={chip.icon} />
+            <span className="schip__label">{chip.label}</span>
+            <span className="schip__led" aria-hidden="true" />
+          </button>
+        ))}
+        <IconButton
+          className="settings__mute"
+          label={settings.muted ? "Unmute all sound" : "Mute all sound"}
+          icon={<Icon name={settings.muted ? "mute" : "volume"} />}
+          data-muted={settings.muted}
+          onClick={actions.toggleMute}
+        />
+      </div>
+      <a className="audio-credits" href="/sounds/credits.html" target="_blank" rel="noreferrer">
+        Audio credits
+      </a>
+    </>
   );
 }

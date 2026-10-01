@@ -1,1 +1,6 @@
-{}
+{
+  "slide": { "file": "bounce.mp3", "caption": "WHOOP! 😅", "sub": "neeche se nikal gaye!", "gain": 0.5 },
+  "nearMiss": { "file": "bounce.mp3", "caption": "BAAL-BAAL BACHE! 😅", "sub": "that was close!", "gain": 0.5 },
+  "crash": { "file": "fail.mp3", "caption": "AREY YAAR! 😭", "sub": "one more try?", "gain": 0.65 },
+  "newRecord": { "file": "fanfare.mp3", "caption": "WAH! NEW RECORD! 🤩", "gain": 0.65 }
+}

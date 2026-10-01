@@ -7,8 +7,8 @@ import type { MemeEvent } from "@/types/game";
  * "Moye moye" on a crash. Every built-in line is a license-free recreation:
  * catchphrases are spoken by the player's own device through the Web Speech
  * API, and the "FAAAH!" shout is synthesized live with formant synthesis.
- * No audio clips ship with the game; players may add clips they own via
- * public/sounds/memes/manifest.json (see its README).
+ * Local licensed MP3 reactions take precedence for the events in
+ * public/sounds/memes/manifest.json (see its README and ASSETS.md).
  */
 
 /** Instant synthesized hit fired with every line (TTS has start latency). */
@@ -215,12 +215,14 @@ export const MEME_TIMING = {
   faaahTimeSpread: 0.08,
 } as const;
 
-/** Optional user clips (see public/sounds/memes/README.md). */
+/** Local clips and optional user replacements (see their README). */
 export const MEME_CLIPS = {
   manifestUrl: "/sounds/memes/manifest.json",
   baseUrl: "/sounds/memes/",
   maxClipsPerEvent: 4,
-  maxClipBytes: 3 * 1024 * 1024,
+  defaultGain: 0.8,
+  maxCaptionLength: 80,
+  maxSubLength: 100,
   /** Plain file names with an audio extension — no folders, no URLs. */
   fileNamePattern: /^[\w\- ().]+\.(mp3|ogg|oga|wav|m4a|aac|webm|opus|flac)$/i,
 } as const;

@@ -1,5 +1,7 @@
 import type { MemeEvent } from "@/types/game";
 import { buildAudioGraph, type AudioGraph } from "@/game/audio/AudioGraph";
+import { AudioClipLibrary } from "@/game/audio/AudioClipLibrary";
+import { SampledSfx } from "@/game/audio/SampledSfx";
 import { DesiMusic, type BeatTiming } from "@/game/audio/DesiMusic";
 import { DesiSfx } from "@/game/audio/DesiSfx";
 import { MemeClips } from "@/game/audio/MemeClips";
@@ -21,11 +23,10 @@ const WATCHDOG_MS = 250;
 const THRUST_SAFETY_MS = 12000;
 
 /**
- * Desi soundtrack facade. Everything is synthesized at runtime — dhol /
- * tabla grooves, shehnai / bansuri leads, street SFX and the FAAAH shout —
- * and meme catchphrases are spoken by the player's own device (Web Speech),
- * so the game ships zero third-party audio. Optional user clips can be
- * dropped into public/sounds/memes (see README there).
+ * Desi soundtrack facade. Local licensed MP3s provide movement, pickup,
+ * reward and comic reaction cues. The beat-driven music, street ambience
+ * and fallback effects are synthesized; remaining catchphrases use device
+ * speech. Every audio file is served locally from public/sounds.
  *
  * The AudioContext is created lazily in unlock() (first user gesture);
  * nothing here touches browser APIs during SSR. Every method is a safe
@@ -35,10 +36,14 @@ export class AudioSystem {
   private ctx: AudioContext | null = null;
   private graph: AudioGraph | null = null;
   private sfx: DesiSfx | null = null;
+  private samples: SampledSfx | null = null;
   private music: DesiMusic | null = null;
   private memes: MemeVoice | null = null;
   private readonly speech = new SpeechVoice();
-  private readonly clips = new MemeClips();
+  private readonly clipLibrary = new AudioClipLibrary();
+  private readonly clips = new MemeClips(this.clipLibrary);
+  private disposed = false;
+  private paused = false;
 
   private muted = false;
   private musicEnabled = true;
@@ -55,7 +60,7 @@ export class AudioSystem {
   onMemeCaption: ((caption: string, sub?: string) => void) | null = null;
 
   unlock(): void {
-    if (typeof window === "undefined") return;
+    if (this.disposed || typeof window === "undefined") return;
     if (this.ctx) {
       if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => undefined);
       return;
@@ -78,6 +83,7 @@ export class AudioSystem {
     const graph = buildAudioGraph(ctx);
     this.graph = graph;
     this.sfx = new DesiSfx(graph);
+    this.samples = new SampledSfx(graph, this.clipLibrary);
     this.music = new DesiMusic(graph);
     this.music.setTheme(this.musicTheme);
     this.speech.init();
@@ -105,11 +111,11 @@ export class AudioSystem {
   // ------------------------------------------------------------------- SFX
 
   playCoin(): void {
-    this.sfx?.coin();
+    if (!this.samples?.play("coin")) this.sfx?.coin();
   }
 
   playJump(): void {
-    this.sfx?.jump();
+    if (!this.samples?.play("jump")) this.sfx?.jump();
   }
 
   playLand(): void {
@@ -117,7 +123,7 @@ export class AudioSystem {
   }
 
   playSlide(): void {
-    this.sfx?.slide();
+    if (!this.samples?.play("slide")) this.sfx?.slide();
   }
 
   playCrash(): void {
@@ -137,7 +143,7 @@ export class AudioSystem {
 
   /** Rising bell sparkle for power-up pickup. */
   playPowerup(): void {
-    this.sfx?.powerup();
+    if (!this.samples?.play("powerup")) this.sfx?.powerup();
   }
 
   /** Glassy shatter + thump for the nimbu-mirchi shield breaking. */
@@ -147,12 +153,12 @@ export class AudioSystem {
 
   /** Stereo whoosh for near miss. */
   playNearMiss(): void {
-    this.sfx?.nearMiss();
+    if (!this.samples?.play("nearMiss")) this.sfx?.nearMiss();
   }
 
   /** Bright bell tick for perfect actions. */
   playPerfect(): void {
-    this.sfx?.perfect();
+    if (!this.samples?.play("perfect")) this.sfx?.perfect();
   }
 
   /** Combo milestone: bells rise with the combo tier. */
@@ -176,15 +182,15 @@ export class AudioSystem {
   }
 
   playLevelUp(): void {
-    this.sfx?.levelUp();
+    if (!this.samples?.play("levelUp")) this.sfx?.levelUp();
   }
 
   playMissionComplete(): void {
-    this.sfx?.missionComplete();
+    if (!this.samples?.play("missionComplete")) this.sfx?.missionComplete();
   }
 
   playUnlock(): void {
-    this.sfx?.unlock();
+    if (!this.samples?.play("unlock")) this.sfx?.unlock();
   }
 
   playBiomeShift(): void {
@@ -301,14 +307,28 @@ export class AudioSystem {
     this.music?.stop();
   }
 
+  /** Stop current reactions when leaving/restarting a run. */
+  resetReactions(): void {
+    this.memes?.reset();
+    this.samples?.stopAll();
+  }
+
+  /** Game-state pause is immediate; the watchdog also handles hidden tabs. */
+  setPaused(paused: boolean): void {
+    this.paused = paused;
+    this.lastUpdateAt = performance.now();
+    this.setFrozen(paused);
+  }
+
   /** Called every frame; schedules the groove slightly ahead of playback. */
   update(speedRatio: number): void {
     this.lastUpdateAt = performance.now();
-    if (this.frozen) this.setFrozen(false);
+    if (this.frozen && !this.paused) this.setFrozen(false);
     this.music?.update(speedRatio);
   }
 
   dispose(): void {
+    this.disposed = true;
     if (this.watchdog !== null) {
       window.clearInterval(this.watchdog);
       this.watchdog = null;
@@ -317,6 +337,9 @@ export class AudioSystem {
     this.memes = null;
     this.speech.dispose();
     this.clips.dispose();
+    this.samples?.dispose();
+    this.samples = null;
+    this.clipLibrary.dispose();
     this.music?.dispose();
     this.music = null;
     this.sfx?.dispose();
@@ -346,6 +369,7 @@ export class AudioSystem {
     set(graph.musicBus.gain, this.musicEnabled ? MUSIC_MIX.busGain : 0);
     set(graph.voiceBus.gain, this.voiceEnabled ? VOICE_LEVEL : 0);
     this.sfx?.setEnabled(this.sfxEnabled && !this.muted);
+    this.samples?.setEnabled(this.sfxEnabled && !this.muted);
     this.music?.setAudible(this.musicEnabled && !this.muted);
     this.memes?.setEnabled(this.voiceEnabled);
     this.memes?.setMuted(this.muted);
@@ -369,7 +393,7 @@ export class AudioSystem {
   private checkFrozen = (): void => {
     const now = performance.now();
     if (this.thrustWanted && now - this.thrustAssertedAt > THRUST_SAFETY_MS) this.setRocketThrust(false);
-    const frozen = now - this.lastUpdateAt > FREEZE_AFTER_MS;
+    const frozen = this.paused || now - this.lastUpdateAt > FREEZE_AFTER_MS;
     if (frozen !== this.frozen) this.setFrozen(frozen);
   };
 
@@ -377,5 +401,7 @@ export class AudioSystem {
     this.frozen = frozen;
     this.music?.freeze(frozen);
     this.sfx?.freezeThrust(frozen);
+    this.memes?.freeze(frozen);
+    if (frozen) this.samples?.stopAll();
   }
 }

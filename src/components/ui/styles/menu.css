@@ -217,6 +217,21 @@
     --s: 2.3rem;
   }
 
+  .audio-credits {
+    display: block;
+    width: fit-content;
+    margin-top: 0.45rem;
+    font-size: 0.7rem;
+    color: var(--text-3);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .audio-credits:hover,
+  .audio-credits:focus-visible {
+    color: var(--cream);
+  }
+
   /* ------------------------------------------------------------ shared */
   .tab-stack {
     display: flex;

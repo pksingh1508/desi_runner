@@ -19,7 +19,7 @@ no React Three Fiber, no game engine.
 | **Desi power-ups** | CHUMBAK magnet (coins from every lane home in on you), NIMBU-MIRCHI shield (wards off one crash), DOUBLE DHAMAKA ×2, CHAI BOOST turbo, and the **DIWALI ROCKET** — ride a festival firecracker (launch → cruise → smooth landing on a cleared street); flights last 5 s, +1 s for every further rocket in the same run (up to 10 s). |
 | **JOSH** | The overdrive meter: fill it, then smash through at full speed — "DHOOM!" |
 | **TAAL** | Jump on the dhol beat for a streak bonus; the soundtrack is part of the game. |
-| **Meme reactions** | Short viral desi memes tied to what the runner does: "FAAAH!" on slides and last-second dodges, "Aasmaan ki unchaiyon mein!" on the Diwali rocket and "Land kara de!" as it comes down, "Jaldi wahan se hato!" before drone attacks / traffic jams, "DHOOM!" for CHAI BOOST / JOSH, "Moye moye" on a crash — plus "Bhaag Milkha bhaag!", "Tiger abhi zinda hai!", "Just looking like a wow!" and "Paisa hi paisa!" — with comic caption bubbles. License-free: formant synthesis + the device's own speech voice (see `public/sounds/memes/README.md`). |
+| **Meme reactions** | Local bounce, comic fail and fanfare MP3s accompany slides, close dodges, crashes and records, with matching captions. Remaining desi catchphrases use device speech. Clips respect voice controls, cooldowns and music ducking; see `public/sounds/memes/README.md`. |
 | **Desi soundtrack** | Procedural dhol/tabla grooves, tanpura drone and shehnai/bansuri leads improvising in a raag flavour per biome; tempo rises with speed. Auto-rickshaw honks, cow moos and cycle bells announce traffic. |
 | **Street moments** | Near-miss a cow: "GAU MATA KI JAI!" · squeeze past a truck: "HORN OK PLEASE!" · events: PAISA BAARISH (money rain), SHAADI DRONE ATTACK (wedding camera drones), TRAFFIC JAM. |
 | **Meta** | Combos, daily missions, XP to level 50, achievements, Life-Saver keys, GEAR with live 3D preview of every runner (locked ones too). |
@@ -30,7 +30,7 @@ no React Three Fiber, no game engine.
 - Three.js `WebGLRenderer`, `GLTFLoader`, `AnimationMixer` / `AnimationAction`,
   `SkeletonUtils`, `EffectComposer` (MSAA HDR + bloom + output pass)
 - Tailwind CSS v4 + CSS keyframes for all UI motion
-- Web Audio (music, SFX, formant vocals) + Web Speech API (meme lines)
+- Web Audio (local MP3 effects, procedural music, SFX, formant vocals) + Web Speech API (meme lines)
 
 ## Getting Started
 
@@ -46,10 +46,11 @@ npm run build
 npm start
 ```
 
-Type checking:
+Type checking and audio regression tests:
 
 ```bash
 npx tsc --noEmit
+npm run test:audio
 ```
 
 ## Controls
@@ -97,6 +98,7 @@ src/
     │   ├── buildings.ts       #   street styles per biome
     │   ├── street.ts, ambient.ts
     │   ├── memes.ts, music.ts #   meme lines, raag themes
+    │   ├── audioSamples.ts   #   local MP3 mappings, mix and voice limits
     │   └── missions / achievements / progression / events
     ├── core/                  # Renderer, GameScene, CameraRig (showcase + chase),
     │                          # PostFX (bloom), AssetManager, SaveService
@@ -117,7 +119,7 @@ src/
     │                          # Pickup (+ pickups/), Key, Rocket, ShaadiDrone,
     │                          # PaisaRain
     ├── audio/                 # DesiMusic, DesiSfx, MemeVoice, FormantVoice,
-    │                          # SpeechVoice, MemeClips, instruments
+    │                          # SpeechVoice, MemeClips, AudioClipLibrary, SampledSfx, instruments
     └── systems/               # Input, Collision, Score, Difficulty, PowerUp,
                                # Combo, Skill, Overdrive (JOSH), Feedback,
                                # RunEvent, Mission, Achievement, Progression,
@@ -159,7 +161,10 @@ accessories build the look.
 Add an entry to `MEME_LINES` in `config/memes.ts` (Hindi + romanized text,
 caption, cooldown, chance, priority, optional stinger) and trigger the event
 with `audio.playMeme(event)` from `Game.ts`. Keep them short and tied to a
-runner action — one word or one viral line.
+runner action. For recorded cues, add a licensed local file and map it in
+`public/sounds/memes/manifest.json` with its caption and gain. See
+[the clip guide](public/sounds/memes/README.md). Movement and reward MP3
+mappings, playback levels and concurrency limits live in `config/audioSamples.ts`.
 
 ### Add a biome
 
@@ -204,6 +209,9 @@ stay unlocked in GEAR).
 ## Asset Information
 
 See [ASSETS.md](./ASSETS.md). The realistic runners and their animations are
-CC0 (Quaternius); everything else — streets, obstacles, pickups, outfits,
-accessories, music, SFX and meme voices — is generated in code.
+CC0 (Quaternius). Seven local MP3s provide movement, pickup, reward and comic
+reaction sounds (six CC0, one CC BY 4.0), with public attribution available
+from the menu's Audio credits link. Streets, obstacles, pickups, outfits,
+accessories, music and remaining effects are generated in code; remaining
+catchphrases use device speech.
 `scripts/build-desi-assets.mjs` documents how the CC0 packs were optimized.

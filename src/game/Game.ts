@@ -377,6 +377,7 @@ export class Game {
 
   startRun(): void {
     this.audio.unlock();
+    this.audio.resetReactions();
     this.audio.playClick();
     // A GEAR preview may be showing — always run as the equipped runner.
     this.wardrobe.applyEquipped();
@@ -445,6 +446,7 @@ export class Game {
   /** From pause / game over / revive back to the main menu (fresh ambient scene). */
   returnToMenu(): void {
     this.audio.stopMusic();
+    this.audio.resetReactions();
     this.audio.playClick();
     this.score.reset();
     this.difficulty.reset();
@@ -623,6 +625,7 @@ export class Game {
   // ------------------------------------------------------------------- loop
 
   private setState(state: GameState): void {
+    this.audio.setPaused(state === "paused");
     this.store.setState(state);
   }
 
@@ -967,6 +970,8 @@ export class Game {
     this.playerFX.update(delta);
     this.syncLights();
     this.cameraRig!.updatePlaying(delta, this.player, 0, false);
+    // The revive prompt is active gameplay UI: let the crash reaction finish.
+    this.audio.update(0);
     if (this.reviveCountdown <= 0) {
       this.skipRevive();
     }

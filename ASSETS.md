@@ -1,10 +1,10 @@
 # Third-Party Assets
 
-DESI RUN ships very few third-party assets: the streets, buildings, sky,
-obstacles, pickups, particles, cloth, outfits, UI ornaments and ALL audio
-(music, SFX and meme voice lines) are generated procedurally at runtime.
-The external assets below are all **CC0 1.0 (public domain)**, listed with
-full provenance.
+DESI RUN uses local character assets and seven licensed MP3 sound effects.
+Streets, buildings, sky, obstacles, pickups, particles, cloth, outfits and
+UI ornaments are generated at runtime. The desi music and remaining effects
+are synthesized, and some catchphrases use the device speech engine.
+External assets and their individual licenses are documented below.
 
 ---
 
@@ -93,13 +93,83 @@ procedural rigs in `src/game/player/ClassicRigs.ts`.
 
 ---
 
-## Audio & meme voice lines
+## 4. Downloaded sound effects and comic reactions
 
-No audio files are shipped. Music and SFX are synthesized with Web Audio.
-The desi meme reactions are license-free recreations: a synthesized vocal
-effect ("FAAAH!") plus short catchphrases ("Aasmaan ki unchaiyon mein!",
-"Land kara de!", "Jaldi wahan se hato!", "Moye moye"…) spoken by the
-player's own device via the Web Speech API. No film/meme audio clips are
-included — see
-`public/sounds/memes/README.md` for how to plug in clips you have the rights
-to use.
+Downloaded through the Brave browser from SoundboardShop on **2026-10-01**.
+Licenses were verified on each original creator's Freesound page linked below;
+a free download listing alone was not treated as a reuse license. The shipped
+files are SoundboardShop's MP3 renditions, renamed but otherwise unmodified.
+Gain envelopes and the playback changes listed below happen only at runtime.
+
+### Coin Jump
+
+- **Name:** Coin Jump
+- **Creator:** Jerimee (Jerimee Richir)
+- **Source:** [Original Freesound upload](https://freesound.org/people/Jerimee/sounds/535890/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/coin-jump)
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (shown on the original upload)
+- **Local file:** `public/sounds/sfx/coin.mp3`
+- **Modifications / use:** Coin pickups; gain adjusted during playback.
+
+### Sound Effects 01 03 2015 - 4 Fast Slide 1.wav
+
+- **Name:** Sound Effects 01 03 2015 - 4 Fast Slide 1.wav
+- **Creator:** Bas Lamerichs (B_Lamerichs)
+- **Source:** [Original Freesound upload](https://freesound.org/people/B_Lamerichs/sounds/265393/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/sound-effects-01-03-2015-4-fast-slide-1wav)
+- **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (shown on the original upload)
+- **Local file:** `public/sounds/sfx/slide.mp3`
+- **Modifications / use:** Slide; first 0.5 seconds played at 1.2× speed with gain adjustment and fades.
+
+### Swing Woosh
+
+- **Name:** Swing Woosh
+- **Creator:** Jofae
+- **Source:** [Original Freesound upload](https://freesound.org/people/Jofae/sounds/389590/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/swing-woosh)
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (shown on the original upload)
+- **Local file:** `public/sounds/sfx/whoosh.mp3`
+- **Modifications / use:** Near misses; gain adjusted during playback.
+
+### pling sound effect ui interface ding ting sound.wav
+
+- **Name:** pling sound effect ui interface ding ting sound.wav
+- **Creator:** Leonardmedia.nl
+- **Source:** [Original Freesound upload](https://freesound.org/people/Leonardmedia.nl/sounds/627794/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/pling-sound-effect-ui-interface-ding-ting-soundwav)
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (shown on the original upload)
+- **Local file:** `public/sounds/sfx/reward.mp3`
+- **Modifications / use:** Power-ups, perfect actions, missions and unlocks; playback speed/gain vary; perfect cue is a short excerpt.
+
+### Bright Bounce
+
+- **Name:** Bright Bounce
+- **Creator:** Jerimee
+- **Source:** [Original Freesound upload](https://freesound.org/people/Jerimee/sounds/527527/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/bright-bounce)
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (shown on the original upload)
+- **Local file:** `public/sounds/memes/bounce.mp3`
+- **Modifications / use:** Jump at 1.12× speed; comic slide/near-miss reactions at original speed; gain adjusted.
+
+### Fail.mp3
+
+- **Name:** Fail.mp3
+- **Creator:** LittleRainySeasons
+- **Source:** [Original Freesound upload](https://freesound.org/people/LittleRainySeasons/sounds/335906/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/failmp3)
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (shown on the original upload)
+- **Local file:** `public/sounds/memes/fail.mp3`
+- **Modifications / use:** Comic crash reaction; gain adjusted during playback.
+
+### Fanfare - Rpg
+
+- **Name:** Fanfare - Rpg
+- **Creator:** colorsCrimsonTears
+- **Source:** [Original Freesound upload](https://freesound.org/people/colorsCrimsonTears/sounds/566203/) · [SoundboardShop download](https://www.soundboardshop.com/en/instant/fanfare-rpg)
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (shown on the original upload)
+- **Local file:** `public/sounds/memes/fanfare.mp3`
+- **Modifications / use:** Level-up and new-record celebration; gain adjusted during playback.
+
+Public attribution is also shipped at `/sounds/credits.html`, linked from
+menu and pause settings. The CC BY 4.0 slide sound must retain its creator,
+source, license and modification credit in redistributed builds.
+
+The original procedural soundtrack remains synchronized with TAAL gameplay.
+Remaining speech/synth reactions are fallbacks and are configured in
+`src/game/config/memes.ts`. File effects are configured in
+`src/game/config/audioSamples.ts`; meme clips in
+`public/sounds/memes/manifest.json`. See that folder's README for extension rules.
